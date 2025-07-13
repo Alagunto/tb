@@ -184,6 +184,9 @@ func (b *Bot) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
 		m = appendMiddleware(b.group.middleware, m)
 	}
 
+	if _, ok := b.handlers[end]; ok {
+		panic("telebot: handler is already registered for endpoint " + end + ", overriding the existing handler is almost always a bug")
+	}
 	b.handlers[end] = func(c Context) error {
 		return applyMiddleware(h, m...)(c)
 	}
