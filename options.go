@@ -1,4 +1,4 @@
-package telebot
+package tb
 
 import (
 	"encoding/json"
@@ -226,7 +226,7 @@ func (b *Bot) embedSendOptions(params map[string]string, opt *SendOptions) {
 }
 
 func processButtons(keys [][]InlineButton) {
-	if keys == nil || len(keys) < 1 || len(keys[0]) < 1 {
+	if len(keys) < 1 || len(keys[0]) < 1 {
 		return
 	}
 

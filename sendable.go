@@ -1,7 +1,8 @@
-package telebot
+package tb
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -356,6 +357,32 @@ func (p *Poll) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 	params["options"] = string(opts)
 
 	data, err := b.Raw("sendPoll", params)
+	if err != nil {
+		return nil, err
+	}
+
+	return extractMessage(data)
+}
+
+func (c *Checklist) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+	params := map[string]string{
+		"chat_id": to.Recipient(),
+	}
+
+	b.embedSendOptions(params, opt)
+
+	paramsAny := map[string]interface{}{
+		"checklist": c,
+	}
+	for k, v := range params {
+		paramsAny[k] = v
+	}
+
+	if params["business_connection_id"] == "" {
+		return nil, errors.New("business_connection_id is required for sending a checklist")
+	}
+
+	data, err := b.Raw("sendChecklist", paramsAny)
 	if err != nil {
 		return nil, err
 	}

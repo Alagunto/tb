@@ -4,14 +4,14 @@ import (
 	"errors"
 	"log"
 
-	tele "gopkg.in/telebot.v4"
+	"github.com/alagunto/tb"
 )
 
 // AutoRespond returns a middleware that automatically responds
 // to every callback.
-func AutoRespond() tele.MiddlewareFunc {
-	return func(next tele.HandlerFunc) tele.HandlerFunc {
-		return func(c tele.Context) error {
+func AutoRespond() tb.MiddlewareFunc {
+	return func(next tb.HandlerFunc) tb.HandlerFunc {
+		return func(c tb.Context) error {
 			if c.Callback() != nil {
 				defer c.Respond()
 			}
@@ -22,9 +22,9 @@ func AutoRespond() tele.MiddlewareFunc {
 
 // IgnoreVia returns a middleware that ignores all the
 // "sent via" messages.
-func IgnoreVia() tele.MiddlewareFunc {
-	return func(next tele.HandlerFunc) tele.HandlerFunc {
-		return func(c tele.Context) error {
+func IgnoreVia() tb.MiddlewareFunc {
+	return func(next tb.HandlerFunc) tb.HandlerFunc {
+		return func(c tb.Context) error {
 			if msg := c.Message(); msg != nil && msg.Via != nil {
 				return nil
 			}
@@ -33,20 +33,20 @@ func IgnoreVia() tele.MiddlewareFunc {
 	}
 }
 
-type RecoverFunc = func(error, tele.Context)
+type RecoverFunc = func(error, tb.Context)
 
 // Recover returns a middleware that recovers a panic happened in
 // the handler.
-func Recover(onError ...RecoverFunc) tele.MiddlewareFunc {
-	return func(next tele.HandlerFunc) tele.HandlerFunc {
-		return func(c tele.Context) error {
+func Recover(onError ...RecoverFunc) tb.MiddlewareFunc {
+	return func(next tb.HandlerFunc) tb.HandlerFunc {
+		return func(c tb.Context) error {
 			var f RecoverFunc
 			if len(onError) > 0 {
 				f = onError[0]
-			} else if b, ok := c.Bot().(*tele.Bot); ok {
+			} else if b, ok := c.Bot().(*tb.Bot); ok {
 				f = b.OnError
 			} else {
-				f = func(err error, _ tele.Context) {
+				f = func(err error, _ tb.Context) {
 					log.Println("telebot/middleware/recover:", err)
 				}
 			}

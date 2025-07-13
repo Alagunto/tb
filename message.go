@@ -1,4 +1,4 @@
-package telebot
+package tb
 
 import (
 	"strconv"
@@ -160,6 +160,15 @@ type Message struct {
 
 	// For a poll, information the native poll.
 	Poll *Poll `json:"poll"`
+
+	// For a checklist or it's service messages, information about it.
+	Checklist *Checklist `json:"checklist"`
+
+	// For a checklist, information about tasks done.
+	ChecklistTasksDone *ChecklistTasksDone `json:"checklist_tasks_done"`
+
+	// For a checklist, information about tasks added.
+	ChecklistTasksAdded *ChecklistTasksAdded `json:"checklist_tasks_added"`
 
 	// For a game, information about it.
 	Game *Game `json:"game"`
@@ -488,6 +497,8 @@ func (m *Message) IsService() bool {
 	fact = fact || m.GroupPhotoDeleted
 	fact = fact || m.GroupCreated || m.SuperGroupCreated
 	fact = fact || (m.MigrateTo != m.MigrateFrom)
+	fact = fact || m.ChecklistTasksAdded != nil
+	fact = fact || m.ChecklistTasksDone != nil
 
 	return fact
 }
@@ -701,6 +712,9 @@ type ExternalReply struct {
 
 	// (Optional) Message is a native poll, information about the poll.
 	Poll *Poll `json:"poll"`
+
+	// (Optional) Message is a checklist, information about the checklist.
+	Checklist *Checklist `json:"checklist"`
 
 	// (Optional) Message is a shared location, information about the location.
 	Location *Location `json:"location"`

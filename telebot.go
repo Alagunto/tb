@@ -1,4 +1,4 @@
-// Package telebot is a framework for Telegram bots.
+// Package tb is a framework for Telegram bots.
 //
 // Example:
 //
@@ -24,7 +24,7 @@
 //
 //		b.Start()
 //	}
-package telebot
+package tb
 
 import "errors"
 

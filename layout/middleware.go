@@ -1,29 +1,29 @@
 package layout
 
 import (
-	tele "gopkg.in/telebot.v4"
+	"github.com/alagunto/tb"
 )
 
 // LocaleFunc is the function used to fetch the locale of the recipient.
 // Returned locale will be remembered and linked to the corresponding context.
-type LocaleFunc func(tele.Recipient) string
+type LocaleFunc func(tb.Recipient) string
 
 // Middleware builds a telebot middleware to make localization work.
 //
 // Usage:
 //
-//	b.Use(lt.Middleware("en", func(r tele.Recipient) string {
+//	b.Use(lt.Middleware("en", func(r tb.Recipient) string {
 //		loc, _ := db.UserLocale(r.Recipient())
 //		return loc
 //	}))
-func (lt *Layout) Middleware(defaultLocale string, localeFunc ...LocaleFunc) tele.MiddlewareFunc {
+func (lt *Layout) Middleware(defaultLocale string, localeFunc ...LocaleFunc) tb.MiddlewareFunc {
 	var f LocaleFunc
 	if len(localeFunc) > 0 {
 		f = localeFunc[0]
 	}
 
-	return func(next tele.HandlerFunc) tele.HandlerFunc {
-		return func(c tele.Context) error {
+	return func(next tb.HandlerFunc) tb.HandlerFunc {
+		return func(c tb.Context) error {
 			locale := defaultLocale
 			if f != nil {
 				if l := f(c.Sender()); l != "" {
@@ -45,6 +45,6 @@ func (lt *Layout) Middleware(defaultLocale string, localeFunc ...LocaleFunc) tel
 }
 
 // Middleware wraps ordinary layout middleware with your default locale.
-func (dlt *DefaultLayout) Middleware() tele.MiddlewareFunc {
+func (dlt *DefaultLayout) Middleware() tb.MiddlewareFunc {
 	return dlt.lt.Middleware(dlt.locale)
 }

@@ -1,4 +1,4 @@
-package telebot
+package tb
 
 import (
 	"context"
@@ -39,7 +39,6 @@ type WebhookEndpoint struct {
 // add the Webhook to a http-mux.
 //
 // If you want to ignore the automatic setWebhook call, you can set IgnoreSetWebhook to true.
-//
 type Webhook struct {
 	Listen           string   `json:"url"`
 	MaxConnections   int      `json:"max_connections"`

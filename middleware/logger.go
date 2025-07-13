@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"log"
 
-	tele "gopkg.in/telebot.v4"
+	"github.com/alagunto/tb"
 )
 
 // Logger returns a middleware that logs incoming updates.
 // If no custom logger provided, log.Default() will be used.
-func Logger(logger ...*log.Logger) tele.MiddlewareFunc {
+func Logger(logger ...*log.Logger) tb.MiddlewareFunc {
 	var l *log.Logger
 	if len(logger) > 0 {
 		l = logger[0]
@@ -17,8 +17,8 @@ func Logger(logger ...*log.Logger) tele.MiddlewareFunc {
 		l = log.Default()
 	}
 
-	return func(next tele.HandlerFunc) tele.HandlerFunc {
-		return func(c tele.Context) error {
+	return func(next tb.HandlerFunc) tb.HandlerFunc {
+		return func(c tb.Context) error {
 			data, _ := json.MarshalIndent(c.Update(), "", "  ")
 			l.Println(string(data))
 			return next(c)

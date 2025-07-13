@@ -1,7 +1,7 @@
 package layout
 
 import (
-	tele "gopkg.in/telebot.v4"
+	"github.com/alagunto/tb"
 )
 
 // DefaultLayout is a simplified layout instance with pre-defined locale by default.
@@ -13,7 +13,7 @@ type DefaultLayout struct {
 }
 
 // Settings returns layout settings.
-func (dlt *DefaultLayout) Settings() tele.Settings {
+func (dlt *DefaultLayout) Settings() tb.Settings {
 	return dlt.lt.Settings()
 }
 
@@ -23,21 +23,21 @@ func (dlt *DefaultLayout) Text(k string, args ...interface{}) string {
 }
 
 // Callback returns a callback endpoint used to handle buttons.
-func (dlt *DefaultLayout) Callback(k string) tele.CallbackEndpoint {
+func (dlt *DefaultLayout) Callback(k string) tb.CallbackEndpoint {
 	return dlt.lt.Callback(k)
 }
 
 // Button wraps localized layout function Button using your default locale.
-func (dlt *DefaultLayout) Button(k string, args ...interface{}) *tele.Btn {
+func (dlt *DefaultLayout) Button(k string, args ...interface{}) *tb.Btn {
 	return dlt.lt.ButtonLocale(dlt.locale, k, args...)
 }
 
 // Markup wraps localized layout function Markup using your default locale.
-func (dlt *DefaultLayout) Markup(k string, args ...interface{}) *tele.ReplyMarkup {
+func (dlt *DefaultLayout) Markup(k string, args ...interface{}) *tb.ReplyMarkup {
 	return dlt.lt.MarkupLocale(dlt.locale, k, args...)
 }
 
 // Result wraps localized layout function Result using your default locale.
-func (dlt *DefaultLayout) Result(k string, args ...interface{}) tele.Result {
+func (dlt *DefaultLayout) Result(k string, args ...interface{}) tb.Result {
 	return dlt.lt.ResultLocale(dlt.locale, k, args...)
 }

@@ -1,8 +1,9 @@
-package telebot
+package tb
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAlbumSetCaption(t *testing.T) {

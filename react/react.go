@@ -1,87 +1,87 @@
 package react
 
 import (
-	tele "gopkg.in/telebot.v4"
+	"github.com/alagunto/tb"
 )
 
-type Reaction = tele.Reaction
+type Reaction = tb.Reaction
 
-func React(r ...Reaction) tele.Reactions {
-	return tele.Reactions{Reactions: r}
+func React(r ...Reaction) tb.Reactions {
+	return tb.Reactions{Reactions: r}
 }
 
 // Currently available emojis.
 var (
-	ThumbUp                   = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "👍"}
-	ThumbDown                 = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "👎"}
-	Heart                     = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "❤"}
-	Fire                      = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🔥"}
-	HeartEyes                 = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😍"}
-	ClappingHands             = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "👏"}
-	GrinningFace              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😁"}
-	ThinkingFace              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤔"}
-	ExplodingHead             = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤯"}
-	ScreamingFace             = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😱"}
-	SwearingFace              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤬"}
-	CryingFace                = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😢"}
-	PartyPopper               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🎉"}
-	StarStruck                = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤩"}
-	VomitingFace              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤮"}
-	PileOfPoo                 = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "💩"}
-	PrayingHands              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🙏"}
-	OkHand                    = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "👌"}
-	DoveOfPeace               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🕊"}
-	ClownFace                 = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤡"}
-	YawningFace               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🥱"}
-	WoozyFace                 = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🥴"}
-	Whale                     = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🐳"}
-	HeartOnFire               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "❤‍🔥"}
-	MoonFace                  = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🌚"}
-	HotDog                    = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🌭"}
-	HundredPoints             = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "💯"}
-	RollingOnTheFloorLaughing = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤣"}
-	Lightning                 = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "⚡"}
-	Banana                    = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🍌"}
-	Trophy                    = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🏆"}
-	BrokenHeart               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "💔"}
-	FaceWithRaisedEyebrow     = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤨"}
-	NeutralFace               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😐"}
-	Strawberry                = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🍓"}
-	Champagne                 = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🍾"}
-	KissMark                  = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "💋"}
-	MiddleFinger              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🖕"}
-	EvilFace                  = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😈"}
-	SleepingFace              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😴"}
-	LoudlyCryingFace          = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😭"}
-	NerdFace                  = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤓"}
-	Ghost                     = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "👻"}
-	Engineer                  = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "👨‍💻"}
-	Eyes                      = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "👀"}
-	JackOLantern              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🎃"}
-	NoMonkey                  = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🙈"}
-	SmilingFaceWithHalo       = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😇"}
-	FearfulFace               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😨"}
-	Handshake                 = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤝"}
-	WritingHand               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "✍"}
-	HuggingFace               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤗"}
-	Brain                     = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🫡"}
-	SantaClaus                = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🎅"}
-	ChristmasTree             = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🎄"}
-	Snowman                   = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "☃"}
-	NailPolish                = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "💅"}
-	ZanyFace                  = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤪"}
-	Moai                      = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🗿"}
-	Cool                      = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🆒"}
-	HeartWithArrow            = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "💘"}
-	HearMonkey                = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🙉"}
-	Unicorn                   = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🦄"}
-	FaceBlowingKiss           = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😘"}
-	Pill                      = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "💊"}
-	SpeaklessMonkey           = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🙊"}
-	Sunglasses                = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😎"}
-	AlienMonster              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "👾"}
-	ManShrugging              = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤷‍♂️"}
-	PersonShrugging           = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤷"}
-	WomanShrugging            = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "🤷‍♀️"}
-	PoutingFace               = Reaction{Type: tele.ReactionTypeEmoji, Emoji: "😡"}
+	ThumbUp                   = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "👍"}
+	ThumbDown                 = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "👎"}
+	Heart                     = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "❤"}
+	Fire                      = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🔥"}
+	HeartEyes                 = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😍"}
+	ClappingHands             = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "👏"}
+	GrinningFace              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😁"}
+	ThinkingFace              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤔"}
+	ExplodingHead             = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤯"}
+	ScreamingFace             = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😱"}
+	SwearingFace              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤬"}
+	CryingFace                = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😢"}
+	PartyPopper               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🎉"}
+	StarStruck                = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤩"}
+	VomitingFace              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤮"}
+	PileOfPoo                 = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "💩"}
+	PrayingHands              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🙏"}
+	OkHand                    = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "👌"}
+	DoveOfPeace               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🕊"}
+	ClownFace                 = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤡"}
+	YawningFace               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🥱"}
+	WoozyFace                 = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🥴"}
+	Whale                     = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🐳"}
+	HeartOnFire               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "❤‍🔥"}
+	MoonFace                  = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🌚"}
+	HotDog                    = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🌭"}
+	HundredPoints             = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "💯"}
+	RollingOnTheFloorLaughing = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤣"}
+	Lightning                 = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "⚡"}
+	Banana                    = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🍌"}
+	Trophy                    = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🏆"}
+	BrokenHeart               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "💔"}
+	FaceWithRaisedEyebrow     = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤨"}
+	NeutralFace               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😐"}
+	Strawberry                = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🍓"}
+	Champagne                 = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🍾"}
+	KissMark                  = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "💋"}
+	MiddleFinger              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🖕"}
+	EvilFace                  = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😈"}
+	SleepingFace              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😴"}
+	LoudlyCryingFace          = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😭"}
+	NerdFace                  = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤓"}
+	Ghost                     = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "👻"}
+	Engineer                  = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "👨‍💻"}
+	Eyes                      = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "👀"}
+	JackOLantern              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🎃"}
+	NoMonkey                  = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🙈"}
+	SmilingFaceWithHalo       = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😇"}
+	FearfulFace               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😨"}
+	Handshake                 = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤝"}
+	WritingHand               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "✍"}
+	HuggingFace               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤗"}
+	Brain                     = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🫡"}
+	SantaClaus                = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🎅"}
+	ChristmasTree             = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🎄"}
+	Snowman                   = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "☃"}
+	NailPolish                = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "💅"}
+	ZanyFace                  = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤪"}
+	Moai                      = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🗿"}
+	Cool                      = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🆒"}
+	HeartWithArrow            = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "💘"}
+	HearMonkey                = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🙉"}
+	Unicorn                   = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🦄"}
+	FaceBlowingKiss           = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😘"}
+	Pill                      = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "💊"}
+	SpeaklessMonkey           = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🙊"}
+	Sunglasses                = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😎"}
+	AlienMonster              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "👾"}
+	ManShrugging              = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤷‍♂️"}
+	PersonShrugging           = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤷"}
+	WomanShrugging            = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "🤷‍♀️"}
+	PoutingFace               = Reaction{Type: tb.ReactionTypeEmoji, Emoji: "😡"}
 )

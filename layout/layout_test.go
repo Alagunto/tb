@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alagunto/tb"
 	"github.com/stretchr/testify/assert"
-	tele "gopkg.in/telebot.v4"
 )
 
 //go:embed *
@@ -28,11 +28,11 @@ func TestLayout(t *testing.T) {
 
 	pref := lt.Settings()
 	assert.Equal(t, "TEST", pref.Token)
-	assert.Equal(t, tele.ModeHTML, pref.ParseMode)
-	assert.Equal(t, &tele.LongPoller{}, pref.Poller)
+	assert.Equal(t, tb.ModeHTML, pref.ParseMode)
+	assert.Equal(t, &tb.LongPoller{}, pref.Poller)
 	assert.Equal(t, pref, ltfs.Settings())
 
-	assert.ElementsMatch(t, []tele.Command{{
+	assert.ElementsMatch(t, []tb.Command{{
 		Text:        "start",
 		Description: "Start the bot",
 	}, {
@@ -44,7 +44,7 @@ func TestLayout(t *testing.T) {
 	assert.Equal(t, 123, lt.Int("num"))
 	assert.Equal(t, int64(123), lt.Int64("num"))
 	assert.Equal(t, float64(123), lt.Float("num"))
-	assert.Equal(t, tele.ChatID(123), lt.ChatID("num"))
+	assert.Equal(t, tb.ChatID(123), lt.ChatID("num"))
 
 	assert.Equal(t, []string{"abc", "def"}, lt.Strings("strs"))
 	assert.Equal(t, []int{123, 456}, lt.Ints("nums"))
@@ -65,7 +65,7 @@ func TestLayout(t *testing.T) {
 		assert.Equal(t, dur, v.Duration("dur"))
 	}
 
-	assert.Equal(t, &tele.Btn{
+	assert.Equal(t, &tb.Btn{
 		Unique: "pay",
 		Text:   "Pay",
 		Data:   "1|100.00|USD",
@@ -79,22 +79,22 @@ func TestLayout(t *testing.T) {
 		Currency: "USD",
 	}))
 
-	assert.Equal(t, &tele.ReplyMarkup{
-		ReplyKeyboard: [][]tele.ReplyButton{
+	assert.Equal(t, &tb.ReplyMarkup{
+		ReplyKeyboard: [][]tb.ReplyButton{
 			{{Text: "Help"}},
 			{{Text: "Settings"}},
 		},
 		ResizeKeyboard: true,
 	}, lt.MarkupLocale("en", "reply_shortened"))
 
-	assert.Equal(t, &tele.ReplyMarkup{
-		ReplyKeyboard:   [][]tele.ReplyButton{{{Text: "Send a contact", Contact: true}}},
+	assert.Equal(t, &tb.ReplyMarkup{
+		ReplyKeyboard:   [][]tb.ReplyButton{{{Text: "Send a contact", Contact: true}}},
 		ResizeKeyboard:  true,
 		OneTimeKeyboard: true,
 	}, lt.MarkupLocale("en", "reply_extended"))
 
-	assert.Equal(t, &tele.ReplyMarkup{
-		InlineKeyboard: [][]tele.InlineButton{{
+	assert.Equal(t, &tb.ReplyMarkup{
+		InlineKeyboard: [][]tb.InlineButton{{
 			{
 				Unique: "stop",
 				Text:   "Stop",
@@ -103,17 +103,17 @@ func TestLayout(t *testing.T) {
 		}},
 	}, lt.MarkupLocale("en", "inline", 1))
 
-	assert.Equal(t, &tele.ReplyMarkup{
-		InlineKeyboard: [][]tele.InlineButton{{
+	assert.Equal(t, &tb.ReplyMarkup{
+		InlineKeyboard: [][]tb.InlineButton{{
 			{
 				Text:   "This is a web app",
-				WebApp: &tele.WebApp{URL: "https://google.com"},
+				WebApp: &tb.WebApp{URL: "https://google.com"},
 			},
 		}},
 	}, lt.MarkupLocale("en", "web_app"))
 
-	assert.Equal(t, &tele.ArticleResult{
-		ResultBase: tele.ResultBase{
+	assert.Equal(t, &tb.ArticleResult{
+		ResultBase: tb.ResultBase{
 			ID:   "1853",
 			Type: "article",
 		},

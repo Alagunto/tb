@@ -1,4 +1,4 @@
-package telebot
+package tb
 
 import (
 	"encoding/json"
@@ -523,9 +523,17 @@ func (b *Bot) CopyMany(to Recipient, msgs []Editable, opts ...*SendOptions) ([]M
 //	b.Edit(r, "edit message from chosen inline result")
 func (b *Bot) Edit(msg Editable, what interface{}, opts ...interface{}) (*Message, error) {
 	var (
-		method string
-		params = make(map[string]string)
+		method       string
+		paramsString = make(map[string]string)
+		params       = make(map[string]interface{})
 	)
+
+	sendOpts := b.extractOptions(opts)
+	b.embedSendOptions(paramsString, sendOpts)
+
+	for k, v := range paramsString {
+		params[k] = v
+	}
 
 	switch v := what.(type) {
 	case *ReplyMarkup:
@@ -535,6 +543,9 @@ func (b *Bot) Edit(msg Editable, what interface{}, opts ...interface{}) (*Messag
 	case string:
 		method = "editMessageText"
 		params["text"] = v
+	case Checklist:
+		method = "editMessageChecklist"
+		params["checklist"] = v
 	case Location:
 		method = "editMessageLiveLocation"
 		params["latitude"] = fmt.Sprintf("%f", v.Lat)
@@ -564,9 +575,6 @@ func (b *Bot) Edit(msg Editable, what interface{}, opts ...interface{}) (*Messag
 		params["chat_id"] = strconv.FormatInt(chatID, 10)
 		params["message_id"] = msgID
 	}
-
-	sendOpts := b.extractOptions(opts)
-	b.embedSendOptions(params, sendOpts)
 
 	data, err := b.Raw(method, params)
 	if err != nil {

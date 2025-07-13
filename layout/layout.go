@@ -10,17 +10,17 @@ import (
 	"sync"
 	"text/template"
 
+	"github.com/alagunto/tb"
 	"github.com/goccy/go-yaml"
-	tele "gopkg.in/telebot.v4"
 )
 
 type (
 	// Layout provides an interface to interact with the layout,
 	// parsed from the config file and locales.
 	Layout struct {
-		pref  *tele.Settings
+		pref  *tb.Settings
 		mu    sync.RWMutex // protects ctxs
-		ctxs  map[tele.Context]string
+		ctxs  map[tb.Context]string
 		funcs template.FuncMap
 
 		commands map[string]string
@@ -32,11 +32,11 @@ type (
 		Config
 	}
 
-	// Button is a shortcut for tele.Btn.
+	// Button is a shortcut for tb.Btn.
 	Button struct {
-		tele.Btn `yaml:",inline"`
-		Data     interface{} `yaml:"data"`
-		IsReply  bool        `yaml:"reply"`
+		tb.Btn  `yaml:",inline"`
+		Data    interface{} `yaml:"data"`
+		IsReply bool        `yaml:"reply"`
 	}
 
 	// Markup represents layout-specific markup to be parsed.
@@ -52,16 +52,16 @@ type (
 
 	// Result represents layout-specific result to be parsed.
 	Result struct {
-		result          *template.Template
-		tele.ResultBase `yaml:",inline"`
-		Content         ResultContent `yaml:"content"`
-		Markup          string        `yaml:"markup"`
+		result        *template.Template
+		tb.ResultBase `yaml:",inline"`
+		Content       ResultContent `yaml:"content"`
+		Markup        string        `yaml:"markup"`
 	}
 
 	// ResultBase represents layout-specific result's base to be parsed.
 	ResultBase struct {
-		tele.ResultBase `yaml:",inline"`
-		Content         ResultContent `yaml:"content"`
+		tb.ResultBase `yaml:",inline"`
+		Content       ResultContent `yaml:"content"`
 	}
 
 	// ResultContent represents any kind of InputMessageContent and implements it.
@@ -89,7 +89,7 @@ func NewFromFS(fsys fs.FS, path string, funcs ...template.FuncMap) (*Layout, err
 
 func rawNew(data []byte, funcs ...template.FuncMap) (*Layout, error) {
 	lt := Layout{
-		ctxs:  make(map[tele.Context]string),
+		ctxs:  make(map[tb.Context]string),
 		funcs: make(template.FuncMap),
 	}
 
@@ -139,7 +139,7 @@ var builtinFuncs = template.FuncMap{
 //	lt, err := layout.New("bot.yml")
 //	b, err := tele.NewBot(lt.Settings())
 //	// That's all!
-func (lt *Layout) Settings() tele.Settings {
+func (lt *Layout) Settings() tb.Settings {
 	if lt.pref == nil {
 		panic("telebot/layout: settings is empty")
 	}
@@ -167,7 +167,7 @@ func (lt *Layout) Locales() []string {
 }
 
 // Locale returns the context locale.
-func (lt *Layout) Locale(c tele.Context) (string, bool) {
+func (lt *Layout) Locale(c tb.Context) (string, bool) {
 	lt.mu.RLock()
 	defer lt.mu.RUnlock()
 	locale, ok := lt.ctxs[c]
@@ -175,7 +175,7 @@ func (lt *Layout) Locale(c tele.Context) (string, bool) {
 }
 
 // SetLocale allows you to change a locale for the passed context.
-func (lt *Layout) SetLocale(c tele.Context, locale string) {
+func (lt *Layout) SetLocale(c tb.Context, locale string) {
 	lt.mu.Lock()
 	lt.ctxs[c] = locale
 	lt.mu.Unlock()
@@ -183,9 +183,9 @@ func (lt *Layout) SetLocale(c tele.Context, locale string) {
 
 // Commands returns a list of telebot commands, which can be
 // used in b.SetCommands later.
-func (lt *Layout) Commands() (cmds []tele.Command) {
+func (lt *Layout) Commands() (cmds []tb.Command) {
 	for k, v := range lt.commands {
-		cmds = append(cmds, tele.Command{
+		cmds = append(cmds, tb.Command{
 			Text:        strings.TrimLeft(k, "/"),
 			Description: v,
 		})
@@ -213,7 +213,7 @@ func (lt *Layout) Commands() (cmds []tele.Command) {
 //
 //	b.SetCommands(lt.CommandsLocale("en"), "en")
 //	b.SetCommands(lt.CommandsLocale("ru"), "ru")
-func (lt *Layout) CommandsLocale(locale string, args ...interface{}) (cmds []tele.Command) {
+func (lt *Layout) CommandsLocale(locale string, args ...interface{}) (cmds []tb.Command) {
 	var arg interface{}
 	if len(args) > 0 {
 		arg = args[0]
@@ -232,7 +232,7 @@ func (lt *Layout) CommandsLocale(locale string, args ...interface{}) (cmds []tel
 			return nil
 		}
 
-		cmds = append(cmds, tele.Command{
+		cmds = append(cmds, tb.Command{
 			Text:        strings.TrimLeft(k, "/"),
 			Description: buf.String(),
 		})
@@ -249,10 +249,10 @@ func (lt *Layout) CommandsLocale(locale string, args ...interface{}) (cmds []tel
 //
 // Usage:
 //
-//	func onStart(c tele.Context) error {
+//	func onStart(c tb.Context) error {
 //		return c.Send(lt.Text(c, "start", c.Sender()))
 //	}
-func (lt *Layout) Text(c tele.Context, k string, args ...interface{}) string {
+func (lt *Layout) Text(c tb.Context, k string, args ...interface{}) string {
 	locale, ok := lt.Locale(c)
 	if !ok {
 		return ""
@@ -288,7 +288,7 @@ func (lt *Layout) TextLocale(locale, k string, args ...interface{}) string {
 //
 //	// Handling settings button
 //	b.Handle(lt.Callback("settings"), onSettings)
-func (lt *Layout) Callback(k string) tele.CallbackEndpoint {
+func (lt *Layout) Callback(k string) tb.CallbackEndpoint {
 	btn, ok := lt.buttons[k]
 	if !ok {
 		return nil
@@ -307,7 +307,7 @@ func (lt *Layout) Callback(k string) tele.CallbackEndpoint {
 //
 // Usage:
 //
-//	btns := make([]tele.Btn, len(items))
+//	btns := make([]tb.Btn, len(items))
 //	for i, item := range items {
 //		btns[i] = lt.Button(c, "item", struct {
 //			Number int
@@ -321,7 +321,7 @@ func (lt *Layout) Callback(k string) tele.CallbackEndpoint {
 //	m := b.NewMarkup()
 //	m.Inline(m.Row(btns...))
 //	// Your generated markup is ready.
-func (lt *Layout) Button(c tele.Context, k string, args ...interface{}) *tele.Btn {
+func (lt *Layout) Button(c tb.Context, k string, args ...interface{}) *tb.Btn {
 	locale, ok := lt.Locale(c)
 	if !ok {
 		return nil
@@ -332,7 +332,7 @@ func (lt *Layout) Button(c tele.Context, k string, args ...interface{}) *tele.Bt
 
 // ButtonLocale returns a localized button processed with text/template engine.
 // See Button for more details.
-func (lt *Layout) ButtonLocale(locale, k string, args ...interface{}) *tele.Btn {
+func (lt *Layout) ButtonLocale(locale, k string, args ...interface{}) *tb.Btn {
 	btn, ok := lt.buttons[k]
 	if !ok {
 		return nil
@@ -380,13 +380,13 @@ func (lt *Layout) ButtonLocale(locale, k string, args ...interface{}) *tele.Btn 
 //
 // Usage:
 //
-//	func onStart(c tele.Context) error {
+//	func onStart(c tb.Context) error {
 //		return c.Send(
 //			lt.Text(c, "start"),
 //			lt.Markup(c, "menu"),
 //		)
 //	}
-func (lt *Layout) Markup(c tele.Context, k string, args ...interface{}) *tele.ReplyMarkup {
+func (lt *Layout) Markup(c tb.Context, k string, args ...interface{}) *tb.ReplyMarkup {
 	locale, ok := lt.Locale(c)
 	if !ok {
 		return nil
@@ -397,7 +397,7 @@ func (lt *Layout) Markup(c tele.Context, k string, args ...interface{}) *tele.Re
 
 // MarkupLocale returns a localized markup processed with text/template engine.
 // See Markup for more details.
-func (lt *Layout) MarkupLocale(locale, k string, args ...interface{}) *tele.ReplyMarkup {
+func (lt *Layout) MarkupLocale(locale, k string, args ...interface{}) *tb.ReplyMarkup {
 	markup, ok := lt.markups[k]
 	if !ok {
 		return nil
@@ -413,7 +413,7 @@ func (lt *Layout) MarkupLocale(locale, k string, args ...interface{}) *tele.Repl
 		log.Println("telebot/layout:", err)
 	}
 
-	r := &tele.ReplyMarkup{}
+	r := &tb.ReplyMarkup{}
 	if *markup.inline {
 		if err := yaml.Unmarshal(buf.Bytes(), &r.InlineKeyboard); err != nil {
 			log.Println("telebot/layout:", err)
@@ -447,17 +447,17 @@ func (lt *Layout) MarkupLocale(locale, k string, args ...interface{}) *tele.Repl
 //
 // Usage:
 //
-//	func onQuery(c tele.Context) error {
-//		results := make(tele.Results, len(articles))
+//	func onQuery(c tb.Context) error {
+//		results := make(tb.Results, len(articles))
 //		for i, article := range articles {
 //			results[i] = lt.Result(c, "article", article)
 //		}
-//		return c.Answer(&tele.QueryResponse{
+//		return c.Answer(&tb.QueryResponse{
 //			Results:   results,
 //			CacheTime: 100,
 //		})
 //	}
-func (lt *Layout) Result(c tele.Context, k string, args ...interface{}) tele.Result {
+func (lt *Layout) Result(c tb.Context, k string, args ...interface{}) tb.Result {
 	locale, ok := lt.Locale(c)
 	if !ok {
 		return nil
@@ -468,7 +468,7 @@ func (lt *Layout) Result(c tele.Context, k string, args ...interface{}) tele.Res
 
 // ResultLocale returns a localized result processed with text/template engine.
 // See Result for more details.
-func (lt *Layout) ResultLocale(locale, k string, args ...interface{}) tele.Result {
+func (lt *Layout) ResultLocale(locale, k string, args ...interface{}) tb.Result {
 	result, ok := lt.results[k]
 	if !ok {
 		return nil
@@ -487,7 +487,7 @@ func (lt *Layout) ResultLocale(locale, k string, args ...interface{}) tele.Resul
 	var (
 		data = buf.Bytes()
 		base Result
-		r    tele.Result
+		r    tb.Result
 	)
 
 	if err := yaml.Unmarshal(data, &base); err != nil {
@@ -496,62 +496,62 @@ func (lt *Layout) ResultLocale(locale, k string, args ...interface{}) tele.Resul
 
 	switch base.Type {
 	case "article":
-		r = &tele.ArticleResult{ResultBase: base.ResultBase}
+		r = &tb.ArticleResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "audio":
-		r = &tele.AudioResult{ResultBase: base.ResultBase}
+		r = &tb.AudioResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "contact":
-		r = &tele.ContactResult{ResultBase: base.ResultBase}
+		r = &tb.ContactResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "document":
-		r = &tele.DocumentResult{ResultBase: base.ResultBase}
+		r = &tb.DocumentResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "gif":
-		r = &tele.GifResult{ResultBase: base.ResultBase}
+		r = &tb.GifResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "location":
-		r = &tele.LocationResult{ResultBase: base.ResultBase}
+		r = &tb.LocationResult{ResultBase: base.ResultBase}
 		if err := json.Unmarshal(data, &r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "mpeg4_gif":
-		r = &tele.Mpeg4GifResult{ResultBase: base.ResultBase}
+		r = &tb.Mpeg4GifResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "photo":
-		r = &tele.PhotoResult{ResultBase: base.ResultBase}
+		r = &tb.PhotoResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "venue":
-		r = &tele.VenueResult{ResultBase: base.ResultBase}
+		r = &tb.VenueResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "video":
-		r = &tele.VideoResult{ResultBase: base.ResultBase}
+		r = &tb.VideoResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "voice":
-		r = &tele.VoiceResult{ResultBase: base.ResultBase}
+		r = &tb.VoiceResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}
 	case "sticker":
-		r = &tele.StickerResult{ResultBase: base.ResultBase}
+		r = &tb.StickerResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			log.Println("telebot/layout:", err)
 		}

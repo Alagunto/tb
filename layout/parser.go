@@ -8,9 +8,9 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/alagunto/tb"
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/viper"
-	tele "gopkg.in/telebot.v4"
 )
 
 type Settings struct {
@@ -22,8 +22,8 @@ type Settings struct {
 	TokenEnv   string `yaml:"token_env"`
 	ParseMode  string `yaml:"parse_mode"`
 
-	Webhook    *tele.Webhook    `yaml:"webhook"`
-	LongPoller *tele.LongPoller `yaml:"long_poller"`
+	Webhook    *tb.Webhook    `yaml:"webhook"`
+	LongPoller *tb.LongPoller `yaml:"long_poller"`
 }
 
 func (lt *Layout) UnmarshalYAML(data []byte) error {
@@ -49,7 +49,7 @@ func (lt *Layout) UnmarshalYAML(data []byte) error {
 	lt.commands = aux.Commands
 
 	if pref := aux.Settings; pref != nil {
-		lt.pref = &tele.Settings{
+		lt.pref = &tb.Settings{
 			URL:       pref.URL,
 			Token:     pref.Token,
 			Updates:   pref.Updates,
@@ -74,7 +74,7 @@ func (lt *Layout) UnmarshalYAML(data []byte) error {
 		// 1. Shortened reply button
 
 		if v, ok := v.(string); ok {
-			btn := tele.Btn{Text: v}
+			btn := tb.Btn{Text: v}
 			lt.buttons[k] = Button{Btn: btn}
 			continue
 		}
@@ -175,9 +175,9 @@ func (lt *Layout) UnmarshalYAML(data []byte) error {
 				return err
 			}
 
-			kb := make([][]tele.ReplyButton, len(markup.Keyboard))
+			kb := make([][]tb.ReplyButton, len(markup.Keyboard))
 			for i, btns := range markup.Keyboard {
-				row := make([]tele.ReplyButton, len(btns))
+				row := make([]tb.ReplyButton, len(btns))
 				for j, btn := range btns {
 					row[j] = *lt.buttons[btn].Reply()
 				}
