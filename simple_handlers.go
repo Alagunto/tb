@@ -1,13 +1,13 @@
 package tb
 
-func NewTextReplyAsHTMLHandler(html string, opts ...interface{}) HandlerFunc {
+func NewHTMLReplyHandler(html string, opts ...interface{}) HandlerFunc {
 	opts = append(opts, &SendOptions{ParseMode: ModeHTML})
 	return func(c Context) error {
 		return c.Reply(html, opts...)
 	}
 }
 
-func NewTextReplyAsMarkdownHandler(markdown string, opts ...interface{}) HandlerFunc {
+func NewMarkdownReplyHandler(markdown string, opts ...interface{}) HandlerFunc {
 	opts = append(opts, &SendOptions{ParseMode: ModeMarkdown})
 	return func(c Context) error {
 		return c.Reply(markdown, opts...)
