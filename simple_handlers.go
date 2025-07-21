@@ -1,14 +1,14 @@
 package tb
 
 func HTMLReply(html string, opts ...interface{}) HandlerFunc {
-	opts = append(opts, &SendOptions{ParseMode: ModeHTML})
+	opts = append(opts, ParseMode(ModeHTML))
 	return func(c Context) error {
 		return c.Reply(html, opts...)
 	}
 }
 
 func MarkdownReply(markdown string, opts ...interface{}) HandlerFunc {
-	opts = append(opts, &SendOptions{ParseMode: ModeMarkdown})
+	opts = append(opts, ParseMode(ModeMarkdown))
 	return func(c Context) error {
 		return c.Reply(markdown, opts...)
 	}
