@@ -7,6 +7,13 @@ func HTMLReply(html string, opts ...interface{}) HandlerFunc {
 	}
 }
 
+func HTMLEdit(html string, opts ...interface{}) HandlerFunc {
+	opts = append(opts, ParseMode(ModeHTML))
+	return func(c Context) error {
+		return c.Edit(html, opts...)
+	}
+}
+
 func MarkdownReply(markdown string, opts ...interface{}) HandlerFunc {
 	opts = append(opts, ParseMode(ModeMarkdown))
 	return func(c Context) error {
@@ -14,9 +21,22 @@ func MarkdownReply(markdown string, opts ...interface{}) HandlerFunc {
 	}
 }
 
+func MarkdownEdit(markdown string, opts ...interface{}) HandlerFunc {
+	opts = append(opts, ParseMode(ModeMarkdown))
+	return func(c Context) error {
+		return c.Edit(markdown, opts...)
+	}
+}
+
 func TextReply(text string, opts ...interface{}) HandlerFunc {
 	return func(c Context) error {
 		return c.Reply(text, opts...)
+	}
+}
+
+func TextEdit(text string, opts ...interface{}) HandlerFunc {
+	return func(c Context) error {
+		return c.Edit(text, opts...)
 	}
 }
 
