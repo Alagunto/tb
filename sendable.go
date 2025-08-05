@@ -422,6 +422,21 @@ func (g *Game) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 	return extractMessage(data)
 }
 
+// Send delivers outgoing message through bot b to recipient.
+func (o *OutgoingMessage) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+	params := map[string]string{
+		"chat_id": to.Recipient(),
+	}
+	b.embedSendOptions(params, opt)
+
+	msg, err := b.sendText(to, o.Message, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	return msg, nil
+}
+
 func thumbnailToFilemap(thumb *Photo) map[string]File {
 	if thumb != nil {
 		return map[string]File{"thumbnail": thumb.File}
