@@ -35,6 +35,11 @@ func NewBot(pref Settings) (*Bot, error) {
 	if pref.OnError == nil {
 		pref.OnError = defaultOnError
 	}
+	if pref.ContextWrapper == nil {
+		pref.ContextWrapper = func(c Context) Context {
+			return c
+		}
+	}
 
 	bot := &Bot{
 		Token:   pref.Token,
@@ -50,6 +55,8 @@ func NewBot(pref Settings) (*Bot, error) {
 		verbose:     pref.Verbose,
 		parseMode:   pref.ParseMode,
 		client:      client,
+
+		contextWrapper: pref.ContextWrapper,
 	}
 
 	if pref.Offline {
@@ -67,13 +74,15 @@ func NewBot(pref Settings) (*Bot, error) {
 }
 
 // Bot represents a separate Telegram bot instance.
-type Bot struct {
+type PolyContextBot[T any] struct {
 	Me      *User
 	Token   string
 	URL     string
 	Updates chan Update
 	Poller  Poller
 	onError func(error, Context)
+
+	contextWrapper func(Context) T
 
 	group       *Group
 	handlers    map[string]HandlerFunc
@@ -87,11 +96,16 @@ type Bot struct {
 	stopClient chan struct{}
 }
 
+type Bot PolyContextBot[Context]
+
 // Settings represents a utility struct for passing certain
 // properties of a bot around and is required to make bots.
-type Settings struct {
+type PolySettings[T Context] struct {
 	URL   string
 	Token string
+
+	// ContextWrapper is a function that wraps the context.
+	ContextWrapper func(Context) T
 
 	// Updates channel capacity, defaulted to 100.
 	Updates int
@@ -123,6 +137,8 @@ type Settings struct {
 	// Offline allows to create a bot without network for testing purposes.
 	Offline bool
 }
+
+type Settings PolySettings[Context]
 
 var defaultOnError = func(err error, c Context) {
 	if c != nil {
@@ -269,7 +285,7 @@ func (b *Bot) NewMarkup() *ReplyMarkup {
 // NewContext returns a new native context object,
 // field by the passed update.
 func (b *Bot) NewContext(u Update) Context {
-	return NewContext(b, u)
+	return b.contextWrapper(NewContext(b, u))
 }
 
 // Send accepts 2+ arguments, starting with destination chat, followed by
