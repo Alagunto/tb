@@ -2,7 +2,7 @@ package tb
 
 type PolybotSidecar[T Context] struct {
 	*Bot
-	contextWrapper func(Context) T
+	contextWrapper func(Context) (T, error)
 }
 
 func NewPolyContextBot[T Context](polySettings PolySettings[T]) (*PolybotSidecar[T], error) {

@@ -33,7 +33,12 @@ type Update struct {
 // ProcessUpdate processes a single incoming update.
 // A started bot calls this function automatically.
 func (b *Bot) ProcessUpdate(u Update) {
-	b.ProcessContext(b.NewContext(u))
+	ctx, err := b.NewContext(u)
+	if err != nil {
+		b.OnError(err, nil)
+		return
+	}
+	b.ProcessContext(ctx)
 }
 
 // ProcessContext processes the given context.

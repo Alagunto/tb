@@ -36,8 +36,8 @@ func NewBot(pref Settings) (*Bot, error) {
 		pref.OnError = defaultOnError
 	}
 	if pref.ContextWrapper == nil {
-		pref.ContextWrapper = func(c Context) Context {
-			return c
+		pref.ContextWrapper = func(c Context) (Context, error) {
+			return c, nil
 		}
 	}
 
@@ -82,7 +82,7 @@ type PolyContextBot[T any] struct {
 	Poller  Poller
 	onError func(error, Context)
 
-	contextWrapper func(Context) T
+	contextWrapper func(Context) (T, error)
 
 	group       *Group
 	handlers    map[string]HandlerFunc
@@ -105,7 +105,9 @@ type PolySettings[T Context] struct {
 	Token string
 
 	// ContextWrapper is a function that wraps the context.
-	ContextWrapper func(Context) T
+	// Func is called for every new context (each update processed)
+	// If error is returned, the context is discarded, no handlers are executed.
+	ContextWrapper func(Context) (T, error)
 
 	// Updates channel capacity, defaulted to 100.
 	Updates int
@@ -284,7 +286,7 @@ func (b *Bot) NewMarkup() *ReplyMarkup {
 
 // NewContext returns a new native context object,
 // field by the passed update.
-func (b *Bot) NewContext(u Update) Context {
+func (b *Bot) NewContext(u Update) (Context, error) {
 	return b.contextWrapper(NewContext(b, u))
 }
 
