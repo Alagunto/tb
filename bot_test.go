@@ -130,7 +130,7 @@ func TestBotStart(t *testing.T) {
 	go b.Start()
 	b.Stop()
 
-	tp := newTestPoller()
+	tp := newTestPoller[usedCtx, usedHandlerFunc, usedMiddlewareFunc]()
 	go func() {
 		tp.updates <- Update{Message: &Message{Text: "/start"}}
 	}()
@@ -375,8 +375,8 @@ func TestBotOnError(t *testing.T) {
 	}
 
 	var ok bool
-	b.onError = func(err error, c ContextInterface) {
-		assert.Equal(t, b, c.(*nativeContext).b)
+	b.onError = func(err error, c usedCtx) {
+		assert.Equal(t, b, c.Bot())
 		assert.NotNil(t, err)
 		ok = true
 	}

@@ -3,7 +3,7 @@ package tb
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 )
@@ -59,7 +59,7 @@ type Webhook struct {
 	Endpoint *WebhookEndpoint
 
 	dest chan<- Update
-	bot  *Bot
+	bot  API
 }
 
 func (h *Webhook) getFiles() map[string]File {
@@ -119,11 +119,11 @@ func (h *Webhook) getParams() map[string]string {
 	return params
 }
 
-func (h *Webhook) Poll(b *Bot, dest chan Update, stop chan struct{}) {
+func (h *Webhook) Poll(b API, dest chan Update, stop chan struct{}) {
 	// by default, the set webhook method will be called, to ignore it, set IgnoreSetWebhook to true
 	if !h.IgnoreSetWebhook {
 		if err := b.SetWebhook(h); err != nil {
-			b.OnError(err, nil)
+			slog.Error("failed to set webhook", slog.Any("error", err))
 			close(stop)
 			return
 		}
@@ -164,20 +164,20 @@ func (h *Webhook) waitForStop(stop chan struct{}) {
 // and writes them to the update channel.
 func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.SecretToken != "" && r.Header.Get("X-Telegram-Bot-Api-Secret-Token") != h.SecretToken {
-		h.bot.debug(fmt.Errorf("invalid secret token in request"))
+		slog.Error("invalid secret token in request")
 		return
 	}
 
 	var update Update
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		h.bot.debug(fmt.Errorf("cannot decode update: %v", err))
+		slog.Error("cannot decode update", slog.Any("error", err))
 		return
 	}
 	h.dest <- update
 }
 
 // Webhook returns the current webhook status.
-func (b *Bot) Webhook() (*Webhook, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Webhook() (*Webhook, error) {
 	data, err := b.Raw("getWebhookInfo", nil)
 	if err != nil {
 		return nil, err
@@ -194,13 +194,13 @@ func (b *Bot) Webhook() (*Webhook, error) {
 
 // SetWebhook configures a bot to receive incoming
 // updates via an outgoing webhook.
-func (b *Bot) SetWebhook(w *Webhook) error {
-	_, err := b.sendFiles("setWebhook", w.getFiles(), w.getParams())
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetWebhook(w *Webhook) error {
+	_, err := b.RawSendFiles("setWebhook", w.getFiles(), w.getParams())
 	return err
 }
 
 // RemoveWebhook removes webhook integration.
-func (b *Bot) RemoveWebhook(dropPending ...bool) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RemoveWebhook(dropPending ...bool) error {
 	drop := false
 	if len(dropPending) > 0 {
 		drop = dropPending[0]

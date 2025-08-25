@@ -69,13 +69,13 @@ type MaskPosition struct {
 }
 
 // UploadSticker uploads a sticker file for later use.
-func (b *Bot) UploadSticker(to Recipient, format StickerSetFormat, f File) (*File, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) UploadSticker(to Recipient, format StickerSetFormat, f File) (*File, error) {
 	params := map[string]string{
 		"user_id":        to.Recipient(),
 		"sticker_format": format,
 	}
 
-	data, err := b.sendFiles("uploadStickerFile", map[string]File{"0": f}, params)
+	data, err := b.RawSendFiles("uploadStickerFile", map[string]File{"0": f}, params)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (b *Bot) UploadSticker(to Recipient, format StickerSetFormat, f File) (*Fil
 }
 
 // StickerSet returns a sticker set on success.
-func (b *Bot) StickerSet(name string) (*StickerSet, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) StickerSet(name string) (*StickerSet, error) {
 	data, err := b.Raw("getStickerSet", map[string]string{"name": name})
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (b *Bot) StickerSet(name string) (*StickerSet, error) {
 }
 
 // CreateStickerSet creates a new sticker set.
-func (b *Bot) CreateStickerSet(of Recipient, set *StickerSet) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CreateStickerSet(of Recipient, set *StickerSet) error {
 	files := make(map[string]File)
 	for i, s := range set.Input {
 		repr := s.File.process(strconv.Itoa(i), files)
@@ -131,7 +131,7 @@ func (b *Bot) CreateStickerSet(of Recipient, set *StickerSet) error {
 		params["needs_repainting"] = "true"
 	}
 
-	_, err := b.sendFiles("createNewStickerSet", files, params)
+	_, err := b.RawSendFiles("createNewStickerSet", files, params)
 	return err
 }
 
@@ -152,12 +152,12 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AddStickerToSet(of Recipient, na
 		"sticker": string(data),
 	}
 
-	_, err := b.sendFiles("addStickerToSet", files, params)
+	_, err := b.RawSendFiles("addStickerToSet", files, params)
 	return err
 }
 
 // SetStickerPosition moves a sticker in set to a specific position.
-func (b *Bot) SetStickerPosition(sticker string, position int) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetStickerPosition(sticker string, position int) error {
 	params := map[string]string{
 		"sticker":  sticker,
 		"position": strconv.Itoa(position),
@@ -168,7 +168,7 @@ func (b *Bot) SetStickerPosition(sticker string, position int) error {
 }
 
 // DeleteSticker deletes a sticker from a set created by the bot.
-func (b *Bot) DeleteSticker(sticker string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeleteSticker(sticker string) error {
 	_, err := b.Raw("deleteStickerFromSet", map[string]string{"sticker": sticker})
 	return err
 
@@ -182,7 +182,7 @@ func (b *Bot) DeleteSticker(sticker string) error {
 // up to 32 kilobytes in size.
 //
 // Animated sticker set thumbnail can't be uploaded via HTTP URL.
-func (b *Bot) SetStickerSetThumb(of Recipient, set *StickerSet) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetStickerSetThumb(of Recipient, set *StickerSet) error {
 	if set.Thumbnail == nil {
 		return errors.New("telebot: thumbnail is required")
 	}
@@ -200,12 +200,12 @@ func (b *Bot) SetStickerSetThumb(of Recipient, set *StickerSet) error {
 		"thumbnail": repr,
 	}
 
-	_, err := b.sendFiles("setStickerSetThumbnail", files, params)
+	_, err := b.RawSendFiles("setStickerSetThumbnail", files, params)
 	return err
 }
 
 // SetStickerSetTitle sets the title of a created sticker set.
-func (b *Bot) SetStickerSetTitle(s StickerSet) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetStickerSetTitle(s StickerSet) error {
 	params := map[string]string{
 		"name":  s.Name,
 		"title": s.Title,
@@ -216,7 +216,7 @@ func (b *Bot) SetStickerSetTitle(s StickerSet) error {
 }
 
 // DeleteStickerSet deletes a sticker set that was created by the bot.
-func (b *Bot) DeleteStickerSet(name string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeleteStickerSet(name string) error {
 	params := map[string]string{"name": name}
 
 	_, err := b.Raw("deleteStickerSet", params)
@@ -224,7 +224,7 @@ func (b *Bot) DeleteStickerSet(name string) error {
 }
 
 // SetStickerEmojis changes the list of emoji assigned to a regular or custom emoji sticker.
-func (b *Bot) SetStickerEmojis(sticker string, emojis []string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetStickerEmojis(sticker string, emojis []string) error {
 	data, err := json.Marshal(emojis)
 	if err != nil {
 		return err
@@ -240,7 +240,7 @@ func (b *Bot) SetStickerEmojis(sticker string, emojis []string) error {
 }
 
 // SetStickerKeywords changes search keywords assigned to a regular or custom emoji sticker.
-func (b *Bot) SetStickerKeywords(sticker string, keywords []string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetStickerKeywords(sticker string, keywords []string) error {
 	mk, err := json.Marshal(keywords)
 	if err != nil {
 		return err
@@ -256,7 +256,7 @@ func (b *Bot) SetStickerKeywords(sticker string, keywords []string) error {
 }
 
 // SetStickerMaskPosition changes the mask position of a mask sticker.
-func (b *Bot) SetStickerMaskPosition(sticker string, mask MaskPosition) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetStickerMaskPosition(sticker string, mask MaskPosition) error {
 	data, err := json.Marshal(mask)
 	if err != nil {
 		return err
@@ -272,14 +272,14 @@ func (b *Bot) SetStickerMaskPosition(sticker string, mask MaskPosition) error {
 }
 
 // CustomEmojiStickers returns the information about custom emoji stickers by their ids.
-func (b *Bot) CustomEmojiStickers(ids []string) ([]Sticker, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CustomEmojiStickers(ids []string) ([]Sticker, error) {
 	data, _ := json.Marshal(ids)
 
 	params := map[string]string{
 		"custom_emoji_ids": string(data),
 	}
 
-	data, err := b.Raw("getCustomEmojiStickers", params)
+	data, err := b.Raw("getCustomEmojiStickers", params) // FIXME: check if this is correct
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +294,7 @@ func (b *Bot) CustomEmojiStickers(ids []string) ([]Sticker, error) {
 }
 
 // SetCustomEmojiStickerSetThumb sets the thumbnail of a custom emoji sticker set.
-func (b *Bot) SetCustomEmojiStickerSetThumb(name, id string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetCustomEmojiStickerSetThumb(name, id string) error {
 	params := map[string]string{
 		"name":            name,
 		"custom_emoji_id": id,
@@ -305,7 +305,7 @@ func (b *Bot) SetCustomEmojiStickerSetThumb(name, id string) error {
 }
 
 // ReplaceStickerInSet returns True on success, if existing sticker was replaced with a new one.
-func (b *Bot) ReplaceStickerInSet(of Recipient, stickerSet, oldSticker string, sticker InputSticker) (bool, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ReplaceStickerInSet(of Recipient, stickerSet, oldSticker string, sticker InputSticker) (bool, error) {
 	files := make(map[string]File)
 
 	repr := sticker.File.process("0", files)
@@ -326,6 +326,6 @@ func (b *Bot) ReplaceStickerInSet(of Recipient, stickerSet, oldSticker string, s
 		"sticker":     string(data),
 	}
 
-	_, err = b.sendFiles("replaceStickerInSet", files, params)
+	_, err = b.RawSendFiles("replaceStickerInSet", files, params)
 	return true, err
 }

@@ -74,7 +74,6 @@ func (p *LongPoller[Ctx, HandlerFunc, MiddlewareFunc]) Poll(b *Bot[Ctx, HandlerF
 
 		updates, err := b.getUpdates(p.LastUpdateID+1, p.Limit, p.Timeout, p.AllowedUpdates)
 		if err != nil {
-			b.debug(err)
 			continue
 		}
 

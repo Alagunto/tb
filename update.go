@@ -35,7 +35,7 @@ type Update struct {
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessUpdate(u Update) {
 	ctx, err := b.NewContext(u)
 	if err != nil {
-		b.OnError(err, &ctx)
+		b.OnError(err, ctx)
 		return
 	}
 	b.ProcessContext(ctx)
@@ -408,7 +408,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handleMedia(c Ctx) bool {
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(h HandlerFunc, c Ctx) {
 	f := func() {
 		if err := h(c); err != nil {
-			b.OnError(err, &c)
+			b.OnError(err, c)
 		}
 	}
 	if b.synchronous {

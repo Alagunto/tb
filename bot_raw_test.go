@@ -51,7 +51,7 @@ func TestRaw(t *testing.T) {
 		t.Skip("TELEBOT_SECRET is required")
 	}
 
-	b, err := newTestBot()
+	b, err := newTestBot[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error]()
 	if err != nil {
 		t.Fatal(err)
 	}
