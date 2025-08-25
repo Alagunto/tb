@@ -75,7 +75,7 @@ func TestNewBot(t *testing.T) {
 	client := &http.Client{Timeout: time.Minute}
 	pref.URL = "http://api.telegram.org" // not https
 	pref.Client = client
-	pref.Poller = &LongPoller[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Timeout: time.Second}
+	pref.Poller = &LongPoller{Timeout: time.Second}
 	pref.Updates = 50
 	pref.ParseMode = ModeHTML
 	pref.Offline = true
@@ -121,7 +121,7 @@ func TestBotStart(t *testing.T) {
 	}
 
 	pref := defaultSettings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]()
-	pref.Poller = &LongPoller[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{}
+	pref.Poller = &LongPoller{}
 
 	b, err := NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], pref)
 	if err != nil {

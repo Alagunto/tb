@@ -33,7 +33,7 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 		pref.URL = DefaultApiURL
 	}
 	if pref.Poller == nil {
-		pref.Poller = &LongPoller[Ctx, HandlerFunc, MiddlewareFunc]{}
+		pref.Poller = &LongPoller{}
 	}
 	if pref.OnError == nil {
 		pref.OnError = defaultOnError
@@ -76,7 +76,7 @@ type Bot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(
 	Token            string
 	URL              string
 	Updates          chan Update
-	Poller           Poller[Ctx, HandlerFunc, MiddlewareFunc]
+	Poller           Poller
 	onError          func(error, Ctx)
 	createNewContext func(ContextInterface) (Ctx, error)
 
@@ -102,7 +102,7 @@ type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc 
 	Updates int
 
 	// Poller is the provider of Updates.
-	Poller Poller[Ctx, HandlerFunc, MiddlewareFunc]
+	Poller Poller
 
 	// Synchronous prevents handlers from running in parallel.
 	// It makes ProcessUpdate return after the handler is finished.
@@ -290,7 +290,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Send(to Recipient, what interfac
 
 	switch object := what.(type) {
 	case string:
-		return b.sendText(to, object, sendOpts)
+		return b.RawSendText(to, object, sendOpts)
 	case Sendable[Ctx, HandlerFunc, MiddlewareFunc]:
 		return object.Send(b, to, sendOpts)
 	default:

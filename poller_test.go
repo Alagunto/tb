@@ -18,7 +18,7 @@ func newTestPoller[Ctx ContextInterface, HandlerFunc func(Ctx) error, Middleware
 	}
 }
 
-func (p *testPoller[Ctx, HandlerFunc, MiddlewareFunc]) Poll(b *Bot[Ctx, HandlerFunc, MiddlewareFunc], updates chan Update, stop chan struct{}) {
+func (p *testPoller[Ctx, HandlerFunc, MiddlewareFunc]) Poll(b RawBotInterface, updates chan Update, stop chan struct{}) {
 	for {
 		select {
 		case upd := <-p.updates:

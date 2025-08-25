@@ -20,6 +20,7 @@ type RawBotInterface interface {
 	RawSendFiles(method string, files map[string]File, params map[string]string) ([]byte, error)
 	RawSendMedia(media Media, params map[string]string, files map[string]File) (*Message, error)
 	RawSendText(to Recipient, text string, opt *SendOptions) (*Message, error)
+	RawGetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]Update, error)
 	RawEmbedSendOptions(params map[string]string, opt *SendOptions)
 	Raw(method string, payload interface{}) ([]byte, error)
 }
@@ -184,7 +185,7 @@ func (f *File) process(name string, files map[string]File) string {
 	return ""
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendText(to Recipient, text string, opt *SendOptions) (*Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendText(to Recipient, text string, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"text":    text,
@@ -199,7 +200,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendText(to Recipient, text stri
 	return extractMessage(data)
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendMedia(media Media, params map[string]string, files map[string]File) (*Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendMedia(media Media, params map[string]string, files map[string]File) (*Message, error) {
 	kind := media.MediaType()
 	what := "send" + strings.Title(kind)
 
@@ -235,7 +236,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) getMe() (*User, error) {
 	return resp.Result, nil
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) getUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]Update, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawGetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]Update, error) {
 	params := map[string]string{
 		"offset":  strconv.Itoa(offset),
 		"timeout": strconv.Itoa(int(timeout / time.Second)),
