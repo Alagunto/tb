@@ -136,7 +136,7 @@ func (b *Bot) CreateStickerSet(of Recipient, set *StickerSet) error {
 }
 
 // AddStickerToSet adds a new sticker to the existing sticker set.
-func (b *Bot) AddStickerToSet(of Recipient, name string, sticker InputSticker) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AddStickerToSet(of Recipient, name string, sticker InputSticker) error {
 	files := make(map[string]File)
 	repr := sticker.File.process("0", files)
 	if repr == "" {

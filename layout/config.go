@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"time"
 
-	tele "github.com/alagunto/tb"
 	"github.com/spf13/viper"
 )
 
@@ -89,8 +88,8 @@ func (c *Config) Duration(k string) time.Duration {
 
 // ChatID returns a field casted to the ChatID.
 // The value must be an integer.
-func (c *Config) ChatID(k string) tele.ChatID {
-	return tele.ChatID(c.Int64(k))
+func (c *Config) ChatID(k string) int64 {
+	return c.Int64(k)
 }
 
 // Strings returns a field casted to the string slice.

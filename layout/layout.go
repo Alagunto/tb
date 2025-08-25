@@ -17,10 +17,10 @@ import (
 type (
 	// Layout provides an interface to interact with the layout,
 	// parsed from the config file and locales.
-	Layout struct {
-		pref  *tb.Settings
+	Layout[Ctx tb.ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
+		pref  *tb.Settings[Ctx, HandlerFunc, MiddlewareFunc]
 		mu    sync.RWMutex // protects ctxs
-		ctxs  map[tb.Context]string
+		ctxs  map[*Ctx]string
 		funcs template.FuncMap
 
 		commands map[string]string
@@ -69,27 +69,27 @@ type (
 )
 
 // New parses the given layout file.
-func New(path string, funcs ...template.FuncMap) (*Layout, error) {
+func New[Ctx tb.ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](path string, funcs ...template.FuncMap) (*Layout, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return rawNew(data, funcs...)
+	return rawNew[Ctx, HandlerFunc, MiddlewareFunc](data, funcs...)
 }
 
 // NewFromFS parses the layout from the given fs.FS. It allows to read layout
 // from the go:embed filesystem.
-func NewFromFS(fsys fs.FS, path string, funcs ...template.FuncMap) (*Layout, error) {
+func NewFromFS[Ctx tb.ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](fsys fs.FS, path string, funcs ...template.FuncMap) (*Layout, error) {
 	data, err := fs.ReadFile(fsys, path)
 	if err != nil {
 		return nil, err
 	}
-	return rawNew(data, funcs...)
+	return rawNew[Ctx, HandlerFunc, MiddlewareFunc](data, funcs...)
 }
 
-func rawNew(data []byte, funcs ...template.FuncMap) (*Layout, error) {
-	lt := Layout{
-		ctxs:  make(map[tb.Context]string),
+func rawNew[Ctx tb.ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](data []byte, funcs ...template.FuncMap) (*Layout[Ctx, HandlerFunc, MiddlewareFunc], error) {
+	lt := Layout[Ctx, HandlerFunc, MiddlewareFunc]{
+		ctxs:  make(map[*Ctx]string),
 		funcs: make(template.FuncMap),
 	}
 
@@ -107,8 +107,8 @@ func rawNew(data []byte, funcs ...template.FuncMap) (*Layout, error) {
 
 // NewDefault parses the given layout file without localization features.
 // See Layout.Default for more details.
-func NewDefault(path, locale string, funcs ...template.FuncMap) (*DefaultLayout, error) {
-	lt, err := New(path, funcs...)
+func NewDefault[Ctx tb.ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](path, locale string, funcs ...template.FuncMap) (*DefaultLayout, error) {
+	lt, err := New[Ctx, HandlerFunc, MiddlewareFunc](path, funcs...)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ var builtinFuncs = template.FuncMap{
 //	lt, err := layout.New("bot.yml")
 //	b, err := tele.NewBot(lt.Settings())
 //	// That's all!
-func (lt *Layout) Settings() tb.Settings {
+func (lt *Layout[Ctx, HandlerFunc, MiddlewareFunc]) Settings() tb.Settings {
 	if lt.pref == nil {
 		panic("telebot/layout: settings is empty")
 	}
@@ -149,7 +149,7 @@ func (lt *Layout) Settings() tb.Settings {
 // Default returns a simplified layout instance with the pre-defined locale.
 // It's useful when you have no need for localization and don't want to pass
 // context each time you use layout functions.
-func (lt *Layout) Default(locale string) *DefaultLayout {
+func (lt *Layout[Ctx, HandlerFunc, MiddlewareFunc]) Default(locale string) *DefaultLayout {
 	return &DefaultLayout{
 		locale: locale,
 		lt:     lt,
@@ -158,7 +158,7 @@ func (lt *Layout) Default(locale string) *DefaultLayout {
 }
 
 // Locales returns all presented locales.
-func (lt *Layout) Locales() []string {
+func (lt *Layout[Ctx, HandlerFunc, MiddlewareFunc]) Locales() []string {
 	var keys []string
 	for k := range lt.locales {
 		keys = append(keys, k)
@@ -167,7 +167,7 @@ func (lt *Layout) Locales() []string {
 }
 
 // Locale returns the context locale.
-func (lt *Layout) Locale(c tb.Context) (string, bool) {
+func (lt *Layout[Ctx, HandlerFunc, MiddlewareFunc]) Locale(c Ctx) (string, bool) {
 	lt.mu.RLock()
 	defer lt.mu.RUnlock()
 	locale, ok := lt.ctxs[c]
@@ -175,7 +175,7 @@ func (lt *Layout) Locale(c tb.Context) (string, bool) {
 }
 
 // SetLocale allows you to change a locale for the passed context.
-func (lt *Layout) SetLocale(c tb.Context, locale string) {
+func (lt *Layout[Ctx, HandlerFunc, MiddlewareFunc]) SetLocale(c Ctx, locale string) {
 	lt.mu.Lock()
 	lt.ctxs[c] = locale
 	lt.mu.Unlock()
@@ -183,7 +183,7 @@ func (lt *Layout) SetLocale(c tb.Context, locale string) {
 
 // Commands returns a list of telebot commands, which can be
 // used in b.SetCommands later.
-func (lt *Layout) Commands() (cmds []tb.Command) {
+func (lt *Layout[Ctx, HandlerFunc, MiddlewareFunc]) Commands() (cmds []tb.Command) {
 	for k, v := range lt.commands {
 		cmds = append(cmds, tb.Command{
 			Text:        strings.TrimLeft(k, "/"),
@@ -213,7 +213,7 @@ func (lt *Layout) Commands() (cmds []tb.Command) {
 //
 //	b.SetCommands(lt.CommandsLocale("en"), "en")
 //	b.SetCommands(lt.CommandsLocale("ru"), "ru")
-func (lt *Layout) CommandsLocale(locale string, args ...interface{}) (cmds []tb.Command) {
+func (lt *Layout[Ctx, HandlerFunc, MiddlewareFunc]) CommandsLocale(locale string, args ...interface{}) (cmds []tb.Command) {
 	var arg interface{}
 	if len(args) > 0 {
 		arg = args[0]
@@ -252,7 +252,7 @@ func (lt *Layout) CommandsLocale(locale string, args ...interface{}) (cmds []tb.
 //	func onStart(c tb.Context) error {
 //		return c.Send(lt.Text(c, "start", c.Sender()))
 //	}
-func (lt *Layout) Text(c tb.Context, k string, args ...interface{}) string {
+func (lt *Layout[Ctx, HandlerFunc, MiddlewareFunc]) Text(c Ctx, k string, args ...interface{}) string {
 	locale, ok := lt.Locale(c)
 	if !ok {
 		return ""
@@ -494,7 +494,7 @@ func (lt *Layout) ResultLocale(locale, k string, args ...interface{}) tb.Result 
 		log.Println("telebot/layout:", err)
 	}
 
-	switch base.Type {
+	switch base.ResultBase.Type {
 	case "article":
 		r = &tb.ArticleResult{ResultBase: base.ResultBase}
 		if err := yaml.Unmarshal(data, r); err != nil {

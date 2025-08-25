@@ -105,7 +105,7 @@ func (og *SendOptions) copy() *SendOptions {
 	return &cp
 }
 
-func (b *Bot) extractOptions(how []interface{}) *SendOptions {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) extractOptions(how []interface{}) *SendOptions {
 	opts := &SendOptions{
 		ParseMode: b.parseMode,
 	}
@@ -162,7 +162,7 @@ func (b *Bot) extractOptions(how []interface{}) *SendOptions {
 	return opts
 }
 
-func (b *Bot) embedSendOptions(params map[string]string, opt *SendOptions) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[string]string, opt *SendOptions) {
 	if opt == nil {
 		return
 	}

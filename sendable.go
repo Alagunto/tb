@@ -19,19 +19,19 @@ type Recipient interface {
 // This is pretty cool, since it lets bots implement
 // custom Sendables for complex kind of media or
 // chat objects spanning across multiple messages.
-type Sendable interface {
-	Send(*Bot, Recipient, *SendOptions) (*Message, error)
+type Sendable[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] interface {
+	Send(*Bot[Ctx, HandlerFunc, MiddlewareFunc], Recipient, *SendOptions) (*Message, error)
 }
 
 // Send delivers media through bot b to recipient.
-func (p *Photo) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (p *Photo) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"caption": p.Caption,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
-	msg, err := b.sendMedia(p, params, nil)
+	msg, err := b.RawSendMedia(p, params, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (p *Photo) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 }
 
 // Send delivers media through bot b to recipient.
-func (a *Audio) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (a *Audio) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id":   to.Recipient(),
 		"caption":   a.Caption,
@@ -52,13 +52,13 @@ func (a *Audio) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 		"title":     a.Title,
 		"file_name": a.FileName,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	if a.Duration != 0 {
 		params["duration"] = strconv.Itoa(a.Duration)
 	}
 
-	msg, err := b.sendMedia(a, params, thumbnailToFilemap(a.Thumbnail))
+	msg, err := b.RawSendMedia(a, params, thumbnailToFilemap(a.Thumbnail))
 	if err != nil {
 		return nil, err
 	}
@@ -78,13 +78,13 @@ func (a *Audio) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 }
 
 // Send delivers media through bot b to recipient.
-func (d *Document) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (d *Document) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id":   to.Recipient(),
 		"caption":   d.Caption,
 		"file_name": d.FileName,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	if d.FileSize != 0 {
 		params["file_size"] = strconv.FormatInt(d.FileSize, 10)
@@ -93,7 +93,7 @@ func (d *Document) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error
 		params["disable_content_type_detection"] = "true"
 	}
 
-	msg, err := b.sendMedia(d, params, thumbnailToFilemap(d.Thumbnail))
+	msg, err := b.RawSendMedia(d, params, thumbnailToFilemap(d.Thumbnail))
 	if err != nil {
 		return nil, err
 	}
@@ -113,14 +113,14 @@ func (d *Document) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error
 }
 
 // Send delivers media through bot b to recipient.
-func (s *Sticker) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (s *Sticker) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"emoji":   s.Emoji,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
-	msg, err := b.sendMedia(s, params, nil)
+	msg, err := b.RawSendMedia(s, params, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -132,13 +132,13 @@ func (s *Sticker) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error)
 }
 
 // Send delivers media through bot b to recipient.
-func (v *Video) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (v *Video) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id":   to.Recipient(),
 		"caption":   v.Caption,
 		"file_name": v.FileName,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	if v.Duration != 0 {
 		params["duration"] = strconv.Itoa(v.Duration)
@@ -153,7 +153,7 @@ func (v *Video) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 		params["supports_streaming"] = "true"
 	}
 
-	msg, err := b.sendMedia(v, params, thumbnailToFilemap(v.Thumbnail))
+	msg, err := b.RawSendMedia(v, params, thumbnailToFilemap(v.Thumbnail))
 	if err != nil {
 		return nil, err
 	}
@@ -175,13 +175,13 @@ func (v *Video) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 }
 
 // Send delivers animation through bot b to recipient.
-func (a *Animation) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (a *Animation) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id":   to.Recipient(),
 		"caption":   a.Caption,
 		"file_name": a.FileName,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	if a.Duration != 0 {
 		params["duration"] = strconv.Itoa(a.Duration)
@@ -198,7 +198,7 @@ func (a *Animation) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, erro
 		params["file_name"] = filepath.Base(a.File.FileLocal)
 	}
 
-	msg, err := b.sendMedia(a, params, thumbnailToFilemap(a.Thumbnail))
+	msg, err := b.RawSendMedia(a, params, thumbnailToFilemap(a.Thumbnail))
 	if err != nil {
 		return nil, err
 	}
@@ -220,18 +220,18 @@ func (a *Animation) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, erro
 }
 
 // Send delivers media through bot b to recipient.
-func (v *Voice) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (v *Voice) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"caption": v.Caption,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	if v.Duration != 0 {
 		params["duration"] = strconv.Itoa(v.Duration)
 	}
 
-	msg, err := b.sendMedia(v, params, nil)
+	msg, err := b.RawSendMedia(v, params, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -243,11 +243,11 @@ func (v *Voice) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 }
 
 // Send delivers media through bot b to recipient.
-func (v *VideoNote) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (v *VideoNote) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	if v.Duration != 0 {
 		params["duration"] = strconv.Itoa(v.Duration)
@@ -256,7 +256,7 @@ func (v *VideoNote) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, erro
 		params["length"] = strconv.Itoa(v.Length)
 	}
 
-	msg, err := b.sendMedia(v, params, thumbnailToFilemap(v.Thumbnail))
+	msg, err := b.RawSendMedia(v, params, thumbnailToFilemap(v.Thumbnail))
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ func (v *VideoNote) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, erro
 }
 
 // Send delivers media through bot b to recipient.
-func (x *Location) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (x *Location) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id":     to.Recipient(),
 		"latitude":    fmt.Sprintf("%f", x.Lat),
@@ -284,7 +284,7 @@ func (x *Location) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error
 	if x.AlertRadius != 0 {
 		params["proximity_alert_radius"] = strconv.Itoa(x.Heading)
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	data, err := b.Raw("sendLocation", params)
 	if err != nil {
@@ -295,7 +295,7 @@ func (x *Location) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error
 }
 
 // Send delivers media through bot b to recipient.
-func (v *Venue) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (v *Venue) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id":           to.Recipient(),
 		"latitude":          fmt.Sprintf("%f", v.Location.Lat),
@@ -307,7 +307,7 @@ func (v *Venue) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 		"google_place_id":   v.GooglePlaceID,
 		"google_place_type": v.GooglePlaceType,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	data, err := b.Raw("sendVenue", params)
 	if err != nil {
@@ -318,10 +318,10 @@ func (v *Venue) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 }
 
 // Send delivers invoice through bot b to recipient.
-func (i *Invoice) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (i *Invoice) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := i.params()
 	params["chat_id"] = to.Recipient()
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	data, err := b.Raw("sendInvoice", params)
 	if err != nil {
@@ -332,7 +332,7 @@ func (i *Invoice) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error)
 }
 
 // Send delivers poll through bot b to recipient.
-func (p *Poll) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (p *Poll) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id":                 to.Recipient(),
 		"question":                p.Question,
@@ -351,7 +351,7 @@ func (p *Poll) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 	} else if p.CloseUnixdate != 0 {
 		params["close_date"] = strconv.FormatInt(p.CloseUnixdate, 10)
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	opts, _ := json.Marshal(p.Options)
 	params["options"] = string(opts)
@@ -364,12 +364,12 @@ func (p *Poll) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 	return extractMessage(data)
 }
 
-func (c *Checklist) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (c *Checklist) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 	}
 
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	paramsAny := map[string]interface{}{
 		"checklist": c,
@@ -391,12 +391,12 @@ func (c *Checklist) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, erro
 }
 
 // Send delivers dice through bot b to recipient.
-func (d *Dice) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (d *Dice) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"emoji":   string(d.Type),
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	data, err := b.Raw("sendDice", params)
 	if err != nil {
@@ -407,12 +407,12 @@ func (d *Dice) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 }
 
 // Send delivers game through bot b to recipient.
-func (g *Game) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (g *Game) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id":         to.Recipient(),
 		"game_short_name": g.Name,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	data, err := b.Raw("sendGame", params)
 	if err != nil {
@@ -423,13 +423,13 @@ func (g *Game) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 }
 
 // Send delivers outgoing message through bot b to recipient.
-func (o *OutgoingMessage) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+func (o *OutgoingMessage) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
-	msg, err := b.sendText(to, o.Message, opt)
+	msg, err := b.RawSendText(to, o.Message, opt)
 	if err != nil {
 		return nil, err
 	}

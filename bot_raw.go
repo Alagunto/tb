@@ -16,10 +16,18 @@ import (
 	"time"
 )
 
+type RawBotInterface interface {
+	RawSendFiles(method string, files map[string]File, params map[string]string) ([]byte, error)
+	RawSendMedia(media Media, params map[string]string, files map[string]File) (*Message, error)
+	RawSendText(to Recipient, text string, opt *SendOptions) (*Message, error)
+	RawEmbedSendOptions(params map[string]string, opt *SendOptions)
+	Raw(method string, payload interface{}) ([]byte, error)
+}
+
 // Raw lets you call any method of Bot API manually.
 // It also handles API errors, so you only need to unwrap
 // result field from json data.
-func (b *Bot) Raw(method string, payload interface{}) ([]byte, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Raw(method string, payload interface{}) ([]byte, error) {
 	url := b.URL + "/bot" + b.Token + "/" + method
 
 	var buf bytes.Buffer
@@ -71,7 +79,7 @@ func (b *Bot) Raw(method string, payload interface{}) ([]byte, error) {
 	return data, extractOk(data)
 }
 
-func (b *Bot) sendFiles(method string, files map[string]File, params map[string]string) ([]byte, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendFiles(method string, files map[string]File, params map[string]string) ([]byte, error) {
 	rawFiles := make(map[string]interface{})
 	for name, f := range files {
 		switch {
@@ -176,12 +184,12 @@ func (f *File) process(name string, files map[string]File) string {
 	return ""
 }
 
-func (b *Bot) sendText(to Recipient, text string, opt *SendOptions) (*Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendText(to Recipient, text string, opt *SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"text":    text,
 	}
-	b.embedSendOptions(params, opt)
+	b.RawEmbedSendOptions(params, opt)
 
 	data, err := b.Raw("sendMessage", params)
 	if err != nil {
@@ -191,7 +199,7 @@ func (b *Bot) sendText(to Recipient, text string, opt *SendOptions) (*Message, e
 	return extractMessage(data)
 }
 
-func (b *Bot) sendMedia(media Media, params map[string]string, files map[string]File) (*Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendMedia(media Media, params map[string]string, files map[string]File) (*Message, error) {
 	kind := media.MediaType()
 	what := "send" + strings.Title(kind)
 
@@ -204,7 +212,7 @@ func (b *Bot) sendMedia(media Media, params map[string]string, files map[string]
 		sendFiles[k] = v
 	}
 
-	data, err := b.sendFiles(what, sendFiles, params)
+	data, err := b.RawSendFiles(what, sendFiles, params)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +220,7 @@ func (b *Bot) sendMedia(media Media, params map[string]string, files map[string]
 	return extractMessage(data)
 }
 
-func (b *Bot) getMe() (*User, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) getMe() (*User, error) {
 	data, err := b.Raw("getMe", nil)
 	if err != nil {
 		return nil, err
@@ -227,7 +235,7 @@ func (b *Bot) getMe() (*User, error) {
 	return resp.Result, nil
 }
 
-func (b *Bot) getUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]Update, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) getUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]Update, error) {
 	params := map[string]string{
 		"offset":  strconv.Itoa(offset),
 		"timeout": strconv.Itoa(int(timeout / time.Second)),
@@ -254,7 +262,7 @@ func (b *Bot) getUpdates(offset, limit int, timeout time.Duration, allowed []str
 	return resp.Result, nil
 }
 
-func (b *Bot) forwardCopyMany(to Recipient, msgs []Editable, key string, opts ...*SendOptions) ([]Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) forwardCopyMany(to Recipient, msgs []Editable, key string, opts ...*SendOptions) ([]Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 	}
@@ -262,7 +270,7 @@ func (b *Bot) forwardCopyMany(to Recipient, msgs []Editable, key string, opts ..
 	embedMessages(params, msgs)
 
 	if len(opts) > 0 {
-		b.embedSendOptions(params, opts[0])
+		b.RawEmbedSendOptions(params, opts[0])
 	}
 
 	data, err := b.Raw(key, params)

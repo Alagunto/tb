@@ -86,7 +86,7 @@ type BusinessOpeningHours struct {
 }
 
 // BusinessConnection returns the information about the connection of the bot with a business account.
-func (b *Bot) BusinessConnection(id string) (*BusinessConnection, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) BusinessConnection(id string) (*BusinessConnection, error) {
 	params := map[string]string{
 		"business_connection_id": id,
 	}

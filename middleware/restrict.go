@@ -21,7 +21,7 @@ type RestrictConfig struct {
 // chats with the logic defined by In and Out functions.
 // If the chat is found in the Chats field, In function will be called,
 // otherwise Out function will be called.
-func Restrict(v RestrictConfig) tb.MiddlewareFunc {
+func Restrict[Ctx tb.Context, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](v RestrictConfig) tb.MiddlewareFunc {
 	return func(next tb.HandlerFunc) tb.HandlerFunc {
 		if v.In == nil {
 			v.In = next
@@ -42,9 +42,9 @@ func Restrict(v RestrictConfig) tb.MiddlewareFunc {
 
 // Blacklist returns a middleware that skips the update for users
 // specified in the chats field.
-func Blacklist(chats ...int64) tb.MiddlewareFunc {
-	return func(next tb.HandlerFunc) tb.HandlerFunc {
-		return Restrict(RestrictConfig{
+func Blacklist[Ctx tb.Context, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](chats ...int64) tb.MiddlewareFunc {
+	return func(next HandlerFunc) HandlerFunc {
+		return Restrict[Ctx, HandlerFunc, MiddlewareFunc](RestrictConfig{
 			Chats: chats,
 			Out:   next,
 			In:    func(c tb.Context) error { return nil },
@@ -54,9 +54,9 @@ func Blacklist(chats ...int64) tb.MiddlewareFunc {
 
 // Whitelist returns a middleware that skips the update for users
 // NOT specified in the chats field.
-func Whitelist(chats ...int64) tb.MiddlewareFunc {
-	return func(next tb.HandlerFunc) tb.HandlerFunc {
-		return Restrict(RestrictConfig{
+func Whitelist[Ctx tb.Context, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](chats ...int64) tb.MiddlewareFunc {
+	return func(next HandlerFunc) HandlerFunc {
+		return Restrict[Ctx, HandlerFunc, MiddlewareFunc](RestrictConfig{
 			Chats: chats,
 			In:    next,
 			Out:   func(c tb.Context) error { return nil },

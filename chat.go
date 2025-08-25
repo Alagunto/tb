@@ -359,7 +359,7 @@ func (c *Chat) Time() time.Time {
 }
 
 // InviteLink should be used to export chat's invite link.
-func (b *Bot) InviteLink(chat *Chat) (string, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) InviteLink(chat *Chat) (string, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -379,7 +379,7 @@ func (b *Bot) InviteLink(chat *Chat) (string, error) {
 }
 
 // CreateInviteLink creates an additional invite link for a chat.
-func (b *Bot) CreateInviteLink(chat Recipient, link *ChatInviteLink) (*ChatInviteLink, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CreateInviteLink(chat Recipient, link *ChatInviteLink) (*ChatInviteLink, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -412,7 +412,7 @@ func (b *Bot) CreateInviteLink(chat Recipient, link *ChatInviteLink) (*ChatInvit
 }
 
 // EditInviteLink edits a non-primary invite link created by the bot.
-func (b *Bot) EditInviteLink(chat Recipient, link *ChatInviteLink) (*ChatInviteLink, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditInviteLink(chat Recipient, link *ChatInviteLink) (*ChatInviteLink, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -446,7 +446,7 @@ func (b *Bot) EditInviteLink(chat Recipient, link *ChatInviteLink) (*ChatInviteL
 }
 
 // RevokeInviteLink revokes an invite link created by the bot.
-func (b *Bot) RevokeInviteLink(chat Recipient, link string) (*ChatInviteLink, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RevokeInviteLink(chat Recipient, link string) (*ChatInviteLink, error) {
 	params := map[string]string{
 		"chat_id":     chat.Recipient(),
 		"invite_link": link,
@@ -468,7 +468,7 @@ func (b *Bot) RevokeInviteLink(chat Recipient, link string) (*ChatInviteLink, er
 }
 
 // ApproveJoinRequest approves a chat join request.
-func (b *Bot) ApproveJoinRequest(chat Recipient, user *User) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ApproveJoinRequest(chat Recipient, user *User) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 		"user_id": user.Recipient(),
@@ -483,7 +483,7 @@ func (b *Bot) ApproveJoinRequest(chat Recipient, user *User) error {
 }
 
 // DeclineJoinRequest declines a chat join request.
-func (b *Bot) DeclineJoinRequest(chat Recipient, user *User) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeclineJoinRequest(chat Recipient, user *User) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 		"user_id": user.Recipient(),
@@ -498,7 +498,7 @@ func (b *Bot) DeclineJoinRequest(chat Recipient, user *User) error {
 }
 
 // SetGroupTitle should be used to update group title.
-func (b *Bot) SetGroupTitle(chat *Chat, title string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetGroupTitle(chat *Chat, title string) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 		"title":   title,
@@ -509,7 +509,7 @@ func (b *Bot) SetGroupTitle(chat *Chat, title string) error {
 }
 
 // SetGroupDescription should be used to update group description.
-func (b *Bot) SetGroupDescription(chat *Chat, description string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetGroupDescription(chat *Chat, description string) error {
 	params := map[string]string{
 		"chat_id":     chat.Recipient(),
 		"description": description,
@@ -520,17 +520,17 @@ func (b *Bot) SetGroupDescription(chat *Chat, description string) error {
 }
 
 // SetGroupPhoto should be used to update group photo.
-func (b *Bot) SetGroupPhoto(chat *Chat, p *Photo) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetGroupPhoto(chat *Chat, p *Photo) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
 
-	_, err := b.sendFiles("setChatPhoto", map[string]File{"photo": p.File}, params)
+	_, err := b.RawSendFiles("setChatPhoto", map[string]File{"photo": p.File}, params)
 	return err
 }
 
 // SetGroupStickerSet should be used to update group's group sticker set.
-func (b *Bot) SetGroupStickerSet(chat *Chat, setName string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetGroupStickerSet(chat *Chat, setName string) error {
 	params := map[string]string{
 		"chat_id":          chat.Recipient(),
 		"sticker_set_name": setName,
@@ -541,7 +541,7 @@ func (b *Bot) SetGroupStickerSet(chat *Chat, setName string) error {
 }
 
 // SetGroupPermissions sets default chat permissions for all members.
-func (b *Bot) SetGroupPermissions(chat *Chat, perms Rights) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetGroupPermissions(chat *Chat, perms Rights) error {
 	params := map[string]interface{}{
 		"chat_id":     chat.Recipient(),
 		"permissions": perms,
@@ -555,7 +555,7 @@ func (b *Bot) SetGroupPermissions(chat *Chat, perms Rights) error {
 }
 
 // DeleteGroupPhoto should be used to just remove group photo.
-func (b *Bot) DeleteGroupPhoto(chat *Chat) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeleteGroupPhoto(chat *Chat) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -565,7 +565,7 @@ func (b *Bot) DeleteGroupPhoto(chat *Chat) error {
 }
 
 // DeleteGroupStickerSet should be used to just remove group sticker set.
-func (b *Bot) DeleteGroupStickerSet(chat *Chat) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeleteGroupStickerSet(chat *Chat) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}

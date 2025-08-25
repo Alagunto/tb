@@ -183,7 +183,7 @@ func (c Currency) ToTotal(total float64) int {
 }
 
 // CreateInvoiceLink creates a link for a payment invoice.
-func (b *Bot) CreateInvoiceLink(i Invoice) (string, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CreateInvoiceLink(i Invoice) (string, error) {
 	data, err := b.Raw("createInvoiceLink", i.params())
 	if err != nil {
 		return "", err
@@ -199,7 +199,7 @@ func (b *Bot) CreateInvoiceLink(i Invoice) (string, error) {
 }
 
 // RefundStars returns a successful payment in Telegram Stars.
-func (b *Bot) RefundStars(to Recipient, chargeID string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RefundStars(to Recipient, chargeID string) error {
 	params := map[string]string{
 		"user_id":                    to.Recipient(),
 		"telegram_payment_charge_id": chargeID,

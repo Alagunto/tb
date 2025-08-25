@@ -16,12 +16,12 @@ var fsys embed.FS
 func TestLayout(t *testing.T) {
 	os.Setenv("TOKEN", "TEST")
 
-	lt, err := New("example.yml")
+	lt, err := New[*tb.NativeContext, func(*tb.NativeContext) error, func(func(*tb.NativeContext) error) func(*tb.NativeContext) error]("example.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ltfs, err := NewFromFS(fsys, "example.yml")
+	ltfs, err := NewFromFS[*tb.NativeContext, func(*tb.NativeContext) error, func(func(*tb.NativeContext) error) func(*tb.NativeContext) error](fsys, "example.yml")
 	if err != nil {
 		t.Fatal(err)
 	}

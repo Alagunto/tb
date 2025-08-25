@@ -28,18 +28,18 @@ var AllowedUpdates = []string{
 // All pollers must implement Poll(), which accepts bot
 // pointer and subscription channel and start polling
 // synchronously straight away.
-type Poller interface {
+type Poller[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] interface {
 	// Poll is supposed to take the bot object
 	// subscription channel and start polling
 	// for Updates immediately.
 	//
 	// Poller must listen for stop constantly and close
 	// it as soon as it's done polling.
-	Poll(b *Bot, updates chan Update, stop chan struct{})
+	Poll(b *Bot[Ctx, HandlerFunc, MiddlewareFunc], updates chan Update, stop chan struct{})
 }
 
 // LongPoller is a classic LongPoller with timeout.
-type LongPoller struct {
+type LongPoller[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
 	Limit        int
 	Timeout      time.Duration
 	LastUpdateID int
@@ -64,7 +64,7 @@ type LongPoller struct {
 }
 
 // Poll does long polling.
-func (p *LongPoller) Poll(b *Bot, dest chan Update, stop chan struct{}) {
+func (p *LongPoller[Ctx, HandlerFunc, MiddlewareFunc]) Poll(b *Bot[Ctx, HandlerFunc, MiddlewareFunc], dest chan Update, stop chan struct{}) {
 	for {
 		select {
 		case <-stop:
@@ -90,22 +90,22 @@ func (p *LongPoller) Poll(b *Bot, dest chan Update, stop chan struct{}) {
 // handling, banning or whatever.
 //
 // For heavy middleware, use increased capacity.
-type MiddlewarePoller struct {
+type MiddlewarePoller[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
 	Capacity int // Default: 1
-	Poller   Poller
+	Poller   Poller[Ctx, HandlerFunc, MiddlewareFunc]
 	Filter   func(*Update) bool
 }
 
 // NewMiddlewarePoller wait for it... constructs a new middleware poller.
-func NewMiddlewarePoller(original Poller, filter func(*Update) bool) *MiddlewarePoller {
-	return &MiddlewarePoller{
+func NewMiddlewarePoller[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](original Poller[Ctx, HandlerFunc, MiddlewareFunc], filter func(*Update) bool) *MiddlewarePoller[Ctx, HandlerFunc, MiddlewareFunc] {
+	return &MiddlewarePoller[Ctx, HandlerFunc, MiddlewareFunc]{
 		Poller: original,
 		Filter: filter,
 	}
 }
 
 // Poll sieves updates through middleware filter.
-func (p *MiddlewarePoller) Poll(b *Bot, dest chan Update, stop chan struct{}) {
+func (p *MiddlewarePoller[Ctx, HandlerFunc, MiddlewareFunc]) Poll(b *Bot[Ctx, HandlerFunc, MiddlewareFunc], dest chan Update, stop chan struct{}) {
 	if p.Capacity < 1 {
 		p.Capacity = 1
 	}

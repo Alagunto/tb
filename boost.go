@@ -90,7 +90,7 @@ type BoostRemoved struct {
 
 // UserBoosts gets the list of boosts added to a chat by a user.
 // Requires administrator rights in the chat.
-func (b *Bot) UserBoosts(chat, user Recipient) ([]Boost, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) UserBoosts(chat, user Recipient) ([]Boost, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 		"user_id": user.Recipient(),

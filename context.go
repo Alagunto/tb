@@ -7,13 +7,9 @@ import (
 	"time"
 )
 
-// HandlerFunc represents a handler function, which is
-// used to handle actual endpoints.
-type HandlerFunc func(Context) error
-
 // NewContext returns a new native context object,
 // field by the passed update.
-func NewContext(b API, u Update) Context {
+func NewContext(b API, u Update) ContextInterface {
 	return &nativeContext{
 		b: b,
 		u: u,
@@ -21,7 +17,8 @@ func NewContext(b API, u Update) Context {
 }
 
 // Context wraps an update and represents the context of current event.
-type Context interface {
+type ContextInterface interface {
+
 	// Bot returns the bot instance.
 	Bot() API
 
@@ -555,8 +552,8 @@ func (c *nativeContext) Delete() error {
 func (c *nativeContext) DeleteAfter(d time.Duration) *time.Timer {
 	return time.AfterFunc(d, func() {
 		if err := c.Delete(); err != nil {
-			if b, ok := c.b.(*Bot); ok {
-				b.OnError(err, c)
+			if b, ok := c.b.(*Bot[*nativeContext, func(*nativeContext) error, func(func(*nativeContext) error) func(*nativeContext) error]); ok {
+				b.OnError(err, &c)
 			}
 		}
 	})

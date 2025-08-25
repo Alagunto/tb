@@ -1,53 +1,53 @@
 package tb
 
-func HTMLReply(html string, opts ...interface{}) HandlerFunc {
+func RespondWithHTML[Ctx ContextInterface, HandlerFunc func(c Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](html string, opts ...interface{}) HandlerFunc {
 	opts = append(opts, ParseMode(ModeHTML))
-	return func(c Context) error {
+	return func(c Ctx) error {
 		return c.Reply(html, opts...)
 	}
 }
 
-func HTMLEdit(html string, opts ...interface{}) HandlerFunc {
+func EditWithHTML[Ctx ContextInterface, HandlerFunc func(c Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](html string, opts ...interface{}) HandlerFunc {
 	opts = append(opts, ParseMode(ModeHTML))
-	return func(c Context) error {
+	return func(c Ctx) error {
 		return c.Edit(html, opts...)
 	}
 }
 
-func MarkdownReply(markdown string, opts ...interface{}) HandlerFunc {
+func ReplyWithMarkdown[Ctx ContextInterface, HandlerFunc func(c Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](markdown string, opts ...interface{}) HandlerFunc {
 	opts = append(opts, ParseMode(ModeMarkdown))
-	return func(c Context) error {
+	return func(c Ctx) error {
 		return c.Reply(markdown, opts...)
 	}
 }
 
-func MarkdownEdit(markdown string, opts ...interface{}) HandlerFunc {
+func EditWithMarkdown[Ctx ContextInterface, HandlerFunc func(c Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](markdown string, opts ...interface{}) HandlerFunc {
 	opts = append(opts, ParseMode(ModeMarkdown))
-	return func(c Context) error {
+	return func(c Ctx) error {
 		return c.Edit(markdown, opts...)
 	}
 }
 
-func TextReply(text string, opts ...interface{}) HandlerFunc {
-	return func(c Context) error {
+func ReplyWithText[Ctx ContextInterface, HandlerFunc func(c Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](text string, opts ...interface{}) HandlerFunc {
+	return func(c Ctx) error {
 		return c.Reply(text, opts...)
 	}
 }
 
-func TextEdit(text string, opts ...interface{}) HandlerFunc {
-	return func(c Context) error {
+func EditWithText[Ctx ContextInterface, HandlerFunc func(c Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](text string, opts ...interface{}) HandlerFunc {
+	return func(c Ctx) error {
 		return c.Edit(text, opts...)
 	}
 }
 
-func ReplyHandler(what interface{}, opts ...interface{}) HandlerFunc {
-	return func(c Context) error {
+func ReplyWith[Ctx ContextInterface, HandlerFunc func(c Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](what interface{}, opts ...interface{}) HandlerFunc {
+	return func(c Ctx) error {
 		return c.Reply(what, opts...)
 	}
 }
 
-func EditHandler(what interface{}, opts ...interface{}) HandlerFunc {
-	return func(c Context) error {
+func EditWith[Ctx ContextInterface, HandlerFunc func(c Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](what interface{}, opts ...interface{}) HandlerFunc {
+	return func(c Ctx) error {
 		return c.Edit(what, opts...)
 	}
 }

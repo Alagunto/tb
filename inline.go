@@ -125,7 +125,7 @@ type Result interface {
 	SetParseMode(ParseMode)
 	SetContent(InputMessageContent)
 	SetReplyMarkup(*ReplyMarkup)
-	Process(*Bot)
+	// Process(b API)
 }
 
 // Results is a slice wrapper for convenient marshalling.

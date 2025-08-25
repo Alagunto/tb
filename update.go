@@ -32,10 +32,10 @@ type Update struct {
 
 // ProcessUpdate processes a single incoming update.
 // A started bot calls this function automatically.
-func (b *Bot) ProcessUpdate(u Update) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessUpdate(u Update) {
 	ctx, err := b.NewContext(u)
 	if err != nil {
-		b.OnError(err, nil)
+		b.OnError(err, &ctx)
 		return
 	}
 	b.ProcessContext(ctx)
@@ -43,7 +43,7 @@ func (b *Bot) ProcessUpdate(u Update) {
 
 // ProcessContext processes the given context.
 // A started bot calls this function automatically.
-func (b *Bot) ProcessContext(c Context) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessContext(c Ctx) {
 	u := c.Update()
 
 	if u.Message != nil {
@@ -363,7 +363,7 @@ func (b *Bot) ProcessContext(c Context) {
 	}
 }
 
-func (b *Bot) handle(end string, c Context) bool {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handle(end string, c Ctx) bool {
 	if handler, ok := b.handlers[end]; ok {
 		b.runHandler(handler, c)
 		return true
@@ -371,7 +371,7 @@ func (b *Bot) handle(end string, c Context) bool {
 	return false
 }
 
-func (b *Bot) handleMedia(c Context) bool {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handleMedia(c Ctx) bool {
 	var (
 		m     = c.Message()
 		fired = true
@@ -405,10 +405,10 @@ func (b *Bot) handleMedia(c Context) bool {
 	return true
 }
 
-func (b *Bot) runHandler(h HandlerFunc, c Context) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(h HandlerFunc, c Ctx) {
 	f := func() {
 		if err := h(c); err != nil {
-			b.OnError(err, c)
+			b.OnError(err, &c)
 		}
 	}
 	if b.synchronous {

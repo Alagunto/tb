@@ -45,7 +45,7 @@ func (r *ResultBase) SetReplyMarkup(markup *ReplyMarkup) {
 	r.ReplyMarkup = markup
 }
 
-func (r *ResultBase) Process(b *Bot) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessResult(r *ResultBase) {
 	if r.ParseMode == ModeDefault {
 		r.ParseMode = b.parseMode
 	}

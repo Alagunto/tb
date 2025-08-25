@@ -18,7 +18,7 @@ func newTestPoller() *testPoller {
 	}
 }
 
-func (p *testPoller) Poll(b *Bot, updates chan Update, stop chan struct{}) {
+func (p *testPoller) Poll(b *Bot[*nativeContext, func(*nativeContext) error, func(func(*nativeContext) error) func(*nativeContext) error], updates chan Update, stop chan struct{}) {
 	for {
 		select {
 		case upd := <-p.updates:
@@ -37,7 +37,7 @@ func TestMiddlewarePoller(t *testing.T) {
 	pref := defaultSettings()
 	pref.Offline = true
 
-	b, err := NewBot(pref)
+	b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](pref)
 	if err != nil {
 		t.Fatal(err)
 	}

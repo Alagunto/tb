@@ -9,7 +9,7 @@ import (
 
 // Logger returns a middleware that logs incoming updates.
 // If no custom logger provided, log.Default() will be used.
-func Logger(logger ...*log.Logger) tb.MiddlewareFunc {
+func Logger[Ctx tb.ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](logger ...*log.Logger) MiddlewareFunc {
 	var l *log.Logger
 	if len(logger) > 0 {
 		l = logger[0]
@@ -17,9 +17,9 @@ func Logger(logger ...*log.Logger) tb.MiddlewareFunc {
 		l = log.Default()
 	}
 
-	return func(next tb.HandlerFunc) tb.HandlerFunc {
-		return func(c tb.Context) error {
-			data, _ := json.MarshalIndent(c.Update(), "", "  ")
+	return func(next HandlerFunc) HandlerFunc {
+		return func(c Ctx) error {
+			data, _ := json.MarshalIndent(c.(), "", "  ")
 			l.Println(string(data))
 			return next(c)
 		}

@@ -1,10 +1,6 @@
 package tb
 
-// MiddlewareFunc represents a middleware processing function,
-// which get called before the endpoint group or specific handler.
-type MiddlewareFunc func(HandlerFunc) HandlerFunc
-
-func appendMiddleware(a, b []MiddlewareFunc) []MiddlewareFunc {
+func appendMiddleware[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](a, b []MiddlewareFunc) []MiddlewareFunc {
 	if len(a) == 0 {
 		return b
 	}
@@ -13,7 +9,7 @@ func appendMiddleware(a, b []MiddlewareFunc) []MiddlewareFunc {
 	return append(m, append(a, b...)...)
 }
 
-func applyMiddleware(h HandlerFunc, m ...MiddlewareFunc) HandlerFunc {
+func applyMiddleware[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](h HandlerFunc, m ...MiddlewareFunc) HandlerFunc {
 	for i := len(m) - 1; i >= 0; i-- {
 		h = m[i](h)
 	}
@@ -21,18 +17,18 @@ func applyMiddleware(h HandlerFunc, m ...MiddlewareFunc) HandlerFunc {
 }
 
 // Group is a separated group of handlers, united by the general middleware.
-type Group struct {
-	b          *Bot
+type Group[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
+	b          *Bot[Ctx, HandlerFunc, MiddlewareFunc]
 	middleware []MiddlewareFunc
 }
 
 // Use adds middleware to the chain.
-func (g *Group) Use(middleware ...MiddlewareFunc) {
+func (g *Group[Ctx, HandlerFunc, MiddlewareFunc]) Use(middleware ...MiddlewareFunc) {
 	g.middleware = append(g.middleware, middleware...)
 }
 
 // Handle adds endpoint handler to the bot, combining group's middleware
 // with the optional given middleware.
-func (g *Group) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
-	g.b.Handle(endpoint, h, appendMiddleware(g.middleware, m)...)
+func (g *Group[Ctx, HandlerFunc, MiddlewareFunc]) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
+	g.b.Handle(endpoint, h, appendMiddleware[Ctx, HandlerFunc, MiddlewareFunc](g.middleware, m)...)
 }
