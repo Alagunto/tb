@@ -16,7 +16,10 @@ import (
 
 // NewBot does try to build a Bot with token `token`, which
 // is a secret API key assigned to particular bot.
-func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](pref Settings[Ctx, HandlerFunc, MiddlewareFunc]) (*Bot[Ctx, HandlerFunc, MiddlewareFunc], error) {
+func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](
+	createNewContext func(ContextInterface) (Ctx, error),
+	pref Settings[Ctx, HandlerFunc, MiddlewareFunc],
+) (*Bot[Ctx, HandlerFunc, MiddlewareFunc], error) {
 	if pref.Updates == 0 {
 		pref.Updates = 100
 	}
@@ -37,10 +40,11 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 	}
 
 	bot := &Bot[Ctx, HandlerFunc, MiddlewareFunc]{
-		Token:   pref.Token,
-		URL:     pref.URL,
-		Poller:  pref.Poller,
-		onError: pref.OnError,
+		Token:            pref.Token,
+		URL:              pref.URL,
+		Poller:           pref.Poller,
+		onError:          pref.OnError,
+		createNewContext: createNewContext,
 
 		Updates:  make(chan Update, pref.Updates),
 		handlers: make(map[string]HandlerFunc),
@@ -68,13 +72,13 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 
 // Bot represents a separate Telegram bot instance.
 type Bot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
-	Me         *User
-	Token      string
-	URL        string
-	Updates    chan Update
-	Poller     Poller[Ctx, HandlerFunc, MiddlewareFunc]
-	onError    func(error, Ctx)
-	newContext func(ContextInterface) (Ctx, error)
+	Me               *User
+	Token            string
+	URL              string
+	Updates          chan Update
+	Poller           Poller[Ctx, HandlerFunc, MiddlewareFunc]
+	onError          func(error, Ctx)
+	createNewContext func(ContextInterface) (Ctx, error)
 
 	group       *Group[Ctx, HandlerFunc, MiddlewareFunc]
 	handlers    map[string]HandlerFunc
@@ -121,9 +125,6 @@ type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc 
 	// HTTP Client used to make requests to telegram api
 	Client *http.Client
 
-	// ContextBuilder is a function that builds a custom context from a given naively built context object.
-	ContextBuilder func(Ctx, error) (Ctx, error)
-
 	// Offline allows to create a bot without network for testing purposes.
 	Offline bool
 }
@@ -169,13 +170,13 @@ var (
 //
 //	b.Handle("/ban", onBan, middleware.Whitelist(ids...))
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
-	end := extractEndpoint[Ctx, HandlerFunc, MiddlewareFunc](endpoint)
+	end := extractEndpoint[Ctx](endpoint)
 	if end == "" {
 		panic("telebot: unsupported endpoint")
 	}
 
 	if len(b.group.middleware) > 0 {
-		m = appendMiddleware[Ctx, HandlerFunc, MiddlewareFunc](b.group.middleware, m)
+		m = appendMiddleware[Ctx, HandlerFunc](b.group.middleware, m)
 	}
 
 	if _, ok := b.handlers[end]; ok {
@@ -188,7 +189,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Handle(endpoint interface{}, h H
 
 // Trigger executes the registered handler by the endpoint.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Trigger(endpoint interface{}, c Ctx) error {
-	end := extractEndpoint[Ctx, HandlerFunc, MiddlewareFunc](endpoint)
+	end := extractEndpoint[Ctx](endpoint)
 	if end == "" {
 		return fmt.Errorf("telebot: unsupported endpoint")
 	}
@@ -263,7 +264,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) NewMarkup() *ReplyMarkup {
 // NewContext returns a new native context object,
 // field by the passed update.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) NewContext(u Update) (Ctx, error) {
-	return b.newContext(NewContext(b, u))
+	return b.createNewContext(NewContext(b, u))
 }
 
 // Send accepts 2+ arguments, starting with destination chat, followed by

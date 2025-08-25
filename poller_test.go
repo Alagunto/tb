@@ -30,19 +30,19 @@ func (p *testPoller[Ctx, HandlerFunc, MiddlewareFunc]) Poll(b *Bot[Ctx, HandlerF
 }
 
 func TestMiddlewarePoller(t *testing.T) {
-	p := newTestPoller[usedCtx, usedHandlerFunc, usedMiddlewareFunc]()
+	p := &testPoller[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{updates: make(chan Update), done: make(chan struct{})}
 	var ids []int
 
-	pref := defaultSettings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]()
+	pref := defaultSettings[usedCtx]()
 	pref.Poller = p
 	pref.Offline = true
 
-	b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](pref)
+	b, err := NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], pref)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.Poller = NewMiddlewarePoller[usedCtx, usedHandlerFunc, usedMiddlewareFunc](p, func(u *Update) bool {
+	b.Poller = NewMiddlewarePoller(p, func(u *Update) bool {
 		if u.ID > 0 {
 			ids = append(ids, u.ID)
 			return true

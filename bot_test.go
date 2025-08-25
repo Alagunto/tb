@@ -40,24 +40,28 @@ func defaultSettings[Ctx ContextInterface, HandlerFunc func(Ctx) error, Middlewa
 	return Settings[Ctx, HandlerFunc, MiddlewareFunc]{Token: token}
 }
 
+func defaultWrapBasicContext[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](c ContextInterface) (Ctx, error) {
+	return any(c).(Ctx), nil
+}
+
 func newTestBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc]() (*Bot[Ctx, HandlerFunc, MiddlewareFunc], error) {
-	return NewBot[Ctx, HandlerFunc, MiddlewareFunc](defaultSettings[Ctx, HandlerFunc, MiddlewareFunc]())
+	return NewBot(defaultWrapBasicContext[Ctx, HandlerFunc, MiddlewareFunc], defaultSettings[Ctx, HandlerFunc, MiddlewareFunc]())
 }
 
 func TestNewBot(t *testing.T) {
 	var pref Settings[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error]
-	_, err := NewBot[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error](pref)
+	_, err := NewBot(defaultWrapBasicContext[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error], pref)
 	assert.Error(t, err)
 
 	pref.Token = "BAD TOKEN"
-	_, err = NewBot[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error](pref)
+	_, err = NewBot(defaultWrapBasicContext[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error], pref)
 	assert.Error(t, err)
 
 	pref.URL = "BAD URL"
-	_, err = NewBot[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error](pref)
+	_, err = NewBot(defaultWrapBasicContext[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error], pref)
 	assert.Error(t, err)
 
-	b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Offline: true})
+	b, err := NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Offline: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +80,7 @@ func TestNewBot(t *testing.T) {
 	pref.ParseMode = ModeHTML
 	pref.Offline = true
 
-	b, err = NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](pref)
+	b, err = NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], pref)
 	require.NoError(t, err)
 	assert.Equal(t, client, b.client)
 	assert.Equal(t, pref.URL, b.URL)
@@ -119,7 +123,7 @@ func TestBotStart(t *testing.T) {
 	pref := defaultSettings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]()
 	pref.Poller = &LongPoller[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{}
 
-	b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](pref)
+	b, err := NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], pref)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +139,7 @@ func TestBotStart(t *testing.T) {
 		tp.updates <- Update{Message: &Message{Text: "/start"}}
 	}()
 
-	b, err = NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](pref)
+	b, err = NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], pref)
 	require.NoError(t, err)
 	b.Poller = tp
 
@@ -155,7 +159,7 @@ func TestBotStart(t *testing.T) {
 }
 
 func TestBotProcessUpdate(t *testing.T) {
-	b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+	b, err := NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +373,7 @@ func TestBotProcessUpdate(t *testing.T) {
 }
 
 func TestBotOnError(t *testing.T) {
-	b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+	b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,7 +414,7 @@ func TestBotMiddleware(t *testing.T) {
 			}
 		}
 
-		b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+		b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -463,7 +467,7 @@ func TestBotMiddleware(t *testing.T) {
 	}
 
 	t.Run("combining with global middleware", func(t *testing.T) {
-		b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+		b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -480,7 +484,7 @@ func TestBotMiddleware(t *testing.T) {
 	})
 
 	t.Run("combining with group middleware", func(t *testing.T) {
-		b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+		b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 		if err != nil {
 			t.Fatal(err)
 		}
