@@ -287,7 +287,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessContext(c Ctx) {
 				if handler, ok := b.handlers["\f"+unique]; ok {
 					u.Callback.Unique = unique
 					u.Callback.Data = payload
-					b.runHandler(handler, c)
+					b.runHandler(handler, c, "\f"+unique)
 					return
 				}
 			}
@@ -368,7 +368,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessContext(c Ctx) {
 
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handle(end string, c Ctx) bool {
 	if handler, ok := b.handlers[end]; ok {
-		b.runHandler(handler, c)
+		b.runHandler(handler, c, end)
 		return true
 	}
 	return false
@@ -408,10 +408,14 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handleMedia(c Ctx) bool {
 	return true
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(h HandlerFunc, c Ctx) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(h HandlerFunc, c Ctx, endpoint string) {
 	f := func() {
 		if err := h(c); err != nil {
-			b.OnError(err, c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{Handler: h, Stack: string(debug.Stack())})
+			b.OnError(err, c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{
+				Handler:  h,
+				Stack:    string(debug.Stack()),
+				Endpoint: endpoint,
+			})
 		}
 	}
 	if b.synchronous {

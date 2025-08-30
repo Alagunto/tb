@@ -134,8 +134,9 @@ func defaultOnError[Ctx ContextInterface, HandlerFunc func(Ctx) error, Middlewar
 }
 
 type DebugInfo[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
-	Handler HandlerFunc
-	Stack   string
+	Handler  HandlerFunc
+	Stack    string
+	Endpoint string
 }
 
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) OnError(err error, c Ctx, debugInfo DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]) {
