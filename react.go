@@ -46,7 +46,7 @@ type Reactions struct {
 // the same available reactions as messages in the channel.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) React(to Recipient, msg Editable, r Reactions) error {
 	if to == nil {
-		return ErrBadRecipient
+		return ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 
 	msgID, _ := msg.MessageSig()

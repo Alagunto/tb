@@ -240,6 +240,18 @@ func (c *nativeContext) PreCheckoutQuery() *PreCheckoutQuery {
 	return c.u.PreCheckoutQuery
 }
 
+// Assert that this context contains a pre checkout query.
+func (c *nativeContext) AssertPreCheckoutQuery() error {
+	if c.PreCheckoutQuery() == nil {
+		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: context pre checkout query is nil"), "pre_checkout_query", "nil"))
+	}
+
+	return nil
+}
+
+// Callback returns callback query if it exists.
+//
+// Assert that this context contains a callback query.
 func (c *nativeContext) Payment() *Payment {
 	if c.u.Message == nil {
 		return nil
@@ -477,7 +489,7 @@ func (c *nativeContext) SendAlbum(a Album, opts ...interface{}) error {
 func (c *nativeContext) Reply(what interface{}, opts ...interface{}) error {
 	msg := c.Message()
 	if msg == nil {
-		return ErrBadContext
+		return ErrWithCurrentStack(ErrWithInvalidParam(ErrBadContext, "message", "nil"))
 	}
 	opts = c.inheritOpts(opts...)
 	_, err := c.b.Reply(msg, what, opts...)
@@ -545,7 +557,7 @@ func (c *nativeContext) EditOrReply(what interface{}, opts ...interface{}) error
 func (c *nativeContext) Delete() error {
 	msg := c.Message()
 	if msg == nil {
-		return ErrBadContext
+		return ErrWithCurrentStack(ErrWithInvalidParam(ErrBadContext, "message", "nil"))
 	}
 	return c.b.Delete(msg)
 }
@@ -571,21 +583,21 @@ func (c *nativeContext) Notify(action ChatAction) error {
 
 func (c *nativeContext) Ship(what ...interface{}) error {
 	if c.u.ShippingQuery == nil {
-		return errors.New("telebot: context shipping query is nil")
+		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: context shipping query is nil"), "shipping_query", "nil"))
 	}
 	return c.b.Ship(c.u.ShippingQuery, what...)
 }
 
 func (c *nativeContext) Accept(errorMessage ...string) error {
 	if c.u.PreCheckoutQuery == nil {
-		return errors.New("telebot: context pre checkout query is nil")
+		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: context pre checkout query is nil"), "pre_checkout_query", "nil"))
 	}
 	return c.b.Accept(c.u.PreCheckoutQuery, errorMessage...)
 }
 
 func (c *nativeContext) Respond(resp ...*CallbackResponse) error {
 	if c.u.Callback == nil {
-		return errors.New("telebot: context callback is nil")
+		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: context callback is nil"), "callback", "nil"))
 	}
 	return c.b.Respond(c.u.Callback, resp...)
 }
@@ -600,7 +612,7 @@ func (c *nativeContext) RespondAlert(text string) error {
 
 func (c *nativeContext) Answer(resp *QueryResponse) error {
 	if c.u.Query == nil {
-		return errors.New("telebot: context inline query is nil")
+		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: context inline query is nil"), "inline_query", "nil"))
 	}
 	return c.b.Answer(c.u.Query, resp)
 }

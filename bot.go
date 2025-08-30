@@ -293,7 +293,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) NewContext(u Update) (Ctx, error
 //   - ParseMode (HTML, Markdown, etc)
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Send(to Recipient, what interface{}, opts ...interface{}) (*Message, error) {
 	if to == nil {
-		return nil, ErrBadRecipient
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 
 	sendOpts := b.extractOptions(opts)
@@ -312,7 +312,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Send(to Recipient, what interfac
 // To include the caption, make sure the first PaidInputtable of an album has it.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendPaid(to Recipient, stars int, a PaidAlbum, opts ...interface{}) (*Message, error) {
 	if to == nil {
-		return nil, ErrBadRecipient
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 
 	params := map[string]string{
@@ -360,7 +360,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendPaid(to Recipient, stars int
 // From all existing options, it only supports tele.Silent.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, error) {
 	if to == nil {
-		return nil, ErrBadRecipient
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 
 	sendOpts := b.extractOptions(opts)
@@ -442,7 +442,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Reply(to *Message, what interfac
 // This function will panic upon nil Editable.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Forward(to Recipient, msg Editable, opts ...interface{}) (*Message, error) {
 	if to == nil {
-		return nil, ErrBadRecipient
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 	msgID, chatID := msg.MessageSig()
 
@@ -469,7 +469,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Forward(to Recipient, msg Editab
 // Album grouping is kept for forwarded messages.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ForwardMany(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
 	if to == nil {
-		return nil, ErrBadRecipient
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 	return b.forwardCopyMany(to, msgs, "forwardMessages", opts...)
 }
@@ -479,7 +479,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ForwardMany(to Recipient, msgs [
 // This function will panic upon nil Editable.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Copy(to Recipient, msg Editable, opts ...interface{}) (*Message, error) {
 	if to == nil {
-		return nil, ErrBadRecipient
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 	msgID, chatID := msg.MessageSig()
 
@@ -509,7 +509,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Copy(to Recipient, msg Editable,
 // Album grouping is kept for copied messages.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CopyMany(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
 	if to == nil {
-		return nil, ErrBadRecipient
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 	return b.forwardCopyMany(to, msgs, "copyMessages", opts...)
 }
@@ -788,7 +788,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeleteMany(msgs []Editable) erro
 // actions, these are aligned as constants of this package.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Notify(to Recipient, action ChatAction, threadID ...int) error {
 	if to == nil {
-		return ErrBadRecipient
+		return ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 
 	params := map[string]string{

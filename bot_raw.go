@@ -289,6 +289,9 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) forwardCopyMany(to Recipient, ms
 		if err := json.Unmarshal(data, &resp); err != nil {
 			return nil, wrapError(err)
 		}
+		if resp.Result {
+			return nil, ErrWithCurrentStack(ErrTrueResult)
+		}
 		return nil, wrapError(err)
 	}
 	return resp.Result, nil
@@ -360,7 +363,7 @@ func extractMessage(data []byte) (*Message, error) {
 			return nil, wrapError(err)
 		}
 		if resp.Result {
-			return nil, ErrTrueResult
+			return nil, ErrWithCurrentStack(ErrTrueResult)
 		}
 		return nil, wrapError(err)
 	}

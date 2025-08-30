@@ -140,7 +140,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AddStickerToSet(of Recipient, na
 	files := make(map[string]File)
 	repr := sticker.File.process("0", files)
 	if repr == "" {
-		return errors.New("telebot: sticker does not exist")
+		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: sticker does not exist"), "sticker", "empty"))
 	}
 
 	sticker.Sticker = repr
@@ -184,13 +184,13 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeleteSticker(sticker string) er
 // Animated sticker set thumbnail can't be uploaded via HTTP URL.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetStickerSetThumb(of Recipient, set *StickerSet) error {
 	if set.Thumbnail == nil {
-		return errors.New("telebot: thumbnail is required")
+		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: thumbnail is required"), "thumbnail", "nil"))
 	}
 
 	files := make(map[string]File)
 	repr := set.Thumbnail.File.process("thumb", files)
 	if repr == "" {
-		return errors.New("telebot: thumbnail does not exist")
+		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: thumbnail does not exist"), "thumbnail", "empty"))
 	}
 
 	params := map[string]string{
@@ -310,7 +310,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ReplaceStickerInSet(of Recipient
 
 	repr := sticker.File.process("0", files)
 	if repr == "" {
-		return false, errors.New("telebot: sticker does not exist")
+		return false, ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: sticker does not exist"), "sticker", "empty"))
 	}
 	sticker.Sticker = repr
 

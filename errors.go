@@ -33,7 +33,7 @@ type ErrHasStack struct {
 }
 
 func (f *ErrHasStack) Error() string {
-	return fmt.Sprintf("(stacktrace: %s)", f.Stack)
+	return "(stacktrace included)"
 }
 
 func ErrWithStack(err error, stack string) error {

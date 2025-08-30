@@ -379,7 +379,7 @@ func (c *Checklist) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Me
 	}
 
 	if params["business_connection_id"] == "" {
-		return nil, errors.New("business_connection_id is required for sending a checklist")
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(errors.New("business_connection_id is required for sending a checklist"), "business_connection_id", "empty"))
 	}
 
 	data, err := b.Raw("sendChecklist", paramsAny)
