@@ -3,8 +3,46 @@ package tb
 import (
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 )
+
+var (
+	ErrBadRecipient    = errors.New("telebot: recipient is nil")
+	ErrUnsupportedWhat = errors.New("telebot: unsupported what argument")
+	ErrCouldNotUpdate  = errors.New("telebot: could not fetch new updates")
+	ErrTrueResult      = errors.New("telebot: result is True")
+	ErrBadContext      = errors.New("telebot: context does not contain message")
+)
+
+type ErrHasInvalidParam struct {
+	ParamName  string
+	ParamValue string
+}
+
+func (e *ErrHasInvalidParam) Error() string {
+	return fmt.Sprintf("(invalid parameter provided: %s=%s)", e.ParamName, e.ParamValue)
+}
+
+func ErrWithInvalidParam(err error, paramName, paramValue string) error {
+	return fmt.Errorf("%w %w", err, &ErrHasInvalidParam{ParamName: paramName, ParamValue: paramValue})
+}
+
+type ErrHasStack struct {
+	Stack string
+}
+
+func (f *ErrHasStack) Error() string {
+	return fmt.Sprintf("(stacktrace: %s)", f.Stack)
+}
+
+func ErrWithStack(err error, stack string) error {
+	return fmt.Errorf("%w %w", err, &ErrHasStack{Stack: stack})
+}
+
+func ErrWithCurrentStack(err error) error {
+	return ErrWithStack(err, string(debug.Stack()))
+}
 
 type (
 	Error struct {

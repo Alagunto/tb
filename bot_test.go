@@ -513,9 +513,9 @@ func TestBot(t *testing.T) {
 	}
 
 	_, err := b.Send(to, nil)
-	assert.Equal(t, ErrUnsupportedWhat, err)
+	assert.ErrorIs(t, ErrUnsupportedWhat, err)
 	_, err = b.Edit(&Message{Chat: &Chat{}}, nil)
-	assert.Equal(t, ErrUnsupportedWhat, err)
+	assert.ErrorIs(t, ErrUnsupportedWhat, err)
 
 	_, err = b.Send(nil, "")
 	assert.Equal(t, ErrBadRecipient, err)
@@ -732,7 +732,7 @@ func TestBot(t *testing.T) {
 			b.Ship(&ShippingQuery{})
 			b.Ship(&ShippingQuery{}, "error")
 			b.Ship(&ShippingQuery{}, ShippingOption{}, ShippingOption{})
-			assert.Equal(t, ErrUnsupportedWhat, b.Ship(&ShippingQuery{}, 0))
+			assert.ErrorIs(t, ErrUnsupportedWhat, b.Ship(&ShippingQuery{}, 0))
 		})
 	})
 

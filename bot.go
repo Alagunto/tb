@@ -304,7 +304,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Send(to Recipient, what interfac
 	case Sendable[Ctx, HandlerFunc, MiddlewareFunc]:
 		return object.Send(b, to, sendOpts)
 	default:
-		return nil, ErrUnsupportedWhat
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrUnsupportedWhat, "what", fmt.Sprintf("%v", what)))
 	}
 }
 
@@ -572,7 +572,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Edit(msg Editable, what interfac
 			params["live_period"] = strconv.Itoa(v.LivePeriod)
 		}
 	default:
-		return nil, ErrUnsupportedWhat
+		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrUnsupportedWhat, "what", fmt.Sprintf("%v", what)))
 	}
 
 	msgID, chatID := msg.MessageSig()
@@ -827,7 +827,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Ship(query *ShippingQuery, what 
 		for _, v := range what {
 			opt, ok := v.(ShippingOption)
 			if !ok {
-				return ErrUnsupportedWhat
+				return ErrWithCurrentStack(ErrWithInvalidParam(ErrUnsupportedWhat, "what", fmt.Sprintf("%v", v)))
 			}
 			opts = append(opts, opt)
 		}
