@@ -1,6 +1,9 @@
 package tb
 
-import "strings"
+import (
+	"runtime/debug"
+	"strings"
+)
 
 // Update object represents an incoming update.
 type Update struct {
@@ -35,7 +38,7 @@ type Update struct {
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessUpdate(u Update) {
 	ctx, err := b.NewContext(u)
 	if err != nil {
-		b.OnError(err, ctx)
+		b.OnError(err, ctx, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{Handler: nil, Stack: string(debug.Stack())})
 		return
 	}
 	b.ProcessContext(ctx)
@@ -408,7 +411,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handleMedia(c Ctx) bool {
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(h HandlerFunc, c Ctx) {
 	f := func() {
 		if err := h(c); err != nil {
-			b.OnError(err, c)
+			b.OnError(err, c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{Handler: h, Stack: string(debug.Stack())})
 		}
 	}
 	if b.synchronous {

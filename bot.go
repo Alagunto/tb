@@ -77,7 +77,7 @@ type Bot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(
 	URL              string
 	Updates          chan Update
 	Poller           Poller
-	onError          func(error, Ctx)
+	onError          func(error, Ctx, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc])
 	createNewContext func(ContextInterface) (Ctx, error)
 
 	group       *Group[Ctx, HandlerFunc, MiddlewareFunc]
@@ -119,8 +119,8 @@ type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc 
 
 	// OnError is a callback function that will get called on errors
 	// resulted from the handler. It is used as post-middleware function.
-	// Notice that context can be nil.
-	OnError func(error, Ctx)
+	// Notice that context can be nil. Receives error, context and stack trace.
+	OnError func(error, Ctx, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc])
 
 	// HTTP Client used to make requests to telegram api
 	Client *http.Client
@@ -129,12 +129,17 @@ type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc 
 	Offline bool
 }
 
-func defaultOnError[Ctx ContextInterface](err error, _ Ctx) {
+func defaultOnError[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](err error, _ Ctx, _ DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]) {
 	log.Println(err)
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) OnError(err error, c Ctx) {
-	b.onError(err, c)
+type DebugInfo[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
+	Handler HandlerFunc
+	Stack   string
+}
+
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) OnError(err error, c Ctx, debugInfo DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]) {
+	b.onError(err, c, debugInfo)
 }
 
 // Group returns a new group.

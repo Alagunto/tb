@@ -2,6 +2,7 @@ package tb
 
 import (
 	"errors"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -553,7 +554,7 @@ func (c *nativeContext) DeleteAfter(d time.Duration) *time.Timer {
 	return time.AfterFunc(d, func() {
 		if err := c.Delete(); err != nil {
 			if b, ok := c.b.(*Bot[*nativeContext, func(*nativeContext) error, func(func(*nativeContext) error) func(*nativeContext) error]); ok {
-				b.OnError(err, c)
+				b.OnError(err, c, DebugInfo[*nativeContext, func(*nativeContext) error, func(func(*nativeContext) error) func(*nativeContext) error]{Handler: nil, Stack: string(debug.Stack())})
 			}
 		}
 	})

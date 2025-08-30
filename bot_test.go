@@ -379,10 +379,12 @@ func TestBotOnError(t *testing.T) {
 	}
 
 	var ok bool
-	b.onError = func(err error, c usedCtx) {
+	b.onError = func(err error, c usedCtx, debugInfo DebugInfo[usedCtx, usedHandlerFunc, usedMiddlewareFunc]) {
 		assert.Equal(t, b, c.Bot())
 		assert.NotNil(t, err)
 		ok = true
+		assert.NotNil(t, debugInfo.Handler)
+		assert.NotEmpty(t, debugInfo.Stack)
 	}
 
 	b.runHandler(func(c usedCtx) error {
