@@ -46,9 +46,10 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 		onError:          pref.OnError,
 		createNewContext: createNewContext,
 
-		Updates:  make(chan Update, pref.Updates),
-		handlers: make(map[string]HandlerFunc),
-		stop:     make(chan chan struct{}),
+		Updates:          make(chan Update, pref.Updates),
+		handlers:         make(map[string]HandlerFunc),
+		originalHandlers: make(map[string]HandlerFunc),
+		stop:             make(chan chan struct{}),
 
 		synchronous: pref.Synchronous,
 		verbose:     pref.Verbose,
