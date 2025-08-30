@@ -80,13 +80,14 @@ type Bot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(
 	onError          func(error, Ctx, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc])
 	createNewContext func(ContextInterface) (Ctx, error)
 
-	group       *Group[Ctx, HandlerFunc, MiddlewareFunc]
-	handlers    map[string]HandlerFunc
-	synchronous bool
-	verbose     bool
-	parseMode   ParseMode
-	stop        chan chan struct{}
-	client      *http.Client
+	group            *Group[Ctx, HandlerFunc, MiddlewareFunc]
+	handlers         map[string]HandlerFunc
+	originalHandlers map[string]HandlerFunc
+	synchronous      bool
+	verbose          bool
+	parseMode        ParseMode
+	stop             chan chan struct{}
+	client           *http.Client
 
 	stopMu     sync.RWMutex
 	stopClient chan struct{}
@@ -188,9 +189,11 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Handle(endpoint interface{}, h H
 	if _, ok := b.handlers[end]; ok {
 		panic("telebot: handler is already registered for endpoint " + end + ", overriding the existing handler is almost always a bug")
 	}
-	b.handlers[end] = func(c Ctx) error {
+	handler := func(c Ctx) error {
 		return applyMiddleware(h, m...)(c)
 	}
+	b.handlers[end] = handler
+	b.originalHandlers[end] = h
 }
 
 // Trigger executes the registered handler by the endpoint.

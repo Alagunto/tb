@@ -411,8 +411,12 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handleMedia(c Ctx) bool {
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(h HandlerFunc, c Ctx, endpoint string) {
 	f := func() {
 		if err := h(c); err != nil {
+			originalHandler, ok := b.originalHandlers[endpoint]
+			if !ok {
+				originalHandler = h
+			}
 			b.OnError(err, c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{
-				Handler:  h,
+				Handler:  originalHandler,
 				Stack:    string(debug.Stack()),
 				Endpoint: endpoint,
 			})
