@@ -53,6 +53,7 @@ type API interface {
 	Forward(to Recipient, msg Editable, opts ...interface{}) (*Message, error)
 	ForwardMany(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error)
 	GameScores(user Recipient, msg Editable) ([]GameHighScore, error)
+	GetMe() (*User, error)
 	HideGeneralTopic(chat *Chat) error
 	InviteLink(chat *Chat) (string, error)
 	Leave(chat Recipient) error

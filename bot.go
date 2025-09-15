@@ -1346,6 +1346,10 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) StarTransactions(offset, limit i
 	return resp.Result.Transactions, nil
 }
 
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) GetMe() (*User, error) {
+	return b.getMe()
+}
+
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) botInfo(language, key string) (*BotInfo, error) {
 	params := map[string]string{
 		"language_code": language,
