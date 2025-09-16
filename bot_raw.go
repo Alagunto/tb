@@ -23,6 +23,7 @@ type RawBotInterface interface {
 	RawGetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]Update, error)
 	RawEmbedSendOptions(params map[string]string, opt *SendOptions)
 	Raw(method string, payload interface{}) ([]byte, error)
+	CensorText(text string) string
 }
 
 // Raw lets you call any method of Bot API manually.

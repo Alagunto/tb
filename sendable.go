@@ -353,7 +353,16 @@ func (p *Poll) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message
 	}
 	b.RawEmbedSendOptions(params, opt)
 
-	opts, _ := json.Marshal(p.Options)
+	// Censor poll options before marshaling
+	censoredOptions := make([]PollOption, len(p.Options))
+	for i, opt := range p.Options {
+		censoredOptions[i] = PollOption{
+			Text:       b.CensorText(opt.Text),
+			VoterCount: opt.VoterCount,
+		}
+	}
+
+	opts, _ := json.Marshal(censoredOptions)
 	params["options"] = string(opts)
 
 	data, err := b.Raw("sendPoll", params)

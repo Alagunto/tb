@@ -167,6 +167,17 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[s
 		return
 	}
 
+	// Apply censoring to text content in params
+	textFields := []string{
+		"text", "caption", "question", "explanation", "title", "description",
+		"performer", "file_name", "address", // Audio artist, filenames, venue addresses
+	}
+	for _, field := range textFields {
+		if text, exists := params[field]; exists && text != "" {
+			params[field] = b.censorText(text)
+		}
+	}
+
 	if opt.ReplyTo != nil && opt.ReplyTo.ID != 0 {
 		params["reply_to_message_id"] = strconv.Itoa(opt.ReplyTo.ID)
 	}

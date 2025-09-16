@@ -51,10 +51,11 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 		originalHandlers: make(map[string]HandlerFunc),
 		stop:             make(chan chan struct{}),
 
-		synchronous: pref.Synchronous,
-		verbose:     pref.Verbose,
-		parseMode:   pref.ParseMode,
-		client:      client,
+		synchronous:   pref.Synchronous,
+		verbose:       pref.Verbose,
+		parseMode:     pref.ParseMode,
+		censoredWords: pref.CensoredWords,
+		client:        client,
 	}
 
 	if pref.Offline {
@@ -69,6 +70,38 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 
 	bot.group = bot.Group()
 	return bot, nil
+}
+
+// censorText filters out censored words from the given text (case-insensitive).
+// It replaces censored words with asterisks of the same length.
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) censorText(text string) string {
+	if len(b.censoredWords) == 0 {
+		return text
+	}
+
+	result := text
+	for _, word := range b.censoredWords {
+		if word == "" {
+			continue
+		}
+
+		// Create a case-insensitive regex to find all variations of the word
+		// Using \b for word boundaries to match complete words only
+		pattern := `(?i)\b` + regexp.QuoteMeta(word) + `\b`
+		re := regexp.MustCompile(pattern)
+
+		// Replace with asterisks of the same length
+		result = re.ReplaceAllStringFunc(result, func(match string) string {
+			return strings.Repeat("*", len(match))
+		})
+	}
+
+	return result
+}
+
+// CensorText is the public interface method that implements RawBotInterface.
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CensorText(text string) string {
+	return b.censorText(text)
 }
 
 // Bot represents a separate Telegram bot instance.
@@ -87,6 +120,7 @@ type Bot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(
 	synchronous      bool
 	verbose          bool
 	parseMode        ParseMode
+	censoredWords    []string
 	stop             chan chan struct{}
 	client           *http.Client
 
@@ -129,6 +163,10 @@ type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc 
 
 	// Offline allows to create a bot without network for testing purposes.
 	Offline bool
+
+	// CensoredWords is a list of words that should be filtered from all outgoing messages.
+	// Filtering is case-insensitive and removes any variation of the specified strings.
+	CensoredWords []string
 }
 
 func defaultOnError[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](err error, _ Ctx, _ DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]) {
@@ -550,7 +588,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Edit(msg Editable, what interfac
 		return b.EditMedia(msg, v, opts...)
 	case string:
 		method = "editMessageText"
-		params["text"] = v
+		params["text"] = b.censorText(v)
 	case Checklist:
 		method = "editMessageChecklist"
 		params["checklist"] = v
@@ -635,7 +673,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditCaption(msg Editable, captio
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
-		"caption": caption,
+		"caption": b.censorText(caption),
 	}
 
 	if chatID == 0 { // if inline message
