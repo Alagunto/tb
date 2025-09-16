@@ -339,7 +339,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Send(to Recipient, what interfac
 	switch object := what.(type) {
 	case string:
 		return b.RawSendText(to, object, sendOpts)
-	case Sendable[Ctx, HandlerFunc, MiddlewareFunc]:
+	case Sendable:
 		return object.Send(b, to, sendOpts)
 	default:
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrUnsupportedWhat, "what", fmt.Sprintf("%v", what)))

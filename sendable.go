@@ -19,8 +19,8 @@ type Recipient interface {
 // This is pretty cool, since it lets bots implement
 // custom Sendables for complex kind of media or
 // chat objects spanning across multiple messages.
-type Sendable[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] interface {
-	Send(*Bot[Ctx, HandlerFunc, MiddlewareFunc], Recipient, *SendOptions) (*Message, error)
+type Sendable interface {
+	Send(RawBotInterface, Recipient, *SendOptions) (*Message, error)
 }
 
 // Send delivers media through bot b to recipient.
