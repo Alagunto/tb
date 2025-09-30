@@ -348,6 +348,15 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessContext(c Ctx) {
 		return
 	}
 
+	if u.MessageReaction != nil {
+		b.handle(OnReaction, c)
+		return
+	}
+	if u.MessageReactionCount != nil {
+		b.handle(OnReactionCount, c)
+		return
+	}
+
 	if u.BusinessConnection != nil {
 		b.handle(OnBusinessConnection, c)
 		return
@@ -410,6 +419,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handleMedia(c Ctx) bool {
 
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(h HandlerFunc, c Ctx, endpoint string) {
 	f := func() {
+		defer b.handlersWg.Done()
 		if err := h(c); err != nil {
 			originalHandler, ok := b.originalHandlers[endpoint]
 			if !ok {
@@ -422,6 +432,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(h HandlerFunc, c Ctx,
 			})
 		}
 	}
+	b.handlersWg.Add(1)
 	if b.synchronous {
 		f()
 	} else {

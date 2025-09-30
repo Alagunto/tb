@@ -56,6 +56,8 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 		parseMode:     pref.ParseMode,
 		censoredWords: pref.CensoredWords,
 		client:        client,
+		retryPolicy:   pref.RetryPolicy,
+		rateLimiter:   pref.RateLimiter,
 	}
 
 	if pref.Offline {
@@ -124,8 +126,11 @@ type Bot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(
 	stop             chan chan struct{}
 	client           *http.Client
 
-	stopMu     sync.RWMutex
-	stopClient chan struct{}
+	stopMu      sync.RWMutex
+	stopClient  chan struct{}
+	handlersWg  sync.WaitGroup
+	retryPolicy *RetryPolicy
+	rateLimiter *RateLimiter
 }
 
 // Settings represents a utility struct for passing certain
@@ -167,6 +172,16 @@ type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc 
 	// CensoredWords is a list of words that should be filtered from all outgoing messages.
 	// Filtering is case-insensitive and removes any variation of the specified strings.
 	CensoredWords []string
+
+	// RetryPolicy configures automatic retry behavior for failed API calls.
+	// If nil, no automatic retry is performed.
+	// Use DefaultRetryPolicy() for sensible defaults.
+	RetryPolicy *RetryPolicy
+
+	// RateLimiter limits the rate of API calls to prevent hitting Telegram limits.
+	// If nil, no rate limiting is applied.
+	// Recommended: NewRateLimiter(30, time.Second) for 30 requests per second.
+	RateLimiter *RateLimiter
 }
 
 func defaultOnError[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](err error, _ Ctx, _ DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]) {
@@ -290,18 +305,23 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Start() {
 	}
 }
 
-// Stop gracefully shuts the poller down.
+// Stop gracefully shuts the poller down and waits for all handlers to complete.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Stop() {
 	b.stopMu.Lock()
-	if b.stopClient != nil {
-		close(b.stopClient)
-		b.stopClient = nil
-	}
+	ch := b.stopClient
+	b.stopClient = nil
 	b.stopMu.Unlock()
+
+	if ch != nil {
+		close(ch)
+	}
 
 	confirm := make(chan struct{})
 	b.stop <- confirm
 	<-confirm
+
+	// Wait for all handlers to complete
+	b.handlersWg.Wait()
 }
 
 // NewMarkup simply returns newly created markup instance.

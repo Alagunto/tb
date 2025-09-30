@@ -382,3 +382,97 @@ const (
 	MenuButtonCommands MenuButtonType = "commands"
 	MenuButtonWebApp   MenuButtonType = "web_app"
 )
+
+// InlineKeyboardBuilder provides a fluent interface for building inline keyboards.
+type InlineKeyboardBuilder struct {
+	rows [][]InlineButton
+}
+
+// NewInlineKeyboard creates a new inline keyboard builder.
+func NewInlineKeyboard() *InlineKeyboardBuilder {
+	return &InlineKeyboardBuilder{
+		rows: make([][]InlineButton, 0),
+	}
+}
+
+// Row adds a new row of buttons to the keyboard.
+func (kb *InlineKeyboardBuilder) Row(buttons ...InlineButton) *InlineKeyboardBuilder {
+	if len(buttons) > 0 {
+		kb.rows = append(kb.rows, buttons)
+	}
+	return kb
+}
+
+// Build returns the completed ReplyMarkup with the inline keyboard.
+func (kb *InlineKeyboardBuilder) Build() *ReplyMarkup {
+	return &ReplyMarkup{
+		InlineKeyboard: kb.rows,
+	}
+}
+
+// ReplyKeyboardBuilder provides a fluent interface for building reply keyboards.
+type ReplyKeyboardBuilder struct {
+	rows        [][]ReplyButton
+	resize      bool
+	oneTime     bool
+	selective   bool
+	placeholder string
+	persistent  bool
+}
+
+// NewReplyKeyboard creates a new reply keyboard builder.
+func NewReplyKeyboard() *ReplyKeyboardBuilder {
+	return &ReplyKeyboardBuilder{
+		rows: make([][]ReplyButton, 0),
+	}
+}
+
+// Row adds a new row of buttons to the keyboard.
+func (kb *ReplyKeyboardBuilder) Row(buttons ...ReplyButton) *ReplyKeyboardBuilder {
+	if len(buttons) > 0 {
+		kb.rows = append(kb.rows, buttons)
+	}
+	return kb
+}
+
+// Resize enables automatic keyboard resizing.
+func (kb *ReplyKeyboardBuilder) Resize() *ReplyKeyboardBuilder {
+	kb.resize = true
+	return kb
+}
+
+// OneTime makes the keyboard hide after first use.
+func (kb *ReplyKeyboardBuilder) OneTime() *ReplyKeyboardBuilder {
+	kb.oneTime = true
+	return kb
+}
+
+// Selective makes the keyboard visible only to specific users.
+func (kb *ReplyKeyboardBuilder) Selective() *ReplyKeyboardBuilder {
+	kb.selective = true
+	return kb
+}
+
+// Placeholder sets the input field placeholder text.
+func (kb *ReplyKeyboardBuilder) Placeholder(text string) *ReplyKeyboardBuilder {
+	kb.placeholder = text
+	return kb
+}
+
+// Persistent makes the keyboard persistent (shown even when bot messages scroll out of view).
+func (kb *ReplyKeyboardBuilder) Persistent() *ReplyKeyboardBuilder {
+	kb.persistent = true
+	return kb
+}
+
+// Build returns the completed ReplyMarkup with the reply keyboard.
+func (kb *ReplyKeyboardBuilder) Build() *ReplyMarkup {
+	return &ReplyMarkup{
+		ReplyKeyboard:   kb.rows,
+		ResizeKeyboard:  kb.resize,
+		OneTimeKeyboard: kb.oneTime,
+		Selective:       kb.selective,
+		Placeholder:     kb.placeholder,
+		IsPersistent:    kb.persistent,
+	}
+}

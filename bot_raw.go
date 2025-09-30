@@ -6,14 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type RawBotInterface interface {
@@ -30,6 +31,26 @@ type RawBotInterface interface {
 // It also handles API errors, so you only need to unwrap
 // result field from json data.
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Raw(method string, payload interface{}) ([]byte, error) {
+	// Apply rate limiting if configured
+	if b.rateLimiter != nil {
+		b.rateLimiter.Wait()
+	}
+
+	// Define the actual API call
+	apiCall := func() ([]byte, error) {
+		return b.rawAPICall(method, payload)
+	}
+
+	// Apply retry policy if configured
+	if b.retryPolicy != nil {
+		return WithRetry(apiCall, *b.retryPolicy)
+	}
+
+	return apiCall()
+}
+
+// rawAPICall performs the actual HTTP request to Telegram API.
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) rawAPICall(method string, payload interface{}) ([]byte, error) {
 	url := b.URL + "/bot" + b.Token + "/" + method
 
 	var buf bytes.Buffer
@@ -68,7 +89,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Raw(method string, payload inter
 	resp.Close = true
 	defer resp.Body.Close()
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, wrapError(err)
 	}
@@ -82,6 +103,11 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Raw(method string, payload inter
 }
 
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendFiles(method string, files map[string]File, params map[string]string) ([]byte, error) {
+	// Apply rate limiting if configured
+	if b.rateLimiter != nil {
+		b.rateLimiter.Wait()
+	}
+
 	rawFiles := make(map[string]interface{})
 	for name, f := range files {
 		switch {
@@ -102,6 +128,20 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendFiles(method string, file
 		return b.Raw(method, params)
 	}
 
+	// File upload logic - wrap in retry if configured
+	uploadFunc := func() ([]byte, error) {
+		return b.sendFilesWithMultipart(method, rawFiles, files, params)
+	}
+
+	if b.retryPolicy != nil {
+		return WithRetry(uploadFunc, *b.retryPolicy)
+	}
+
+	return uploadFunc()
+}
+
+// sendFilesWithMultipart performs the actual file upload via multipart/form-data
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendFilesWithMultipart(method string, rawFiles map[string]interface{}, files map[string]File, params map[string]string) ([]byte, error) {
 	pipeReader, pipeWriter := io.Pipe()
 	writer := multipart.NewWriter(pipeWriter)
 
@@ -141,7 +181,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendFiles(method string, file
 		return nil, ErrInternal
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, wrapError(err)
 	}
@@ -203,7 +243,8 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendText(to Recipient, text s
 
 func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendMedia(media Media, params map[string]string, files map[string]File) (*Message, error) {
 	kind := media.MediaType()
-	what := "send" + strings.Title(kind)
+	caser := cases.Title(language.English)
+	what := "send" + caser.String(kind)
 
 	if kind == "videoNote" {
 		kind = "video_note"
@@ -308,8 +349,8 @@ func extractOk(data []byte) error {
 		Description string                 `json:"description"`
 		Parameters  map[string]interface{} `json:"parameters"`
 	}
-	if json.NewDecoder(bytes.NewReader(data)).Decode(&e) != nil {
-		return nil // FIXME
+	if err := json.NewDecoder(bytes.NewReader(data)).Decode(&e); err != nil {
+		return fmt.Errorf("telebot: failed to decode response: %w", err)
 	}
 	if e.Ok {
 		return nil

@@ -2,6 +2,7 @@ package tb
 
 import (
 	"errors"
+	"fmt"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -632,4 +633,35 @@ func (c *nativeContext) Get(key string) interface{} {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	return c.store[key]
+}
+
+// GetTyped retrieves a value from the context with type safety.
+// Returns the value and a boolean indicating whether the key exists and type matches.
+func GetTyped[T any](c ContextInterface, key string) (T, bool) {
+	val := c.Get(key)
+	if val == nil {
+		var zero T
+		return zero, false
+	}
+	typed, ok := val.(T)
+	return typed, ok
+}
+
+// MustGetTyped retrieves a value from the context and panics if not found or wrong type.
+// Use this when you're certain the value exists and has the correct type.
+func MustGetTyped[T any](c ContextInterface, key string) T {
+	val, ok := GetTyped[T](c, key)
+	if !ok {
+		panic(fmt.Sprintf("telebot: key %q not found or has wrong type", key))
+	}
+	return val
+}
+
+// GetTypedOr retrieves a value from the context or returns a default value.
+func GetTypedOr[T any](c ContextInterface, key string, defaultVal T) T {
+	val, ok := GetTyped[T](c, key)
+	if !ok {
+		return defaultVal
+	}
+	return val
 }

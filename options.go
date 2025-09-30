@@ -49,6 +49,95 @@ func Placeholder(text string) *SendOptions {
 	}
 }
 
+// SendOption is a functional option for configuring SendOptions.
+type SendOption func(*SendOptions)
+
+// WithParseMode sets the parse mode for the message.
+func WithParseMode(mode ParseMode) SendOption {
+	return func(o *SendOptions) {
+		o.ParseMode = mode
+	}
+}
+
+// WithSilent sends the message silently (no notification).
+func WithSilent() SendOption {
+	return func(o *SendOptions) {
+		o.DisableNotification = true
+	}
+}
+
+// WithProtected protects the message from forwarding and saving.
+func WithProtected() SendOption {
+	return func(o *SendOptions) {
+		o.Protected = true
+	}
+}
+
+// WithNoPreview disables link preview for the message.
+func WithNoPreview() SendOption {
+	return func(o *SendOptions) {
+		o.DisableWebPagePreview = true
+	}
+}
+
+// WithReplyTo makes the message a reply to another message.
+func WithReplyTo(msg *Message) SendOption {
+	return func(o *SendOptions) {
+		o.ReplyTo = msg
+	}
+}
+
+// WithReplyMarkup sets the reply markup for the message.
+func WithReplyMarkup(markup *ReplyMarkup) SendOption {
+	return func(o *SendOptions) {
+		o.ReplyMarkup = markup
+	}
+}
+
+// WithEntities sets custom entities for the message.
+func WithEntities(entities Entities) SendOption {
+	return func(o *SendOptions) {
+		o.Entities = entities
+	}
+}
+
+// WithThreadID sends the message to a specific thread.
+func WithThreadID(threadID int) SendOption {
+	return func(o *SendOptions) {
+		o.ThreadID = threadID
+	}
+}
+
+// WithSpoiler marks the message as containing a spoiler.
+func WithSpoiler() SendOption {
+	return func(o *SendOptions) {
+		o.HasSpoiler = true
+	}
+}
+
+// WithBusinessConnection sends the message via a business connection.
+func WithBusinessConnection(id string) SendOption {
+	return func(o *SendOptions) {
+		o.BusinessConnectionID = id
+	}
+}
+
+// WithEffectID adds a message effect (for private chats only).
+func WithEffectID(id string) SendOption {
+	return func(o *SendOptions) {
+		o.EffectID = id
+	}
+}
+
+// ApplySendOptions creates a SendOptions from functional options.
+func ApplySendOptions(opts ...SendOption) *SendOptions {
+	sendOpts := &SendOptions{}
+	for _, opt := range opts {
+		opt(sendOpts)
+	}
+	return sendOpts
+}
+
 // SendOptions has most complete control over in what way the message
 // must be sent, providing an API-complete set of custom properties
 // and options.

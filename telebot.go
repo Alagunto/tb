@@ -106,6 +106,9 @@ const (
 	OnBoost        = "\aboost_updated"
 	OnBoostRemoved = "\aboost_removed"
 
+	OnReaction      = "\areaction"
+	OnReactionCount = "\areaction_count"
+
 	OnBusinessConnection      = "\abusiness_connection"
 	OnBusinessMessage         = "\abusiness_message"
 	OnEditedBusinessMessage   = "\aedited_business_message"
