@@ -1,4 +1,4 @@
-package tb
+package telegram
 
 // WebApp represents a parameter of the inline keyboard button
 // or the keyboard button used to launch Web App.
@@ -17,7 +17,7 @@ type WebAppData struct {
 	Text string `json:"button_text"`
 }
 
-// WebAppAccessAllowed represents a service message about a user allowing
+// WriteAccessAllowed represents a service message about a user allowing
 // a bot to write messages after adding the bot to the attachment menu or launching a Web App from a link.
 type WriteAccessAllowed struct {
 	WebAppName         string `json:"web_app_name,omitempty"`

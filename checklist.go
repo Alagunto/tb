@@ -1,6 +1,10 @@
 package tb
 
-import "time"
+import (
+	"time"
+
+	"github.com/alagunto/tb/telegram"
+)
 
 type Checklist struct {
 	Title                    string
@@ -14,7 +18,7 @@ type ChecklistTask struct {
 	ID              int
 	Text            string
 	TextEntities    []MessageEntity
-	CompletedByUser *User
+	CompletedByUser *telegram.User
 	CompletionDate  *time.Time
 }
 

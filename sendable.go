@@ -6,25 +6,12 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+
+	"github.com/alagunto/tb/communications"
 )
 
-// Recipient is any possible endpoint you can send
-// messages to: either user, group or a channel.
-type Recipient interface {
-	Recipient() string // must return legit Telegram chat_id or username
-}
-
-// Sendable is any object that can send itself.
-//
-// This is pretty cool, since it lets bots implement
-// custom Sendables for complex kind of media or
-// chat objects spanning across multiple messages.
-type Sendable interface {
-	Send(RawBotInterface, Recipient, *SendOptions) (*Message, error)
-}
-
 // Send delivers media through bot b to recipient.
-func (p *Photo) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
+func (p *Photo) Send(b RawBotInterface, to communications.Recipient, opt *communications.SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"caption": p.Caption,
@@ -44,7 +31,7 @@ func (p *Photo) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Messag
 }
 
 // Send delivers media through bot b to recipient.
-func (a *Audio) Send(b RawBotInterface, to Recipient, opt *SendOptions) (*Message, error) {
+func (a *Audio) Send(b RawBotInterface, to communications.Recipient, opt *communications.SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id":   to.Recipient(),
 		"caption":   a.Caption,

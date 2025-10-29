@@ -1,11 +1,15 @@
 package tb
 
-import "time"
+import (
+	"time"
+
+	"github.com/alagunto/tb/telegram"
+)
 
 // Giveaway represents a message about a scheduled giveaway.
 type Giveaway struct {
 	// The list of chats which the user must join to participate in the giveaway.
-	Chats []Chat `json:"chats"`
+	Chats []telegram.Chat `json:"chats"`
 
 	// Point in time (Unix timestamp) when winners of the giveaway will be selected.
 	SelectionUnixtime int64 `json:"winners_selection_date"`
@@ -43,7 +47,7 @@ func (g *Giveaway) SelectionDate() time.Time {
 // giveaway with public winners.
 type GiveawayWinners struct {
 	// The chat that created the giveaway.
-	Chat *Chat `json:"chat"`
+	Chat *telegram.Chat `json:"chat"`
 
 	// Identifier of the message with the giveaway in the chat.
 	MessageID int `json:"message_id"`
@@ -55,7 +59,7 @@ type GiveawayWinners struct {
 	WinnerCount int `json:"winner_count"`
 
 	// List of up to 100 winners of the giveaway.
-	Winners []User `json:"winners"`
+	Winners []telegram.User `json:"winners"`
 
 	// (Optional) The number of other chats the user had to join in order
 	// to be eligible for the giveaway.

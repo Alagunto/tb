@@ -1,14 +1,9 @@
-package tb
+package telegram
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
-// Query is an incoming inline query. When the user sends
+// InlineQuery is an incoming inline query. When the user sends
 // an empty query, your bot could return some default or
 // trending results.
-type Query struct {
+type InlineQuery struct {
 	// Unique identifier for this query. 1-64 bytes.
 	ID string `json:"id"`
 
@@ -28,7 +23,7 @@ type Query struct {
 	ChatType string `json:"chat_type"`
 }
 
-// QueryResponse builds a response to an inline Query.
+// QueryResponse builds a response to an inline InlineQuery.
 type QueryResponse struct {
 	// The ID of the query to which this is a response.
 	//
@@ -116,66 +111,4 @@ type InlineResult struct {
 // MessageSig satisfies Editable interface.
 func (ir *InlineResult) MessageSig() (string, int64) {
 	return ir.MessageID, 0
-}
-
-// Result represents one result of an inline query.
-type Result interface {
-	ResultID() string
-	SetResultID(string)
-	SetParseMode(ParseMode)
-	SetContent(InputMessageContent)
-	SetReplyMarkup(*ReplyMarkup)
-	// Process(b API)
-}
-
-// Results is a slice wrapper for convenient marshalling.
-type Results []Result
-
-// MarshalJSON makes sure IQRs have proper IDs and Type variables set.
-func (results Results) MarshalJSON() ([]byte, error) {
-	for i, result := range results {
-		if result.ResultID() == "" {
-			result.SetResultID(fmt.Sprintf("%d", &results[i]))
-		}
-		if err := inferIQR(result); err != nil {
-			return nil, err
-		}
-	}
-
-	return json.Marshal([]Result(results))
-}
-
-func inferIQR(result Result) error {
-	switch r := result.(type) {
-	case *ArticleResult:
-		r.Type = "article"
-	case *AudioResult:
-		r.Type = "audio"
-	case *ContactResult:
-		r.Type = "contact"
-	case *DocumentResult:
-		r.Type = "document"
-	case *GifResult:
-		r.Type = "gif"
-	case *LocationResult:
-		r.Type = "location"
-	case *Mpeg4GifResult:
-		r.Type = "mpeg4_gif"
-	case *PhotoResult:
-		r.Type = "photo"
-	case *VenueResult:
-		r.Type = "venue"
-	case *VideoResult:
-		r.Type = "video"
-	case *VoiceResult:
-		r.Type = "voice"
-	case *StickerResult:
-		r.Type = "sticker"
-	case *GameResult:
-		r.Type = "game"
-	default:
-		return fmt.Errorf("telebot: result %v is not supported", result)
-	}
-
-	return nil
 }

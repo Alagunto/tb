@@ -13,6 +13,8 @@ import (
 	"sync"
 
 	"github.com/alagunto/tb/censorship"
+	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/telegram"
 )
 
 // NewBot does try to build a Bot with token `token`, which
@@ -319,7 +321,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendPaid(to Recipient, stars int
 // SendAlbum sends multiple instances of media as a single message.
 // To include the caption, make sure the first Inputtable of an album has it.
 // From all existing options, it only supports tele.Silent.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendAlbum(to communications.Recipient, a Album, opts ...interface{}) ([]Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -468,7 +470,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Copy(to Recipient, msg Editable,
 // correct_option_id is known to the bot. The method is analogous
 // to the method forwardMessages, but the copied messages don't have a link to the original message.
 // Album grouping is kept for copied messages.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CopyMany(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CopyMany(to communications.Recipient, msgs []communications.Editable, opts ...*communications.SendOptions) ([]telegram.Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -490,7 +492,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CopyMany(to Recipient, msgs []Ed
 //	b.Edit(m, tele.Location{42.1337, 69.4242})
 //	b.Edit(c, "edit inline message from the callback")
 //	b.Edit(r, "edit message from chosen inline result")
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Edit(msg Editable, what interface{}, opts ...interface{}) (*Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Edit(msg communications.Editable, what interface{}, opts ...interface{}) (*telegram.Message, error) {
 	var (
 		method       string
 		paramsString = make(map[string]string)
@@ -592,7 +594,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditReplyMarkup(msg Editable, ma
 //
 // If edited message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditCaption(msg Editable, caption string, opts ...interface{}) (*Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditCaption(msg communications.Editable, caption string, opts ...interface{}) (*telegram.Message, error) {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -627,7 +629,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditCaption(msg Editable, captio
 //
 //	b.EditMedia(m, &tele.Photo{File: tele.FromDisk("chicken.jpg")})
 //	b.EditMedia(m, &tele.Video{File: tele.FromURL("http://video.mp4")})
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditMedia(msg Editable, media Inputtable, opts ...interface{}) (*Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditMedia(msg communications.Editable, media media.Inputtable, opts ...interface{}) (*telegram.Message, error) {
 	var (
 		repr  string
 		file  = media.MediaFile()
@@ -827,7 +829,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Accept(query *PreCheckoutQuery, 
 //
 //	b.Respond(c)
 //	b.Respond(c, response)
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Respond(c *Callback, resp ...*CallbackResponse) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Respond(c *telegram.CallbackQuery, resp ...*telegram.CallbackResponse) error {
 	var r *CallbackResponse
 	if resp == nil {
 		r = &CallbackResponse{}
@@ -843,11 +845,11 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Respond(c *Callback, resp ...*Ca
 // Answer sends a response for a given inline query. A query can only
 // be responded to once, subsequent attempts to respond to the same query
 // will result in an error.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Answer(query *Query, resp *QueryResponse) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Answer(query *telegram.InlineQuery, resp *telegram.QueryResponse) error {
 	resp.QueryID = query.ID
 
 	for _, result := range resp.Results {
-		if i, ok := result.(*ResultBase); ok {
+		if i, ok := result.(*telegram.ResultBase); ok {
 			b.ProcessResult(i)
 		}
 	}
@@ -858,8 +860,8 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Answer(query *Query, resp *Query
 
 // AnswerWebApp sends a response for a query from Web App and returns
 // information about an inline message sent by a Web App on behalf of a user
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *Query, r Result) (*WebAppMessage, error) {
-	base, ok := r.(*ResultBase)
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *telegram.InlineQuery, r telegram.Result) (*telegram.WebAppMessage, error) {
+	base, ok := r.(*telegram.ResultBase)
 	if !ok {
 		return nil, fmt.Errorf("telebot: unsupported result type: %T", r)
 	}
@@ -876,7 +878,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *Query, r Res
 	}
 
 	var resp struct {
-		Result *WebAppMessage
+		Result *telegram.WebAppMessage
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, wrapError(err)

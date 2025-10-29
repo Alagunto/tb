@@ -3,11 +3,12 @@ package tb
 import (
 	"testing"
 
+	"github.com/alagunto/tb/telegram"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEmbedRights(t *testing.T) {
-	rights := NoRestrictions()
+	rights := telegram.ChatMemberNotRestrictedRights()
 	params := map[string]interface{}{
 		"chat_id": "1",
 		"user_id": "2",

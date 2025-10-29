@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/telegram"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -20,9 +22,9 @@ import (
 type RawBotInterface interface {
 	RawSendFiles(method string, files map[string]File, params map[string]string) ([]byte, error)
 	RawSendMedia(media Media, params map[string]string, files map[string]File) (*Message, error)
-	RawSendText(to Recipient, text string, opt *SendOptions) (*Message, error)
+	RawSendText(to communications.Recipient, text string, opt *communications.SendOptions) (*Message, error)
 	RawGetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]Update, error)
-	RawEmbedSendOptions(params map[string]string, opt *SendOptions)
+	RawEmbedSendOptions(params map[string]string, opt *communications.SendOptions)
 	Raw(method string, payload interface{}) ([]byte, error)
 	CensorText(text string) string
 }
@@ -226,7 +228,7 @@ func (f *File) process(name string, files map[string]File) string {
 	return ""
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendText(to Recipient, text string, opt *SendOptions) (*Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendText(to communications.Recipient, text string, opt *communications.SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"text":    text,
@@ -263,14 +265,14 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendMedia(media Media, params
 	return extractMessage(data)
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) getMe() (*User, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) getMe() (*telegram.User, error) {
 	data, err := b.Raw("getMe", nil)
 	if err != nil {
 		return nil, err
 	}
 
 	var resp struct {
-		Result *User
+		Result *telegram.User
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, wrapError(err)
@@ -278,7 +280,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) getMe() (*User, error) {
 	return resp.Result, nil
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawGetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]Update, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawGetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]telegram.Update, error) {
 	params := map[string]string{
 		"offset":  strconv.Itoa(offset),
 		"timeout": strconv.Itoa(int(timeout / time.Second)),
@@ -297,7 +299,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawGetUpdates(offset, limit int,
 	}
 
 	var resp struct {
-		Result []Update
+		Result []telegram.Update
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, wrapError(err)
@@ -305,7 +307,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawGetUpdates(offset, limit int,
 	return resp.Result, nil
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) forwardCopyMany(to Recipient, msgs []Editable, key string, opts ...*SendOptions) ([]Message, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) forwardCopyMany(to communications.Recipient, msgs []communications.Editable, key string, opts ...*communications.SendOptions) ([]telegram.Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 	}

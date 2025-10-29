@@ -1,9 +1,4 @@
-package tb
-
-import (
-	"encoding/json"
-	"time"
-)
+package telegram
 
 // Boost contains information about a chat boost.
 type Boost struct {
@@ -21,17 +16,6 @@ type Boost struct {
 	Source *BoostSource `json:"source"`
 }
 
-// AddDate returns the moment of time when the chat has been boosted in local time.
-func (c *Boost) AddDate() time.Time {
-	return time.Unix(c.AddUnixtime, 0)
-}
-
-// ExpirationDate returns the moment of time when the boost of the channel
-// will expire in local time.
-func (c *Boost) ExpirationDate() time.Time {
-	return time.Unix(c.ExpirationUnixtime, 0)
-}
-
 // BoostSourceType describes a type of boost.
 type BoostSourceType = string
 
@@ -43,7 +27,7 @@ const (
 
 // BoostSource describes the source of a chat boost.
 type BoostSource struct {
-	// Source of the boost, always (“premium”, “gift_code”, “giveaway”).
+	// Source of the boost, always ("premium", "gift_code", "giveaway").
 	Source BoostSourceType `json:"source"`
 
 	// User that boosted the chat.
@@ -86,28 +70,4 @@ type BoostRemoved struct {
 
 	// Source of the removed boost.
 	Source *BoostSource `json:"source"`
-}
-
-// UserBoosts gets the list of boosts added to a chat by a user.
-// Requires administrator rights in the chat.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) UserBoosts(chat, user Recipient) ([]Boost, error) {
-	params := map[string]string{
-		"chat_id": chat.Recipient(),
-		"user_id": user.Recipient(),
-	}
-
-	data, err := b.Raw("getUserChatBoosts", params)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp struct {
-		Result struct {
-			Boosts []Boost `json:"boosts"`
-		}
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
-	}
-	return resp.Result.Boosts, nil
 }

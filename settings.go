@@ -70,7 +70,7 @@ func (s *Settings[Ctx, HandlerFunc, MiddlewareFunc]) DefaultsForEmptyValues() {
 	}
 
 	if s.URL == "" {
-		s.URL = DefaultApiURL
+		s.URL = TelegramAPIURL
 	}
 	if s.Poller == nil {
 		s.Poller = &LongPoller{}

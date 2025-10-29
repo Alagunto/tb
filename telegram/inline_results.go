@@ -1,20 +1,114 @@
-package tb
+package telegram
 
-import "github.com/alagunto/tb/telegram"
+import (
+	"encoding/json"
+	"fmt"
+)
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessResult(r *telegram.ResultBase) {
-	if r.ParseMode == telegram.ModeDefault {
-		r.ParseMode = telegram.ParseMode(b.parseMode)
-	}
-	if r.Content != nil {
-		c, ok := r.Content.(*telegram.InputTextMessageContent)
-		if ok && c.ParseMode == telegram.ModeDefault {
-			c.ParseMode = r.ParseMode
+// ResultBase must be embedded into all IQRs.
+type ResultBase struct {
+	// Unique identifier for this result, 1-64 Bytes.
+	// If left unspecified, a 64-bit FNV-1 hash will be calculated
+	ID string `json:"id"`
+
+	// Ignore. This field gets set automatically.
+	Type string `json:"type"`
+
+	// Optional. Send Markdown or HTML, if you want Telegram apps to show
+	// bold, italic, fixed-width text or inline URLs in the media caption.
+	ParseMode ParseMode `json:"parse_mode,omitempty"`
+
+	// Optional. Content of the message to be sent.
+	Content InputMessageContent `json:"input_message_content,omitempty"`
+
+	// Optional. Inline keyboard attached to the message.
+	ReplyMarkup *ReplyMarkup `json:"reply_markup,omitempty"`
+}
+
+// Result represents one result of an inline query.
+type Result interface {
+	ResultID() string
+	SetResultID(string)
+	SetParseMode(ParseMode)
+	SetContent(InputMessageContent)
+	SetReplyMarkup(*ReplyMarkup)
+}
+
+// Results is a slice wrapper for convenient marshalling.
+type Results []Result
+
+// ResultID returns ResultBase.ID.
+func (r *ResultBase) ResultID() string {
+	return r.ID
+}
+
+// SetResultID sets ResultBase.ID.
+func (r *ResultBase) SetResultID(id string) {
+	r.ID = id
+}
+
+// SetParseMode sets ResultBase.ParseMode.
+func (r *ResultBase) SetParseMode(mode ParseMode) {
+	r.ParseMode = mode
+}
+
+// SetContent sets ResultBase.Content.
+func (r *ResultBase) SetContent(content InputMessageContent) {
+	r.Content = content
+}
+
+// SetReplyMarkup sets ResultBase.ReplyMarkup.
+func (r *ResultBase) SetReplyMarkup(markup *ReplyMarkup) {
+	r.ReplyMarkup = markup
+}
+
+// MarshalJSON makes sure IQRs have proper IDs and Type variables set.
+func (results Results) MarshalJSON() ([]byte, error) {
+	for i, result := range results {
+		if result.ResultID() == "" {
+			result.SetResultID(fmt.Sprintf("%d", &results[i]))
+		}
+		if err := inferIQR(result); err != nil {
+			return nil, err
 		}
 	}
-	if r.ReplyMarkup != nil {
-		processButtons(r.ReplyMarkup.InlineKeyboard)
+
+	return json.Marshal([]Result(results))
+}
+
+func inferIQR(result Result) error {
+	switch r := result.(type) {
+	case *ArticleResult:
+		r.Type = "article"
+	case *AudioResult:
+		r.Type = "audio"
+	case *ContactResult:
+		r.Type = "contact"
+	case *DocumentResult:
+		r.Type = "document"
+	case *GifResult:
+		r.Type = "gif"
+	case *LocationResult:
+		r.Type = "location"
+	case *Mpeg4GifResult:
+		r.Type = "mpeg4_gif"
+	case *PhotoResult:
+		r.Type = "photo"
+	case *VenueResult:
+		r.Type = "venue"
+	case *VideoResult:
+		r.Type = "video"
+	case *VoiceResult:
+		r.Type = "voice"
+	case *StickerResult:
+		r.Type = "sticker"
+	case *GameResult:
+		r.Type = "game"
+	default:
+		return fmt.Errorf("telebot: result %v is not supported", result)
 	}
+
+	return nil
 }
 
 // GameResult represents a game. Game is a content type
@@ -116,8 +210,8 @@ type DocumentResult struct {
 	// A valid URL for the file
 	URL string `json:"document_url"`
 
-	// Mime type of the content of the file, either “application/pdf” or
-	// “application/zip”.
+	// Mime type of the content of the file, either "application/pdf" or
+	// "application/zip".
 	MIME string `json:"mime_type"`
 
 	// Optional. Caption of the document to be sent, 0-200 characters.
@@ -159,7 +253,7 @@ type GifResult struct {
 	ThumbURL string `json:"thumbnail_url"`
 
 	// Optional. MIME type of the thumbnail, must be one of
-	// “image/jpeg”, “image/gif”, or “video/mp4”.
+	// "image/jpeg", "image/gif", or "video/mp4".
 	ThumbMIME string `json:"thumbnail_mime_type,omitempty"`
 
 	// Optional. Title for the result.
@@ -209,7 +303,7 @@ type Mpeg4GifResult struct {
 	ThumbURL string `json:"thumbnail_url,omitempty"`
 
 	// Optional. MIME type of the thumbnail, must be one of
-	// “image/jpeg”, “image/gif”, or “video/mp4”.
+	// "image/jpeg", "image/gif", or "video/mp4".
 	ThumbMIME string `json:"thumbnail_mime_type,omitempty"`
 
 	// Optional. Title for the result.
@@ -291,7 +385,7 @@ type VideoResult struct {
 	// A valid URL for the embedded video player or video file.
 	URL string `json:"video_url"`
 
-	// Mime type of the content of video url, “text/html” or “video/mp4”.
+	// Mime type of the content of video url, "text/html" or "video/mp4".
 	MIME string `json:"mime_type"`
 
 	// URL of the thumbnail (jpeg only) for the video.

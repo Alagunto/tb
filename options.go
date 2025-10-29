@@ -3,6 +3,9 @@ package tb
 import (
 	"encoding/json"
 	"strconv"
+
+	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/telegram"
 )
 
 // Option is a shortcut flag type for certain message features
@@ -40,176 +43,33 @@ const (
 )
 
 // Placeholder is used to set input field placeholder as a send option.
-func Placeholder(text string) *SendOptions {
-	return &SendOptions{
-		ReplyMarkup: &ReplyMarkup{
+func Placeholder(text string) *communications.SendOptions {
+	return &communications.SendOptions{
+		ReplyMarkup: &telegram.ReplyMarkup{
 			ForceReply:  true,
 			Placeholder: text,
 		},
 	}
 }
 
-// SendOption is a functional option for configuring SendOptions.
-type SendOption func(*SendOptions)
-
-// WithParseMode sets the parse mode for the message.
-func WithParseMode(mode ParseMode) SendOption {
-	return func(o *SendOptions) {
-		o.ParseMode = mode
-	}
-}
-
-// WithSilent sends the message silently (no notification).
-func WithSilent() SendOption {
-	return func(o *SendOptions) {
-		o.DisableNotification = true
-	}
-}
-
-// WithProtected protects the message from forwarding and saving.
-func WithProtected() SendOption {
-	return func(o *SendOptions) {
-		o.Protected = true
-	}
-}
-
-// WithNoPreview disables link preview for the message.
-func WithNoPreview() SendOption {
-	return func(o *SendOptions) {
-		o.DisableWebPagePreview = true
-	}
-}
-
-// WithReplyTo makes the message a reply to another message.
-func WithReplyTo(msg *Message) SendOption {
-	return func(o *SendOptions) {
-		o.ReplyTo = msg
-	}
-}
-
-// WithReplyMarkup sets the reply markup for the message.
-func WithReplyMarkup(markup *ReplyMarkup) SendOption {
-	return func(o *SendOptions) {
-		o.ReplyMarkup = markup
-	}
-}
-
-// WithEntities sets custom entities for the message.
-func WithEntities(entities Entities) SendOption {
-	return func(o *SendOptions) {
-		o.Entities = entities
-	}
-}
-
-// WithThreadID sends the message to a specific thread.
-func WithThreadID(threadID int) SendOption {
-	return func(o *SendOptions) {
-		o.ThreadID = threadID
-	}
-}
-
-// WithSpoiler marks the message as containing a spoiler.
-func WithSpoiler() SendOption {
-	return func(o *SendOptions) {
-		o.HasSpoiler = true
-	}
-}
-
-// WithBusinessConnection sends the message via a business connection.
-func WithBusinessConnection(id string) SendOption {
-	return func(o *SendOptions) {
-		o.BusinessConnectionID = id
-	}
-}
-
-// WithEffectID adds a message effect (for private chats only).
-func WithEffectID(id string) SendOption {
-	return func(o *SendOptions) {
-		o.EffectID = id
-	}
-}
-
-// ApplySendOptions creates a SendOptions from functional options.
-func ApplySendOptions(opts ...SendOption) *SendOptions {
-	sendOpts := &SendOptions{}
-	for _, opt := range opts {
-		opt(sendOpts)
-	}
-	return sendOpts
-}
-
-// SendOptions has most complete control over in what way the message
-// must be sent, providing an API-complete set of custom properties
-// and options.
-//
-// Despite its power, SendOptions is rather inconvenient to use all
-// the way through bot logic, so you might want to consider storing
-// and re-using it somewhere or be using Option flags instead.
-type SendOptions struct {
-	// If the message is a reply, original message.
-	ReplyTo *Message
-
-	// See ReplyMarkup struct definition.
-	ReplyMarkup *ReplyMarkup
-
-	// For text messages, disables previews for links in this message.
-	DisableWebPagePreview bool
-
-	// Sends the message silently. iOS users will not receive a notification, Android users will receive a notification with no sound.
-	DisableNotification bool
-
-	// ParseMode controls how client apps render your message.
-	ParseMode ParseMode
-
-	// Entities is a list of special entities that appear in message text, which can be specified instead of parse_mode.
-	Entities Entities
-
-	// AllowWithoutReply allows sending messages not a as reply if the replied-to message has already been deleted.
-	AllowWithoutReply bool
-
-	// Protected protects the contents of sent message from forwarding and saving.
-	Protected bool
-
-	// ThreadID supports sending messages to a thread.
-	ThreadID int
-
-	// HasSpoiler marks the message as containing a spoiler.
-	HasSpoiler bool
-
-	// ReplyParams Describes the message to reply to
-	ReplyParams *ReplyParams
-
-	// Unique identifier of the business connection
-	BusinessConnectionID string
-
-	// Unique identifier of the message effect to be added to the message; for private chats only
-	EffectID string
-}
-
-func (og *SendOptions) copy() *SendOptions {
-	cp := *og
-	if cp.ReplyMarkup != nil {
-		cp.ReplyMarkup = cp.ReplyMarkup.copy()
-	}
-	return &cp
-}
-
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) extractOptions(how []interface{}) *SendOptions {
-	opts := &SendOptions{
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) extractOptions(how []interface{}) *communications.SendOptions {
+	opts := &communications.SendOptions{
 		ParseMode: b.parseMode,
 	}
 
 	for _, prop := range how {
 		switch opt := prop.(type) {
-		case *SendOptions:
-			opts = opt.copy()
-		case *ReplyMarkup:
+		case *communications.SendOptions:
+			opts = opt.Copy()
+		case *telegram.ReplyMarkup:
 			if opt != nil {
-				opts.ReplyMarkup = opt.copy()
+				// Create a copy of the ReplyMarkup
+				markupCopy := *opt
+				opts.ReplyMarkup = &markupCopy
 			}
-		case *ReplyParams:
+		case *telegram.ReplyParams:
 			opts.ReplyParams = opt
-		case *Topic:
+		case *telegram.Topic:
 			opts.ThreadID = opt.ThreadID
 		case Option:
 			switch opt {
@@ -221,17 +81,17 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) extractOptions(how []interface{}
 				opts.AllowWithoutReply = true
 			case ForceReply:
 				if opts.ReplyMarkup == nil {
-					opts.ReplyMarkup = &ReplyMarkup{}
+					opts.ReplyMarkup = &telegram.ReplyMarkup{}
 				}
 				opts.ReplyMarkup.ForceReply = true
 			case OneTimeKeyboard:
 				if opts.ReplyMarkup == nil {
-					opts.ReplyMarkup = &ReplyMarkup{}
+					opts.ReplyMarkup = &telegram.ReplyMarkup{}
 				}
 				opts.ReplyMarkup.OneTimeKeyboard = true
 			case RemoveKeyboard:
 				if opts.ReplyMarkup == nil {
-					opts.ReplyMarkup = &ReplyMarkup{}
+					opts.ReplyMarkup = &telegram.ReplyMarkup{}
 				}
 				opts.ReplyMarkup.RemoveKeyboard = true
 			case Protected:
@@ -251,7 +111,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) extractOptions(how []interface{}
 	return opts
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[string]string, opt *SendOptions) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[string]string, opt *communications.SendOptions) {
 	if opt == nil {
 		return
 	}
@@ -267,7 +127,12 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[s
 		}
 	}
 
-	if opt.ReplyTo != nil && opt.ReplyTo.ID != 0 {
+	// Handle ReplyParams (takes precedence over ReplyTo)
+	if opt.ReplyParams != nil {
+		replyParams, _ := json.Marshal(opt.ReplyParams)
+		params["reply_parameters"] = string(replyParams)
+	} else if opt.ReplyTo != nil && opt.ReplyTo.ID != 0 {
+		// Fallback to old reply_to_message_id for backward compatibility
 		params["reply_to_message_id"] = strconv.Itoa(opt.ReplyTo.ID)
 	}
 
@@ -280,7 +145,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[s
 	}
 
 	if opt.ParseMode != ModeDefault {
-		params["parse_mode"] = opt.ParseMode
+		params["parse_mode"] = string(opt.ParseMode)
 	}
 
 	if len(opt.Entities) > 0 {
@@ -321,11 +186,11 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[s
 	}
 
 	if opt.EffectID != "" {
-		params["message_effect_id"] = opt.EffectID
+		params["message_effect_id"] = string(opt.EffectID)
 	}
 }
 
-func processButtons(keys [][]InlineButton) {
+func processButtons(keys [][]telegram.InlineButton) {
 	if len(keys) < 1 || len(keys[0]) < 1 {
 		return
 	}
@@ -370,7 +235,7 @@ type PreviewOptions struct {
 	AboveText bool `json:"show_above_text"`
 }
 
-func embedMessages(params map[string]string, msgs []Editable) {
+func embedMessages(params map[string]string, msgs []communications.Editable) {
 	ids := make([]string, 0, len(msgs))
 
 	_, chatID := msgs[0].MessageSig()

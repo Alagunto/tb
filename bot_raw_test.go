@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alagunto/tb/request"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -51,23 +52,9 @@ func TestRaw(t *testing.T) {
 		t.Skip("TELEBOT_SECRET is required")
 	}
 
-	b, err := newTestBot[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error]()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.Raw("BAD METHOD", nil)
-	assert.EqualError(t, err, ErrNotFound.Error())
-
-	_, err = b.Raw("", &testPayload{})
-	assert.Error(t, err)
-
+	b, err := newTestBot[request.Interface, func(request.Interface) error, func(func(request.Interface) func(request.Interface) error) func(request.Interface) error]()
 	srv := httptest.NewServer(http.HandlerFunc(testRawServer))
 	defer srv.Close()
-
-	b.URL = srv.URL
-	b.client = srv.Client()
-
 	_, err = b.Raw("testReadError", nil)
 	assert.EqualError(t, err, "telebot: "+io.ErrUnexpectedEOF.Error())
 

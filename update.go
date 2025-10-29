@@ -3,62 +3,35 @@ package tb
 import (
 	"runtime/debug"
 	"strings"
+
+	"github.com/alagunto/tb/telegram"
 )
 
-// Update object represents an incoming update.
-type Update struct {
-	ID int `json:"update_id"`
-
-	Message                 *Message                 `json:"message,omitempty"`
-	EditedMessage           *Message                 `json:"edited_message,omitempty"`
-	ChannelPost             *Message                 `json:"channel_post,omitempty"`
-	EditedChannelPost       *Message                 `json:"edited_channel_post,omitempty"`
-	MessageReaction         *MessageReaction         `json:"message_reaction"`
-	MessageReactionCount    *MessageReactionCount    `json:"message_reaction_count"`
-	Callback                *Callback                `json:"callback_query,omitempty"`
-	Query                   *Query                   `json:"inline_query,omitempty"`
-	InlineResult            *InlineResult            `json:"chosen_inline_result,omitempty"`
-	ShippingQuery           *ShippingQuery           `json:"shipping_query,omitempty"`
-	PreCheckoutQuery        *PreCheckoutQuery        `json:"pre_checkout_query,omitempty"`
-	Poll                    *Poll                    `json:"poll,omitempty"`
-	PollAnswer              *PollAnswer              `json:"poll_answer,omitempty"`
-	MyChatMember            *ChatMemberUpdate        `json:"my_chat_member,omitempty"`
-	ChatMember              *ChatMemberUpdate        `json:"chat_member,omitempty"`
-	ChatJoinRequest         *ChatJoinRequest         `json:"chat_join_request,omitempty"`
-	Boost                   *BoostUpdated            `json:"chat_boost"`
-	BoostRemoved            *BoostRemoved            `json:"removed_chat_boost"`
-	BusinessConnection      *BusinessConnection      `json:"business_connection"`
-	BusinessMessage         *Message                 `json:"business_message"`
-	EditedBusinessMessage   *Message                 `json:"edited_business_message"`
-	DeletedBusinessMessages *BusinessMessagesDeleted `json:"deleted_business_messages"`
-}
+// Update is an alias for telegram.Update
+type Update = telegram.Update
 
 // ProcessUpdate processes a single incoming update.
 // A started bot calls this function automatically.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessUpdate(u Update) {
-	ctx, err := b.NewContext(u)
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessUpdate(u telegram.Update) {
+	c, err := b.NewContext(nativeContext{
+		u: &u,
+		b: b,
+	})
 	if err != nil {
-		b.OnError(err, ctx, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{Handler: nil, Stack: string(debug.Stack())})
+		if b.onError != nil {
+			b.onError(err, c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{
+				Endpoint: "ProcessUpdate",
+			})
+		}
 		return
 	}
-	b.ProcessContext(ctx)
-}
-
-// ProcessContext processes the given context.
-// A started bot calls this function automatically.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessContext(c Ctx) {
-	u := c.Update()
 
 	if u.Message != nil {
 		m := u.Message
 
 		if m.PinnedMessage != nil {
-			b.handle(OnPinned, c)
+			b.runHandler(c, OnPinned)
 			return
-		}
-
-		if m.Origin != nil {
-			b.handle(OnForward, c)
 		}
 
 		// Commands
@@ -78,369 +51,346 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessContext(c Ctx) {
 				}
 
 				m.Payload = match[0][5]
-				if b.handle(command, c) {
+				if b.runHandler(c, command) {
 					return
 				}
 			}
 
 			// 1:1 satisfaction
-			if b.handle(m.Text, c) {
+			if b.runHandler(c, m.Text) {
 				return
 			}
 
-			if m.ReplyTo != nil {
-				b.handle(OnReply, c)
+			b.runHandler(c, OnText)
+			return
+		}
+
+		// Edits
+		if edited := u.EditedMessage; edited != nil {
+			b.runHandler(c, OnEdited)
+			return
+		}
+
+		// Channel posts
+		if channelPost := u.ChannelPost; channelPost != nil {
+			m := channelPost
+
+			if m.PinnedMessage != nil {
+				b.runHandler(c, OnPinned)
+				return
 			}
 
-			b.handle(OnText, c)
+			b.runHandler(c, OnChannelPost)
 			return
 		}
 
-		if b.handleMedia(c) {
+		// Edited channel posts
+		if channelPost := u.EditedChannelPost; channelPost != nil {
+			b.runHandler(c, OnEditedChannelPost)
 			return
 		}
 
+		// Inline buttons
+		if query := u.CallbackQuery; query != nil {
+			if data := query.Data; data != "" && data[0] == '\f' {
+				match := cbackRx.FindAllStringSubmatch(data, -1)
+				if match != nil {
+					unique, payload := match[0][1], match[0][3]
+					if _, ok := b.handlers["\f"+unique]; ok {
+						query.Data = payload
+						b.runHandler(c, "\f"+unique)
+						return
+					}
+				}
+			}
+
+			b.runHandler(c, OnCallback)
+			return
+		}
+
+		// Inline queries
+		if query := u.InlineQuery; query != nil {
+			b.runHandler(c, OnQuery)
+			return
+		}
+
+		// Chosen inline results
+		if result := u.ChosenInlineResult; result != nil {
+			b.runHandler(c, OnInlineResult)
+			return
+		}
+
+		// Shipping queries
+		if query := u.ShippingQuery; query != nil {
+			b.runHandler(c, OnShipping)
+			return
+		}
+
+		// Pre checkout queries
+		if query := u.PreCheckoutQuery; query != nil {
+			b.runHandler(c, OnCheckout)
+			return
+		}
+
+		// Polls
+		if poll := u.Poll; poll != nil {
+			b.runHandler(c, OnPoll)
+			return
+		}
+
+		// Poll answers
+		if answer := u.PollAnswer; answer != nil {
+			b.runHandler(c, OnPollAnswer)
+			return
+		}
+
+		// My chat member updated
+		if upd := u.MyChatMember; upd != nil {
+			b.runHandler(c, OnMyChatMember)
+			return
+		}
+
+		// Chat member updated
+		if upd := u.ChatMember; upd != nil {
+			b.runHandler(c, OnChatMember)
+			return
+		}
+
+		// Chat join request
+		if upd := u.ChatJoinRequest; upd != nil {
+			b.runHandler(c, OnChatJoinRequest)
+			return
+		}
+
+		// Message reactions
+		if react := u.MessageReaction; react != nil {
+			b.runHandler(c, OnReaction)
+			return
+		}
+
+		// Message reaction count
+		if react := u.MessageReactionCount; react != nil {
+			b.runHandler(c, OnReactionCount)
+			return
+		}
+
+		// Boost updated
+		if boost := u.ChatBoost; boost != nil {
+			b.runHandler(c, OnBoostUpdated)
+			return
+		}
+
+		// Boost removed
+		if boost := u.RemovedChatBoost; boost != nil {
+			b.runHandler(c, OnBoostRemoved)
+			return
+		}
+
+		// Media
+		if m.Photo != nil {
+			b.runHandler(c, OnPhoto)
+			return
+		}
+		if m.Voice != nil {
+			b.runHandler(c, OnVoice)
+			return
+		}
+		if m.Audio != nil {
+			b.runHandler(c, OnAudio)
+			return
+		}
+		if m.Animation != nil {
+			b.runHandler(c, OnAnimation)
+			return
+		}
+		if m.Document != nil {
+			b.runHandler(c, OnDocument)
+			return
+		}
+		if m.Sticker != nil {
+			b.runHandler(c, OnSticker)
+			return
+		}
+		if m.Video != nil {
+			b.runHandler(c, OnVideo)
+			return
+		}
+		if m.VideoNote != nil {
+			b.runHandler(c, OnVideoNote)
+			return
+		}
 		if m.Contact != nil {
-			b.handle(OnContact, c)
+			b.runHandler(c, OnContact)
 			return
 		}
 		if m.Location != nil {
-			b.handle(OnLocation, c)
+			b.runHandler(c, OnLocation)
 			return
 		}
 		if m.Venue != nil {
-			b.handle(OnVenue, c)
-			return
-		}
-		if m.Game != nil {
-			b.handle(OnGame, c)
+			b.runHandler(c, OnVenue)
 			return
 		}
 		if m.Dice != nil {
-			b.handle(OnDice, c)
+			b.runHandler(c, OnDice)
 			return
 		}
 		if m.Invoice != nil {
-			b.handle(OnInvoice, c)
+			b.runHandler(c, OnInvoice)
 			return
 		}
 		if m.Payment != nil {
-			b.handle(OnPayment, c)
+			b.runHandler(c, OnPayment)
 			return
 		}
-		if m.RefundedPayment != nil {
-			b.handle(OnRefund, c)
+		if m.Game != nil {
+			b.runHandler(c, OnGame)
 			return
 		}
+		if m.Poll != nil {
+			b.runHandler(c, OnPoll)
+			return
+		}
+
+		// Topics
 		if m.TopicCreated != nil {
-			b.handle(OnTopicCreated, c)
+			b.runHandler(c, OnTopicCreated)
 			return
 		}
 		if m.TopicReopened != nil {
-			b.handle(OnTopicReopened, c)
+			b.runHandler(c, OnTopicReopened)
 			return
 		}
 		if m.TopicClosed != nil {
-			b.handle(OnTopicClosed, c)
+			b.runHandler(c, OnTopicClosed)
 			return
 		}
 		if m.TopicEdited != nil {
-			b.handle(OnTopicEdited, c)
+			b.runHandler(c, OnTopicEdited)
 			return
 		}
 		if m.GeneralTopicHidden != nil {
-			b.handle(OnGeneralTopicHidden, c)
+			b.runHandler(c, OnGeneralTopicHidden)
 			return
 		}
 		if m.GeneralTopicUnhidden != nil {
-			b.handle(OnGeneralTopicUnhidden, c)
-			return
-		}
-		if m.WriteAccessAllowed != nil {
-			b.handle(OnWriteAccessAllowed, c)
+			b.runHandler(c, OnGeneralTopicUnhidden)
 			return
 		}
 
-		wasAdded := (m.UserJoined != nil && m.UserJoined.ID == b.Me.ID) ||
-			(m.UsersJoined != nil && isUserInList(b.Me, m.UsersJoined))
-		if m.GroupCreated || m.SuperGroupCreated || wasAdded {
-			b.handle(OnAddedToGroup, c)
-			return
-		}
-
-		if m.UserJoined != nil {
-			b.handle(OnUserJoined, c)
-			return
-		}
-		if m.UsersJoined != nil {
+		// Service messages
+		if len(m.UsersJoined) > 0 {
 			for _, user := range m.UsersJoined {
 				m.UserJoined = &user
-				b.handle(OnUserJoined, c)
+				b.runHandler(c, OnUserJoined)
 			}
 			return
 		}
 		if m.UserLeft != nil {
-			b.handle(OnUserLeft, c)
+			b.runHandler(c, OnUserLeft)
 			return
 		}
-
-		if m.UserShared != nil {
-			b.handle(OnUserShared, c)
-			return
-		}
-		if m.ChatShared != nil {
-			b.handle(OnChatShared, c)
-			return
-		}
-
-		if m.NewGroupTitle != "" {
-			b.handle(OnNewGroupTitle, c)
+		if m.NewChatTitle != "" {
+			b.runHandler(c, OnNewGroupTitle)
 			return
 		}
 		if m.NewGroupPhoto != nil {
-			b.handle(OnNewGroupPhoto, c)
+			b.runHandler(c, OnNewGroupPhoto)
 			return
 		}
 		if m.GroupPhotoDeleted {
-			b.handle(OnGroupPhotoDeleted, c)
+			b.runHandler(c, OnGroupPhotoDeleted)
 			return
 		}
-
 		if m.GroupCreated {
-			b.handle(OnGroupCreated, c)
+			b.runHandler(c, OnGroupCreated)
 			return
 		}
 		if m.SuperGroupCreated {
-			b.handle(OnSuperGroupCreated, c)
+			b.runHandler(c, OnSuperGroupCreated)
 			return
 		}
 		if m.ChannelCreated {
-			b.handle(OnChannelCreated, c)
+			b.runHandler(c, OnChannelCreated)
 			return
 		}
 
+		// Migration
 		if m.MigrateTo != 0 {
-			m.MigrateFrom = m.Chat.ID
-			b.handle(OnMigration, c)
+			b.runHandler(c, OnMigration)
 			return
 		}
 
 		if m.VideoChatStarted != nil {
-			b.handle(OnVideoChatStarted, c)
+			b.runHandler(c, OnVideoChatStarted)
 			return
 		}
 		if m.VideoChatEnded != nil {
-			b.handle(OnVideoChatEnded, c)
-			return
-		}
-		if m.VideoChatParticipants != nil {
-			b.handle(OnVideoChatParticipants, c)
+			b.runHandler(c, OnVideoChatEnded)
 			return
 		}
 		if m.VideoChatScheduled != nil {
-			b.handle(OnVideoChatScheduled, c)
+			b.runHandler(c, OnVideoChatScheduled)
+			return
+		}
+		if m.VideoChatParticipants != nil {
+			b.runHandler(c, OnVideoChatParticipantsInvited)
 			return
 		}
 
 		if m.WebAppData != nil {
-			b.handle(OnWebApp, c)
+			b.runHandler(c, OnWebApp)
+			return
+		}
+
+		if m.WriteAccessAllowed != nil {
+			b.runHandler(c, OnWriteAccessAllowed)
 			return
 		}
 
 		if m.ProximityAlert != nil {
-			b.handle(OnProximityAlert, c)
+			b.runHandler(c, OnProximityAlert)
 			return
 		}
+
 		if m.AutoDeleteTimer != nil {
-			b.handle(OnAutoDeleteTimer, c)
+			b.runHandler(c, OnAutoDeleteTimer)
 			return
 		}
 	}
-
-	if u.EditedMessage != nil {
-		b.handle(OnEdited, c)
-		return
-	}
-
-	if u.ChannelPost != nil {
-		m := u.ChannelPost
-
-		if m.PinnedMessage != nil {
-			b.handle(OnPinned, c)
-			return
-		}
-
-		b.handle(OnChannelPost, c)
-		return
-	}
-
-	if u.EditedChannelPost != nil {
-		b.handle(OnEditedChannelPost, c)
-		return
-	}
-
-	if u.Callback != nil {
-		if data := u.Callback.Data; data != "" && data[0] == '\f' {
-			match := cbackRx.FindAllStringSubmatch(data, -1)
-			if match != nil {
-				unique, payload := match[0][1], match[0][3]
-				if handler, ok := b.handlers["\f"+unique]; ok {
-					u.Callback.Unique = unique
-					u.Callback.Data = payload
-					b.runHandler(handler, c, "\f"+unique)
-					return
-				}
-			}
-		}
-
-		b.handle(OnCallback, c)
-		return
-	}
-
-	if u.Query != nil {
-		b.handle(OnQuery, c)
-		return
-	}
-
-	if u.InlineResult != nil {
-		b.handle(OnInlineResult, c)
-		return
-	}
-
-	if u.ShippingQuery != nil {
-		b.handle(OnShipping, c)
-		return
-	}
-
-	if u.PreCheckoutQuery != nil {
-		b.handle(OnCheckout, c)
-		return
-	}
-
-	if u.Poll != nil {
-		b.handle(OnPoll, c)
-		return
-	}
-	if u.PollAnswer != nil {
-		b.handle(OnPollAnswer, c)
-		return
-	}
-
-	if u.MyChatMember != nil {
-		b.handle(OnMyChatMember, c)
-		return
-	}
-	if u.ChatMember != nil {
-		b.handle(OnChatMember, c)
-		return
-	}
-	if u.ChatJoinRequest != nil {
-		b.handle(OnChatJoinRequest, c)
-		return
-	}
-
-	if u.Boost != nil {
-		b.handle(OnBoost, c)
-		return
-	}
-	if u.BoostRemoved != nil {
-		b.handle(OnBoostRemoved, c)
-		return
-	}
-
-	if u.MessageReaction != nil {
-		b.handle(OnReaction, c)
-		return
-	}
-	if u.MessageReactionCount != nil {
-		b.handle(OnReactionCount, c)
-		return
-	}
-
-	if u.BusinessConnection != nil {
-		b.handle(OnBusinessConnection, c)
-		return
-	}
-	if u.BusinessMessage != nil {
-		b.handle(OnBusinessMessage, c)
-		return
-	}
-	if u.EditedBusinessMessage != nil {
-		b.handle(OnEditedBusinessMessage, c)
-		return
-	}
-	if u.DeletedBusinessMessages != nil {
-		b.handle(OnDeletedBusinessMessages, c)
-		return
-	}
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handle(end string, c Ctx) bool {
-	if handler, ok := b.handlers[end]; ok {
-		b.runHandler(handler, c, end)
-		return true
-	}
-	return false
-}
-
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) handleMedia(c Ctx) bool {
-	var (
-		m     = c.Message()
-		fired = true
-	)
-
-	switch {
-	case m.Photo != nil:
-		fired = b.handle(OnPhoto, c)
-	case m.Voice != nil:
-		fired = b.handle(OnVoice, c)
-	case m.Audio != nil:
-		fired = b.handle(OnAudio, c)
-	case m.Animation != nil:
-		fired = b.handle(OnAnimation, c)
-	case m.Document != nil:
-		fired = b.handle(OnDocument, c)
-	case m.Sticker != nil:
-		fired = b.handle(OnSticker, c)
-	case m.Video != nil:
-		fired = b.handle(OnVideo, c)
-	case m.VideoNote != nil:
-		fired = b.handle(OnVideoNote, c)
-	default:
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(c Ctx, endpoint string) bool {
+	handler, ok := b.handlers[endpoint]
+	if !ok {
 		return false
 	}
 
-	if !fired {
-		return b.handle(OnMedia, c)
+	defer func() {
+		if r := recover(); r != nil {
+			if b.onError != nil {
+				b.onError(r.(error), c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{
+					Handler:  handler,
+					Endpoint: endpoint,
+				})
+			} else {
+				debug.PrintStack()
+			}
+		}
+	}()
+
+	// Execute handler directly (middleware is handled by Group)
+	if err := handler(c); err != nil && b.onError != nil {
+		b.onError(err, c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{
+			Handler:  handler,
+			Endpoint: endpoint,
+		})
 	}
 
 	return true
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(h HandlerFunc, c Ctx, endpoint string) {
-	f := func() {
-		defer b.handlersWg.Done()
-		if err := h(c); err != nil {
-			originalHandler, ok := b.originalHandlers[endpoint]
-			if !ok {
-				originalHandler = h
-			}
-			b.OnError(err, c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{
-				Handler:  originalHandler,
-				Stack:    string(debug.Stack()),
-				Endpoint: endpoint,
-			})
-		}
-	}
-	b.handlersWg.Add(1)
-	if b.synchronous {
-		f()
-	} else {
-		go f()
-	}
-}
-
-func isUserInList(user *User, list []User) bool {
+func isUserInList(user *User, list []telegram.User) bool {
 	for _, user2 := range list {
 		if user.ID == user2.ID {
 			return true

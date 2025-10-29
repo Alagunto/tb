@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alagunto/tb/telegram"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -360,11 +361,11 @@ func TestBotProcessUpdate(t *testing.T) {
 	b.ProcessUpdate(Update{ChannelPost: &Message{Text: "post"}})
 	b.ProcessUpdate(Update{ChannelPost: &Message{PinnedMessage: &Message{}}})
 	b.ProcessUpdate(Update{EditedChannelPost: &Message{Text: "edited post"}})
-	b.ProcessUpdate(Update{Callback: &Callback{MessageID: "inline", Data: "callback"}})
-	b.ProcessUpdate(Update{Callback: &Callback{Data: "callback"}})
-	b.ProcessUpdate(Update{Callback: &Callback{Data: "\funique|callback"}})
-	b.ProcessUpdate(Update{Query: &Query{Text: "query"}})
-	b.ProcessUpdate(Update{InlineResult: &InlineResult{ResultID: "result"}})
+	b.ProcessUpdate(Update{CallbackQuery: &telegram.CallbackQuery{MessageID: "inline", Data: "callback"}})
+	b.ProcessUpdate(Update{CallbackQuery: &telegram.CallbackQuery{Data: "callback"}})
+	b.ProcessUpdate(Update{CallbackQuery: &telegram.CallbackQuery{Data: "\funique|callback"}})
+	b.ProcessUpdate(Update{InlineQuery: &telegram.InlineQuery{Text: "query"}})
+	b.ProcessUpdate(Update{ChosenInlineResult: &InlineResult{ResultID: "result"}})
 	b.ProcessUpdate(Update{ShippingQuery: &ShippingQuery{ID: "shipping"}})
 	b.ProcessUpdate(Update{PreCheckoutQuery: &PreCheckoutQuery{ID: "checkout"}})
 	b.ProcessUpdate(Update{Poll: &Poll{ID: "poll"}})
@@ -714,25 +715,25 @@ func TestBot(t *testing.T) {
 	})
 
 	t.Run("Answer()", func(t *testing.T) {
-		assert.Error(t, b.Answer(&Query{}, &QueryResponse{
+		assert.Error(t, b.Answer(&telegram.InlineQuery{}, &QueryResponse{
 			Results: Results{&ArticleResult{}},
 		}))
 	})
 
 	t.Run("Respond()", func(t *testing.T) {
-		assert.Error(t, b.Respond(&Callback{}, &CallbackResponse{}))
+		assert.Error(t, b.Respond(&telegram.CallbackQuery{}, &telegram.CallbackResponse{}))
 	})
 
 	t.Run("Payments", func(t *testing.T) {
 		assert.NotPanics(t, func() {
-			b.Accept(&PreCheckoutQuery{})
-			b.Accept(&PreCheckoutQuery{}, "error")
+			b.Accept(&telegram.PreCheckoutQuery{})
+			b.Accept(&telegram.PreCheckoutQuery{}, "error")
 		})
 		assert.NotPanics(t, func() {
-			b.Ship(&ShippingQuery{})
-			b.Ship(&ShippingQuery{}, "error")
-			b.Ship(&ShippingQuery{}, ShippingOption{}, ShippingOption{})
-			assert.ErrorIs(t, ErrUnsupportedWhat, b.Ship(&ShippingQuery{}, 0))
+			b.Ship(&telegram.ShippingQuery{})
+			b.Ship(&telegram.ShippingQuery{}, "error")
+			b.Ship(&telegram.ShippingQuery{}, telegram.ShippingOption{}, telegram.ShippingOption{})
+			assert.ErrorIs(t, ErrUnsupportedWhat, b.Ship(&telegram.ShippingQuery{}, 0))
 		})
 	})
 

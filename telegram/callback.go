@@ -1,14 +1,8 @@
-package tb
+package telegram
 
-// CallbackEndpoint is an interface any element capable
-// of responding to a callback `\f<unique>`.
-type CallbackEndpoint interface {
-	CallbackUnique() string
-}
-
-// Callback object represents a query from a callback button in an
+// CallbackQuery object represents a query from a callback button in an
 // inline keyboard.
-type Callback struct {
+type CallbackQuery struct {
 	ID string `json:"id"`
 
 	// For message sent to channels, Sender may be empty
@@ -41,20 +35,7 @@ type Callback struct {
 	Unique string `json:"-"`
 }
 
-// MessageSig satisfies Editable interface.
-func (c *Callback) MessageSig() (string, int64) {
-	if c.IsInline() {
-		return c.MessageID, 0
-	}
-	return c.Message.MessageSig()
-}
-
-// IsInline says whether message is an inline message.
-func (c *Callback) IsInline() bool {
-	return c.MessageID != ""
-}
-
-// CallbackResponse builds a response to a Callback query.
+// CallbackResponse builds a response to a CallbackQuery query.
 type CallbackResponse struct {
 	// The ID of the callback to which this is a response.
 	//
@@ -79,20 +60,19 @@ type CallbackResponse struct {
 	URL string `json:"url,omitempty"`
 }
 
-// CallbackUnique returns ReplyButton.Text.
-func (t *ReplyButton) CallbackUnique() string {
-	return t.Text
-}
-
-// CallbackUnique returns InlineButton.Unique.
-func (t *InlineButton) CallbackUnique() string {
-	return "\f" + t.Unique
-}
-
-// CallbackUnique implements CallbackEndpoint.
-func (t *Btn) CallbackUnique() string {
-	if t.Unique != "" {
-		return "\f" + t.Unique
+// MessageSig satisfies Editable interface.
+func (c *CallbackQuery) MessageSig() (string, int64) {
+	if c.IsInline() {
+		return c.MessageID, 0
 	}
-	return t.Text
+	if c.Message != nil {
+		// MessageSig needs to be handled at a higher level
+		return "", 0
+	}
+	return "", 0
+}
+
+// IsInline says whether message is an inline message.
+func (c *CallbackQuery) IsInline() bool {
+	return c.MessageID != ""
 }

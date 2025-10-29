@@ -7,7 +7,59 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/telegram"
 )
+
+// ContextInterface is the context interface - defined locally to avoid import cycles
+type ContextInterface interface {
+	Bot() API
+	Update() Update
+	Message() *telegram.Message
+	Callback() *telegram.CallbackQuery
+	Query() *telegram.InlineQuery
+	InlineResult() *telegram.InlineResult
+	ShippingQuery() *telegram.ShippingQuery
+	PreCheckoutQuery() *telegram.PreCheckoutQuery
+	Payment() *telegram.Payment
+	Poll() *telegram.Poll
+	PollAnswer() *telegram.PollAnswer
+	ChatMember() *telegram.ChatMemberUpdate
+	ChatJoinRequest() *telegram.ChatJoinRequest
+	Migration() (int64, int64)
+	Topic() *telegram.Topic
+	Boost() *telegram.BoostUpdated
+	BoostRemoved() *telegram.BoostRemoved
+	Sender() *telegram.User
+	Chat() *telegram.Chat
+	Recipient() Recipient
+	Text() string
+	ThreadID() int
+	Entities() Entities
+	Data() string
+	Args() []string
+	Send(what interface{}, opts ...interface{}) error
+	SendAlbum(a Album, opts ...interface{}) error
+	Reply(what interface{}, opts ...interface{}) error
+	Forward(msg Editable, opts ...interface{}) error
+	ForwardTo(to Recipient, opts ...interface{}) error
+	Edit(what interface{}, opts ...interface{}) error
+	EditCaption(caption string, opts ...interface{}) error
+	EditOrSend(what interface{}, opts ...interface{}) error
+	EditOrReply(what interface{}, opts ...interface{}) error
+	Delete() error
+	DeleteAfter(d time.Duration) *time.Timer
+	Notify(action telegram.ChatAction) error
+	Ship(what ...interface{}) error
+	Accept(errorMessage ...string) error
+	Answer(resp *telegram.QueryResponse) error
+	Respond(resp ...*telegram.CallbackResponse) error
+	RespondText(text string) error
+	RespondAlert(text string) error
+	Get(key string) interface{}
+	Set(key string, val interface{})
+}
 
 // NewContext returns a new native context object,
 // field by the passed update.
@@ -16,172 +68,6 @@ func NewContext(b API, u Update) ContextInterface {
 		b: b,
 		u: u,
 	}
-}
-
-// Context wraps an update and represents the context of current event.
-type ContextInterface interface {
-
-	// Bot returns the bot instance.
-	Bot() API
-
-	// Update returns the original update.
-	Update() Update
-
-	// Message returns stored message if such presented.
-	Message() *Message
-
-	// Callback returns stored callback if such presented.
-	Callback() *Callback
-
-	// Query returns stored query if such presented.
-	Query() *Query
-
-	// InlineResult returns stored inline result if such presented.
-	InlineResult() *InlineResult
-
-	// ShippingQuery returns stored shipping query if such presented.
-	ShippingQuery() *ShippingQuery
-
-	// PreCheckoutQuery returns stored pre checkout query if such presented.
-	PreCheckoutQuery() *PreCheckoutQuery
-
-	// Payment returns payment instance.
-	Payment() *Payment
-
-	// Poll returns stored poll if such presented.
-	Poll() *Poll
-
-	// PollAnswer returns stored poll answer if such presented.
-	PollAnswer() *PollAnswer
-
-	// ChatMember returns chat member changes.
-	ChatMember() *ChatMemberUpdate
-
-	// ChatJoinRequest returns the chat join request.
-	ChatJoinRequest() *ChatJoinRequest
-
-	// Migration returns both migration from and to chat IDs.
-	Migration() (int64, int64)
-
-	// Topic returns the topic changes.
-	Topic() *Topic
-
-	// Boost returns the boost instance.
-	Boost() *BoostUpdated
-
-	// BoostRemoved returns the boost removed from a chat instance.
-	BoostRemoved() *BoostRemoved
-
-	// Sender returns the current recipient, depending on the context type.
-	// Returns nil if user is not presented.
-	Sender() *User
-
-	// Chat returns the current chat, depending on the context type.
-	// Returns nil if chat is not presented.
-	Chat() *Chat
-	// Recipient combines both Sender and Chat functions. If there is no user
-	// the chat will be returned. The native context cannot be without sender,
-	// but it is useful in the case when the context created intentionally
-	// by the NewContext constructor and have only Chat field inside.
-	Recipient() Recipient
-
-	// Text returns the message text, depending on the context type.
-	// In the case when no related data presented, returns an empty string.
-	Text() string
-
-	// ThreadID returns the current message thread ID.
-	ThreadID() int
-
-	// Entities returns the message entities, whether it's media caption's or the text's.
-	// In the case when no entities presented, returns a nil.
-	Entities() Entities
-
-	// Data returns the current data, depending on the context type.
-	// If the context contains command, returns its arguments string.
-	// If the context contains payment, returns its payload.
-	// In the case when no related data presented, returns an empty string.
-	Data() string
-
-	// Args returns a raw slice of command or callback arguments as strings.
-	// The message arguments split by space, while the callback's ones by a "|" symbol.
-	Args() []string
-
-	// Send sends a message to the current recipient.
-	// See Send from bot.go.
-	Send(what interface{}, opts ...interface{}) error
-
-	// SendAlbum sends an album to the current recipient.
-	// See SendAlbum from bot.go.
-	SendAlbum(a Album, opts ...interface{}) error
-
-	// Reply replies to the current message.
-	// See Reply from bot.go.
-	Reply(what interface{}, opts ...interface{}) error
-
-	// Forward forwards the given message to the current recipient.
-	// See Forward from bot.go.
-	Forward(msg Editable, opts ...interface{}) error
-
-	// ForwardTo forwards the current message to the given recipient.
-	// See Forward from bot.go
-	ForwardTo(to Recipient, opts ...interface{}) error
-
-	// Edit edits the current message.
-	// See Edit from bot.go.
-	Edit(what interface{}, opts ...interface{}) error
-
-	// EditCaption edits the caption of the current message.
-	// See EditCaption from bot.go.
-	EditCaption(caption string, opts ...interface{}) error
-
-	// EditOrSend edits the current message if the update is callback,
-	// otherwise the content is sent to the chat as a separate message.
-	EditOrSend(what interface{}, opts ...interface{}) error
-
-	// EditOrReply edits the current message if the update is callback,
-	// otherwise the content is replied as a separate message.
-	EditOrReply(what interface{}, opts ...interface{}) error
-
-	// Delete removes the current message.
-	// See Delete from bot.go.
-	Delete() error
-
-	// DeleteAfter waits for the duration to elapse and then removes the
-	// message. It handles an error automatically using b.OnError callback.
-	// It returns a Timer that can be used to cancel the call using its Stop method.
-	DeleteAfter(d time.Duration) *time.Timer
-
-	// Notify updates the chat action for the current recipient.
-	// See Notify from bot.go.
-	Notify(action ChatAction) error
-
-	// Ship replies to the current shipping query.
-	// See Ship from bot.go.
-	Ship(what ...interface{}) error
-
-	// Accept finalizes the current deal.
-	// See Accept from bot.go.
-	Accept(errorMessage ...string) error
-
-	// Answer sends a response to the current inline query.
-	// See Answer from bot.go.
-	Answer(resp *QueryResponse) error
-
-	// Respond sends a response for the current callback query.
-	// See Respond from bot.go.
-	Respond(resp ...*CallbackResponse) error
-
-	// RespondText sends a popup response for the current callback query.
-	RespondText(text string) error
-
-	// RespondAlert sends an alert response for the current callback query.
-	RespondAlert(text string) error
-
-	// Get retrieves data from the context.
-	Get(key string) interface{}
-
-	// Set saves data in the context.
-	Set(key string, val interface{})
 }
 
 // nativeContext is a native implementation of the Context interface.
@@ -201,12 +87,12 @@ func (c *nativeContext) Update() Update {
 	return c.u
 }
 
-func (c *nativeContext) Message() *Message {
+func (c *nativeContext) Message() *telegram.Message {
 	switch {
 	case c.u.Message != nil:
 		return c.u.Message
-	case c.u.Callback != nil:
-		return c.u.Callback.Message
+	case c.u.CallbackQuery != nil:
+		return c.u.CallbackQuery.Message
 	case c.u.EditedMessage != nil:
 		return c.u.EditedMessage
 	case c.u.ChannelPost != nil:
@@ -221,23 +107,23 @@ func (c *nativeContext) Message() *Message {
 	}
 }
 
-func (c *nativeContext) Callback() *Callback {
-	return c.u.Callback
+func (c *nativeContext) Callback() *telegram.CallbackQuery {
+	return c.u.CallbackQuery
 }
 
-func (c *nativeContext) Query() *Query {
-	return c.u.Query
+func (c *nativeContext) Query() *telegram.InlineQuery {
+	return c.u.InlineQuery
 }
 
-func (c *nativeContext) InlineResult() *InlineResult {
-	return c.u.InlineResult
+func (c *nativeContext) InlineResult() *telegram.InlineResult {
+	return c.u.ChosenInlineResult
 }
 
-func (c *nativeContext) ShippingQuery() *ShippingQuery {
+func (c *nativeContext) ShippingQuery() *telegram.ShippingQuery {
 	return c.u.ShippingQuery
 }
 
-func (c *nativeContext) PreCheckoutQuery() *PreCheckoutQuery {
+func (c *nativeContext) PreCheckoutQuery() *telegram.PreCheckoutQuery {
 	return c.u.PreCheckoutQuery
 }
 
@@ -253,14 +139,14 @@ func (c *nativeContext) AssertPreCheckoutQuery() error {
 // Callback returns callback query if it exists.
 //
 // Assert that this context contains a callback query.
-func (c *nativeContext) Payment() *Payment {
+func (c *nativeContext) Payment() *telegram.Payment {
 	if c.u.Message == nil {
 		return nil
 	}
 	return c.u.Message.Payment
 }
 
-func (c *nativeContext) ChatMember() *ChatMemberUpdate {
+func (c *nativeContext) ChatMember() *telegram.ChatMemberUpdate {
 	switch {
 	case c.u.ChatMember != nil:
 		return c.u.ChatMember
@@ -271,15 +157,15 @@ func (c *nativeContext) ChatMember() *ChatMemberUpdate {
 	}
 }
 
-func (c *nativeContext) ChatJoinRequest() *ChatJoinRequest {
+func (c *nativeContext) ChatJoinRequest() *telegram.ChatJoinRequest {
 	return c.u.ChatJoinRequest
 }
 
-func (c *nativeContext) Poll() *Poll {
+func (c *nativeContext) Poll() *telegram.Poll {
 	return c.u.Poll
 }
 
-func (c *nativeContext) PollAnswer() *PollAnswer {
+func (c *nativeContext) PollAnswer() *telegram.PollAnswer {
 	return c.u.PollAnswer
 }
 
@@ -307,24 +193,24 @@ func (c *nativeContext) Topic() *Topic {
 	return nil
 }
 
-func (c *nativeContext) Boost() *BoostUpdated {
-	return c.u.Boost
+func (c *nativeContext) Boost() *telegram.BoostUpdated {
+	return c.u.ChatBoost
 }
 
-func (c *nativeContext) BoostRemoved() *BoostRemoved {
-	return c.u.BoostRemoved
+func (c *nativeContext) BoostRemoved() *telegram.BoostRemoved {
+	return c.u.RemovedChatBoost
 }
 
-func (c *nativeContext) Sender() *User {
+func (c *nativeContext) Sender() *telegram.User {
 	switch {
-	case c.u.Callback != nil:
-		return c.u.Callback.Sender
+	case c.u.CallbackQuery != nil:
+		return c.u.CallbackQuery.Sender
 	case c.Message() != nil:
 		return c.Message().Sender
-	case c.u.Query != nil:
-		return c.u.Query.Sender
-	case c.u.InlineResult != nil:
-		return c.u.InlineResult.Sender
+	case c.u.InlineQuery != nil:
+		return c.u.InlineQuery.Sender
+	case c.u.ChosenInlineResult != nil:
+		return c.u.ChosenInlineResult.Sender
 	case c.u.ShippingQuery != nil:
 		return c.u.ShippingQuery.Sender
 	case c.u.PreCheckoutQuery != nil:
@@ -332,31 +218,27 @@ func (c *nativeContext) Sender() *User {
 	case c.u.PollAnswer != nil:
 		return c.u.PollAnswer.Sender
 	case c.u.MyChatMember != nil:
-		return c.u.MyChatMember.Sender
+		return c.u.MyChatMember.User
 	case c.u.ChatMember != nil:
-		return c.u.ChatMember.Sender
+		return c.u.ChatMember.User
 	case c.u.ChatJoinRequest != nil:
 		return c.u.ChatJoinRequest.Sender
-	case c.u.Boost != nil:
-		if b := c.u.Boost.Boost; b != nil && b.Source != nil {
+	case c.u.ChatBoost != nil:
+		if b := c.u.ChatBoost.Boost; b != nil && b.Source != nil {
 			return b.Source.Booster
 		}
-	case c.u.BoostRemoved != nil:
-		if b := c.u.BoostRemoved; b.Source != nil {
+	case c.u.RemovedChatBoost != nil:
+		if b := c.u.RemovedChatBoost; b.Source != nil {
 			return b.Source.Booster
 		}
 	}
 	return nil
 }
 
-func (c *nativeContext) Chat() *Chat {
+func (c *nativeContext) Chat() *telegram.Chat {
 	switch {
 	case c.Message() != nil:
 		return c.Message().Chat
-	case c.u.MyChatMember != nil:
-		return c.u.MyChatMember.Chat
-	case c.u.ChatMember != nil:
-		return c.u.ChatMember.Chat
 	case c.u.ChatJoinRequest != nil:
 		return c.u.ChatJoinRequest.Chat
 	default:
@@ -364,7 +246,7 @@ func (c *nativeContext) Chat() *Chat {
 	}
 }
 
-func (c *nativeContext) Recipient() Recipient {
+func (c *nativeContext) Recipient() communications.Recipient {
 	chat := c.Chat()
 	if chat != nil {
 		return chat
@@ -402,12 +284,12 @@ func (c *nativeContext) Data() string {
 			return m.Payment.Payload
 		}
 		return m.Payload
-	case c.u.Callback != nil:
-		return c.u.Callback.Data
-	case c.u.Query != nil:
-		return c.u.Query.Text
-	case c.u.InlineResult != nil:
-		return c.u.InlineResult.Query
+	case c.u.CallbackQuery != nil:
+		return c.u.CallbackQuery.Data
+	case c.u.InlineQuery != nil:
+		return c.u.InlineQuery.Text
+	case c.u.ChosenInlineResult != nil:
+		return c.u.ChosenInlineResult.Query
 	case c.u.ShippingQuery != nil:
 		return c.u.ShippingQuery.Payload
 	case c.u.PreCheckoutQuery != nil:
@@ -427,12 +309,12 @@ func (c *nativeContext) Args() []string {
 		if payload != "" {
 			return strings.Fields(payload)
 		}
-	case c.u.Callback != nil:
-		return strings.Split(c.u.Callback.Data, "|")
-	case c.u.Query != nil:
-		return strings.Split(c.u.Query.Text, " ")
-	case c.u.InlineResult != nil:
-		return strings.Split(c.u.InlineResult.Query, " ")
+	case c.u.CallbackQuery != nil:
+		return strings.Split(c.u.CallbackQuery.Data, "|")
+	case c.u.InlineQuery != nil:
+		return strings.Split(c.u.InlineQuery.Text, " ")
+	case c.u.ChosenInlineResult != nil:
+		return strings.Split(c.u.ChosenInlineResult.Query, " ")
 	}
 	return nil
 }
@@ -514,12 +396,12 @@ func (c *nativeContext) ForwardTo(to Recipient, opts ...interface{}) error {
 func (c *nativeContext) Edit(what interface{}, opts ...interface{}) error {
 	opts = c.inheritOpts(opts...)
 
-	if c.u.InlineResult != nil {
-		_, err := c.b.Edit(c.u.InlineResult, what, opts...)
+	if c.u.ChosenInlineResult != nil {
+		_, err := c.b.Edit(c.u.ChosenInlineResult, what, opts...)
 		return err
 	}
-	if c.u.Callback != nil {
-		_, err := c.b.Edit(c.u.Callback, what, opts...)
+	if c.u.CallbackQuery != nil {
+		_, err := c.b.Edit(c.u.CallbackQuery, what, opts...)
 		return err
 	}
 	return ErrBadContext
@@ -528,12 +410,12 @@ func (c *nativeContext) Edit(what interface{}, opts ...interface{}) error {
 func (c *nativeContext) EditCaption(caption string, opts ...interface{}) error {
 	opts = c.inheritOpts(opts...)
 
-	if c.u.InlineResult != nil {
-		_, err := c.b.EditCaption(c.u.InlineResult, caption, opts...)
+	if c.u.ChosenInlineResult != nil {
+		_, err := c.b.EditCaption(c.u.ChosenInlineResult, caption, opts...)
 		return err
 	}
-	if c.u.Callback != nil {
-		_, err := c.b.EditCaption(c.u.Callback, caption, opts...)
+	if c.u.CallbackQuery != nil {
+		_, err := c.b.EditCaption(c.u.CallbackQuery, caption, opts...)
 		return err
 	}
 	return ErrBadContext
@@ -597,10 +479,10 @@ func (c *nativeContext) Accept(errorMessage ...string) error {
 }
 
 func (c *nativeContext) Respond(resp ...*CallbackResponse) error {
-	if c.u.Callback == nil {
+	if c.u.CallbackQuery == nil {
 		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: context callback is nil"), "callback", "nil"))
 	}
-	return c.b.Respond(c.u.Callback, resp...)
+	return c.b.Respond(c.u.CallbackQuery, resp...)
 }
 
 func (c *nativeContext) RespondText(text string) error {
@@ -611,11 +493,11 @@ func (c *nativeContext) RespondAlert(text string) error {
 	return c.Respond(&CallbackResponse{Text: text, ShowAlert: true})
 }
 
-func (c *nativeContext) Answer(resp *QueryResponse) error {
-	if c.u.Query == nil {
+func (c *nativeContext) Answer(resp *telegram.QueryResponse) error {
+	if c.u.InlineQuery == nil {
 		return ErrWithCurrentStack(ErrWithInvalidParam(errors.New("telebot: context inline query is nil"), "inline_query", "nil"))
 	}
-	return c.b.Answer(c.u.Query, resp)
+	return c.b.Answer(c.u.InlineQuery, resp)
 }
 
 func (c *nativeContext) Set(key string, value interface{}) {

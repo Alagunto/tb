@@ -4,129 +4,22 @@ import (
 	"encoding/json"
 	"strconv"
 	"time"
+
+	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/telegram"
 )
-
-// Rights is a list of privileges available to chat members.
-type Rights struct {
-	// Anonymous is true, if the user's presence in the chat is hidden.
-	Anonymous bool `json:"is_anonymous"`
-
-	CanBeEdited         bool `json:"can_be_edited"`
-	CanChangeInfo       bool `json:"can_change_info"`
-	CanPostMessages     bool `json:"can_post_messages"`
-	CanEditMessages     bool `json:"can_edit_messages"`
-	CanDeleteMessages   bool `json:"can_delete_messages"`
-	CanPinMessages      bool `json:"can_pin_messages"`
-	CanInviteUsers      bool `json:"can_invite_users"`
-	CanRestrictMembers  bool `json:"can_restrict_members"`
-	CanPromoteMembers   bool `json:"can_promote_members"`
-	CanSendMessages     bool `json:"can_send_messages"`
-	CanSendPolls        bool `json:"can_send_polls"`
-	CanSendOther        bool `json:"can_send_other_messages"`
-	CanAddPreviews      bool `json:"can_add_web_page_previews"`
-	CanManageVideoChats bool `json:"can_manage_video_chats"`
-	CanManageChat       bool `json:"can_manage_chat"`
-	CanManageTopics     bool `json:"can_manage_topics"`
-
-	CanSendMedia      bool `json:"can_send_media_messages,omitempty"` // deprecated
-	CanSendAudios     bool `json:"can_send_audios"`
-	CanSendDocuments  bool `json:"can_send_documents"`
-	CanSendPhotos     bool `json:"can_send_photos"`
-	CanSendVideos     bool `json:"can_send_videos"`
-	CanSendVideoNotes bool `json:"can_send_video_notes"`
-	CanSendVoiceNotes bool `json:"can_send_voice_notes"`
-
-	CanPostStories   bool `json:"can_post_stories"`
-	CanEditStories   bool `json:"can_edit_stories"`
-	CanDeleteStories bool `json:"can_delete_stories"`
-
-	// Independent defines whether the chat permissions are set independently.
-	// If not, the can_send_other_messages and can_add_web_page_previews permissions
-	// will imply the can_send_messages, can_send_audios, can_send_documents, can_send_photos,
-	// can_send_videos, can_send_video_notes, and can_send_voice_notes permissions;
-	// the can_send_polls permission will imply the can_send_messages permission.
-	//
-	// Works for Restrict and SetGroupPermissions methods only.
-	Independent bool `json:"-"`
-}
-
-// NoRights is the default Rights{}.
-func NoRights() Rights { return Rights{} }
-
-// NoRestrictions should be used when un-restricting or
-// un-promoting user.
-//
-//	member.Rights = tele.NoRestrictions()
-//	b.Restrict(chat, member)
-func NoRestrictions() Rights {
-	return Rights{
-		CanBeEdited:         true,
-		CanChangeInfo:       false,
-		CanPostMessages:     false,
-		CanEditMessages:     false,
-		CanDeleteMessages:   false,
-		CanInviteUsers:      false,
-		CanRestrictMembers:  false,
-		CanPinMessages:      false,
-		CanPromoteMembers:   false,
-		CanSendMessages:     true,
-		CanSendPolls:        true,
-		CanSendOther:        true,
-		CanAddPreviews:      true,
-		CanManageVideoChats: false,
-		CanManageChat:       false,
-		CanManageTopics:     false,
-		CanSendAudios:       true,
-		CanSendDocuments:    true,
-		CanSendPhotos:       true,
-		CanSendVideos:       true,
-		CanSendVideoNotes:   true,
-		CanSendVoiceNotes:   true,
-	}
-}
-
-// AdminRights could be used to promote user to admin.
-func AdminRights() Rights {
-	return Rights{
-		CanBeEdited:         true,
-		CanChangeInfo:       true,
-		CanPostMessages:     true,
-		CanEditMessages:     true,
-		CanDeleteMessages:   true,
-		CanInviteUsers:      true,
-		CanRestrictMembers:  true,
-		CanPinMessages:      true,
-		CanPromoteMembers:   true,
-		CanSendMessages:     true,
-		CanSendPolls:        true,
-		CanSendOther:        true,
-		CanAddPreviews:      true,
-		CanManageVideoChats: true,
-		CanManageChat:       true,
-		CanManageTopics:     true,
-		CanSendAudios:       true,
-		CanSendDocuments:    true,
-		CanSendPhotos:       true,
-		CanSendVideos:       true,
-		CanSendVideoNotes:   true,
-		CanSendVoiceNotes:   true,
-		CanPostStories:      true,
-		CanEditStories:      true,
-		CanDeleteStories:    true,
-	}
-}
 
 // Forever is a ExpireUnixtime of "forever" banning.
 func Forever() int64 {
 	return time.Now().Add(367 * 24 * time.Hour).Unix()
 }
 
-// Ban will ban user from chat until `member.RestrictedUntil`.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Ban(chat *Chat, member *ChatMember, revokeMessages ...bool) error {
+// Ban will ban user from chat until `member.UntilDate`.
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Ban(chat *telegram.Chat, member *telegram.ChatMember, revokeMessages ...bool) error {
 	params := map[string]string{
 		"chat_id":    chat.Recipient(),
 		"user_id":    member.User.Recipient(),
-		"until_date": strconv.FormatInt(member.RestrictedUntil, 10),
+		"until_date": strconv.FormatInt(member.UntilDate, 10),
 	}
 	if len(revokeMessages) > 0 {
 		params["revoke_messages"] = strconv.FormatBool(revokeMessages[0])
@@ -138,7 +31,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Ban(chat *Chat, member *ChatMemb
 
 // Unban will unban user from chat, who would have thought eh?
 // forBanned does nothing if the user is not banned.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Unban(chat *Chat, user *User, forBanned ...bool) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Unban(chat *telegram.Chat, user *telegram.User, forBanned ...bool) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 		"user_id": user.Recipient(),
@@ -153,23 +46,18 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Unban(chat *Chat, user *User, fo
 }
 
 // Restrict lets you restrict a subset of member's rights until
-// member.RestrictedUntil, such as:
+// member.UntilDate, such as:
 //
 //   - can send messages
 //   - can send media
 //   - can send other
 //   - can add web page previews
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Restrict(chat *Chat, member *ChatMember) error {
-	perms, until := member.Rights, member.RestrictedUntil
-
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Restrict(chat *telegram.Chat, member *telegram.ChatMember) error {
 	params := map[string]interface{}{
 		"chat_id":     chat.Recipient(),
 		"user_id":     member.User.Recipient(),
-		"until_date":  strconv.FormatInt(until, 10),
-		"permissions": perms,
-	}
-	if perms.Independent {
-		params["use_independent_chat_permissions"] = true
+		"until_date":  strconv.FormatInt(member.UntilDate, 10),
+		"permissions": member.GetPermissionsMap(),
 	}
 
 	_, err := b.Raw("restrictChatMember", params)
@@ -186,13 +74,17 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Restrict(chat *Chat, member *Cha
 //   - can restrict members
 //   - can pin messages
 //   - can promote members
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Promote(chat *Chat, member *ChatMember) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Promote(chat *telegram.Chat, member *telegram.ChatMember) error {
 	params := map[string]interface{}{
 		"chat_id":      chat.Recipient(),
 		"user_id":      member.User.Recipient(),
-		"is_anonymous": member.Anonymous,
+		"is_anonymous": member.IsAnonymous,
 	}
-	embedRights(params, member.Rights)
+	for key, value := range member.GetAdminRightsMap() {
+		if key != "is_anonymous" { // Skip is_anonymous as it's already set
+			params[key] = value
+		}
+	}
 
 	_, err := b.Raw("promoteChatMember", params)
 	return err
@@ -205,7 +97,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Promote(chat *Chat, member *Chat
 //
 // If the chat is a group or a supergroup and
 // no administrators were appointed, only the creator will be returned.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AdminsOf(chat *Chat) ([]ChatMember, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AdminsOf(chat *telegram.Chat) ([]telegram.ChatMember, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -216,7 +108,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AdminsOf(chat *Chat) ([]ChatMemb
 	}
 
 	var resp struct {
-		Result []ChatMember
+		Result []telegram.ChatMember
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, wrapError(err)
@@ -225,7 +117,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AdminsOf(chat *Chat) ([]ChatMemb
 }
 
 // Len returns the number of members in a chat.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Len(chat *Chat) (int, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Len(chat *telegram.Chat) (int, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -246,7 +138,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Len(chat *Chat) (int, error) {
 
 // SetAdminTitle sets a custom title for an administrator.
 // A title should be 0-16 characters length, emoji are not allowed.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetAdminTitle(chat *Chat, user *User, title string) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetAdminTitle(chat *telegram.Chat, user *telegram.User, title string) error {
 	params := map[string]string{
 		"chat_id":      chat.Recipient(),
 		"user_id":      user.Recipient(),
@@ -260,7 +152,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetAdminTitle(chat *Chat, user *
 // BanSenderChat will use this method to ban a channel chat in a supergroup or a channel.
 // Until the chat is unbanned, the owner of the banned chat won't be able
 // to send messages on behalf of any of their channels.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) BanSenderChat(chat *Chat, sender Recipient) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) BanSenderChat(chat *telegram.Chat, sender communications.Recipient) error {
 	params := map[string]string{
 		"chat_id":        chat.Recipient(),
 		"sender_chat_id": sender.Recipient(),
@@ -272,7 +164,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) BanSenderChat(chat *Chat, sender
 
 // UnbanSenderChat will use this method to unban a previously banned channel chat in a supergroup or channel.
 // The bot must be an administrator for this to work and must have the appropriate administrator rights.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) UnbanSenderChat(chat *Chat, sender Recipient) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) UnbanSenderChat(chat *telegram.Chat, sender communications.Recipient) error {
 	params := map[string]string{
 		"chat_id":        chat.Recipient(),
 		"sender_chat_id": sender.Recipient(),
@@ -283,7 +175,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) UnbanSenderChat(chat *Chat, send
 }
 
 // DefaultRights returns the current default administrator rights of the bot.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DefaultRights(forChannels bool) (*Rights, error) {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DefaultRights(forChannels bool) (*telegram.Rights, error) {
 	params := map[string]bool{
 		"for_channels": forChannels,
 	}
@@ -294,7 +186,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DefaultRights(forChannels bool) 
 	}
 
 	var resp struct {
-		Result *Rights
+		Result *telegram.Rights
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, wrapError(err)
@@ -304,7 +196,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DefaultRights(forChannels bool) 
 
 // SetDefaultRights changes the default administrator rights requested by the bot
 // when it's added as an administrator to groups or channels.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetDefaultRights(rights Rights, forChannels bool) error {
+func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetDefaultRights(rights telegram.Rights, forChannels bool) error {
 	params := map[string]interface{}{
 		"rights":       rights,
 		"for_channels": forChannels,
@@ -312,9 +204,4 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetDefaultRights(rights Rights, 
 
 	_, err := b.Raw("setMyDefaultAdministratorRights", params)
 	return err
-}
-
-func embedRights(p map[string]interface{}, rights Rights) {
-	data, _ := json.Marshal(rights)
-	_ = json.Unmarshal(data, &p)
 }
