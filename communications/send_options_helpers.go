@@ -3,7 +3,7 @@ package communications
 import "github.com/alagunto/tb/telegram"
 
 // WithParseMode sets the parse mode for the message.
-func (o *SendOptions) WithParseMode(mode telegram.ParseMode) *SendOptions {
+func (o SendOptions) WithParseMode(mode telegram.ParseMode) SendOptions {
 	o.ParseMode = mode
 	return o
 }
