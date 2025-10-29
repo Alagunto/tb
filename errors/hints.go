@@ -37,3 +37,16 @@ func (e *MissingEntityError) Error() string {
 func WithMissingEntity(err error, missingEntity MissingEntity) error {
 	return fmt.Errorf("%w: %w", err, &MissingEntityError{MissingEntity: missingEntity})
 }
+
+type HasRequestError struct {
+	ErrorCode   int
+	Description string
+}
+
+func (e *HasRequestError) Error() string {
+	return fmt.Sprintf("telegram request error: %s (code: %d)", e.Description, e.ErrorCode)
+}
+
+func WithRequestError(err error, errorCode int, description string) error {
+	return fmt.Errorf("%w: %w", err, &HasRequestError{ErrorCode: errorCode, Description: description})
+}

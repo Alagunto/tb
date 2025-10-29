@@ -15,6 +15,7 @@ import (
 	"github.com/alagunto/tb/censorship"
 	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/errors"
+	"github.com/alagunto/tb/files"
 	"github.com/alagunto/tb/outgoing"
 	"github.com/alagunto/tb/request"
 	"github.com/alagunto/tb/telegram"
@@ -93,8 +94,9 @@ type Bot[RequestType request.Interface, HandlerFunc func(RequestType) error, Mid
 
 	handlersWg sync.WaitGroup
 
-	censorer censorship.Censorer
-	client   *http.Client
+	censorer     censorship.Censorer
+	client       *http.Client
+	apiRequester *ApiRequester
 
 	stopMu     sync.RWMutex
 	stop       chan chan struct{}
@@ -260,7 +262,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Send(to bot.Recipient, w
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := communications.ParseOptions(opts...)
 
 	switch object := what.(type) {
 	case string:
@@ -304,7 +306,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendContent(to bot.Recip
 		Result telegram.Message `json:"result"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 
 	// Let content update itself with the response (if it implements ResponseHandler)
@@ -317,31 +319,25 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendContent(to bot.Recip
 	return &resp.Result, nil
 }
 
-// RawEmbedSendOptions embeds SendOptions into the parameter map.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[string]string, opt *communications.SendOptions) {
-	if opt != nil {
-		opt.InjectInto(params)
-	}
-}
-
 // SendPaid sends multiple instances of paid media as a single message.
 // To include the caption, make sure the first PaidInputtable of an album has it.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendPaid(to communications.Recipient, stars int, a PaidAlbum, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendPaid(to bot.Recipient, stars int, a PaidAlbum, opts ...communications.SendOptions) (*Message, error) {
 	if to == nil {
-		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
+		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
 
 	params := map[string]string{
 		"chat_id":    to.Recipient(),
 		"star_count": strconv.Itoa(stars),
 	}
-	sendOpts := b.extractOptions(opts)
+
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
 
 	media := make([]string, len(a))
-	files := make(map[string]communications.File)
+	files := make(map[string]files.FileRef)
 
 	for i, x := range a {
-		repr := x.MediaFile().Process(strconv.Itoa(i), files)
+		repr := x.MediaFile().(files.FileRef).FileID
 		if repr == "" {
 			return nil, fmt.Errorf("telebot: paid media entry #%d does not exist", i)
 		}
@@ -361,11 +357,11 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendPaid(to communicatio
 	}
 
 	params["media"] = "[" + strings.Join(media, ",") + "]"
-	b.RawEmbedSendOptions(params, sendOpts)
+	params = sendOpts.Inject(params)
 
 	data, err := b.RawSendFiles("sendPaidMedia", files, params)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err)
 	}
 
 	return extractMessage(data)
@@ -374,14 +370,14 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendPaid(to communicatio
 // SendAlbum sends multiple instances of media as a single message.
 // To include the caption, make sure the first Inputtable of an album has it.
 // From all existing options, it only supports tele.Silent.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendAlbum(to communications.Recipient, a Album, opts ...interface{}) ([]Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendAlbum(to bot.Recipient, a Album, opts ...communications.SendOptions) ([]Message, error) {
 	if to == nil {
-		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
+		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
 
-	sendOpts := b.extractOptions(opts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
 	media := make([]string, len(a))
-	files := make(map[string]communications.File)
+	files := make(map[string]files.FileRef)
 
 	for i, x := range a {
 		repr := x.MediaFile().Process(strconv.Itoa(i), files)
@@ -406,7 +402,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendAlbum(to communicati
 		"chat_id": to.Recipient(),
 		"media":   "[" + strings.Join(media, ",") + "]",
 	}
-	b.RawEmbedSendOptions(params, sendOpts)
+	params = sendOpts.Inject(params)
 
 	data, err := b.RawSendFiles("sendMediaGroup", files, params)
 	if err != nil {
@@ -444,19 +440,15 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendAlbum(to communicati
 
 // Reply behaves just like Send() with an exception of "reply-to" indicator.
 // This function will panic upon nil Message.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Reply(to *Message, what interface{}, opts ...interface{}) (*Message, error) {
-	sendOpts := b.extractOptions(opts)
-	if sendOpts == nil {
-		sendOpts = &SendOptions{}
-	}
-
-	sendOpts.ReplyToMessageID = to
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Reply(to *Message, what interface{}, opts ...communications.SendOptions) (*Message, error) {
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts.ReplyParams = &telegram.ReplyParams{MessageID: to.ID}
 	return b.Send(to.Chat, what, sendOpts)
 }
 
 // Forward behaves just like Send() but of all options it only supports Silent (see Bots API).
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Forward(to communications.Recipient, msg communications.Editable, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Forward(to bot.Recipient, msg bot.Editable, opts ...communications.SendOptions) (*Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -468,8 +460,8 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Forward(to communication
 		"message_id":   msgID,
 	}
 
-	sendOpts := b.extractOptions(opts)
-	b.RawEmbedSendOptions(params, sendOpts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	params = sendOpts.Inject(params)
 
 	data, err := b.Raw("forwardMessage", params)
 	if err != nil {
@@ -483,7 +475,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Forward(to communication
 // If some of the specified messages can't be found or forwarded, they are skipped.
 // Service messages and messages with protected content can't be forwarded.
 // Album grouping is kept for forwarded messages.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ForwardMany(to communications.Recipient, msgs []communications.Editable, opts ...*communications.SendOptions) ([]Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ForwardMany(to bot.Recipient, msgs []bot.Editable, opts ...*communications.SendOptions) ([]Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -493,7 +485,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ForwardMany(to communica
 // Copy behaves just like Forward() but the copied message doesn't have a link to the original message (see Bots API).
 //
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Copy(to communications.Recipient, msg communications.Editable, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Copy(to bot.Recipient, msg bot.Editable, opts ...communications.SendOptions) (*Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -505,8 +497,8 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Copy(to communications.R
 		"message_id":   msgID,
 	}
 
-	sendOpts := b.extractOptions(opts)
-	b.RawEmbedSendOptions(params, sendOpts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	params = sendOpts.Inject(params)
 
 	data, err := b.Raw("copyMessage", params)
 	if err != nil {
@@ -523,7 +515,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Copy(to communications.R
 // correct_option_id is known to the bot. The method is analogous
 // to the method forwardMessages, but the copied messages don't have a link to the original message.
 // Album grouping is kept for copied messages.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) CopyMany(to communications.Recipient, msgs []communications.Editable, opts ...*communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) CopyMany(to bot.Recipient, msgs []bot.Editable, opts ...*communications.SendOptions) ([]telegram.Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -545,15 +537,15 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) CopyMany(to communicatio
 //	b.Edit(m, tele.Location{42.1337, 69.4242})
 //	b.Edit(c, "edit inline message from the callback")
 //	b.Edit(r, "edit message from chosen inline result")
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Edit(msg communications.Editable, what interface{}, opts ...interface{}) (*telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Edit(msg bot.Editable, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
 	var (
 		method       string
 		paramsString = make(map[string]string)
 		params       = make(map[string]interface{})
 	)
 
-	sendOpts := b.extractOptions(opts)
-	b.RawEmbedSendOptions(paramsString, sendOpts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	paramsString = sendOpts.Inject(paramsString)
 
 	for k, v := range paramsString {
 		params[k] = v
@@ -614,7 +606,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Edit(msg communications.
 //
 // If edited message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditReplyMarkup(msg communications.Editable, markup *ReplyMarkup) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditReplyMarkup(msg bot.Editable, markup *ReplyMarkup) (*Message, error) {
 	msgID, chatID := msg.MessageSig()
 	params := make(map[string]string)
 
@@ -647,7 +639,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditReplyMarkup(msg comm
 //
 // If edited message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditCaption(msg communications.Editable, caption string, opts ...interface{}) (*telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditCaption(msg bot.Editable, caption string, opts ...communications.SendOptions) (*telegram.Message, error) {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -661,8 +653,8 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditCaption(msg communic
 		params["message_id"] = msgID
 	}
 
-	sendOpts := b.extractOptions(opts)
-	b.RawEmbedSendOptions(params, sendOpts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	params = sendOpts.Inject(params)
 
 	data, err := b.Raw("editMessageCaption", params)
 	if err != nil {
@@ -682,7 +674,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditCaption(msg communic
 //
 //	b.EditMedia(m, &tele.Photo{File: tele.FromDisk("chicken.jpg")})
 //	b.EditMedia(m, &tele.Video{File: tele.FromURL("http://video.mp4")})
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditMedia(msg communications.Editable, media Inputtable, opts ...interface{}) (*telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditMedia(msg bot.Editable, media Inputtable, opts ...communications.SendOptions) (*telegram.Message, error) {
 	var (
 		repr  string
 		file  = media.MediaFile()
@@ -725,8 +717,8 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditMedia(msg communicat
 	msgID, chatID := msg.MessageSig()
 	params := make(map[string]string)
 
-	sendOpts := b.extractOptions(opts)
-	b.RawEmbedSendOptions(params, sendOpts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	params = sendOpts.Inject(params)
 
 	im := media.InputMedia()
 	im.Media = repr
@@ -771,7 +763,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditMedia(msg communicat
 //   - If the bot is an administrator of a group, it can delete any message there.
 //   - If the bot has can_delete_messages permission in a supergroup or a
 //     channel, it can delete any message there.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Delete(msg communications.Editable) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Delete(msg bot.Editable) error {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -785,7 +777,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Delete(msg communication
 
 // DeleteMany deletes multiple messages simultaneously.
 // If some of the specified messages can't be found, they are skipped.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) DeleteMany(msgs []communications.Editable) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) DeleteMany(msgs []bot.Editable) error {
 	params := make(map[string]string)
 	embedMessages(params, msgs)
 
@@ -802,7 +794,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) DeleteMany(msgs []commun
 //
 // Currently, Telegram supports only a narrow range of possible
 // actions, these are aligned as constants of this package.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Notify(to communications.Recipient, action telegram.ChatAction, threadID ...int) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Notify(to bot.Recipient, action telegram.ChatAction, threadID ...int) error {
 	if to == nil {
 		return ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -914,11 +906,11 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Answer(query *telegram.I
 // AnswerWebApp sends a response for a query from Web App and returns
 // information about an inline message sent by a Web App on behalf of a user
 func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *telegram.InlineQuery, r telegram.Result) (*telegram.WebAppMessage, error) {
-	base, ok := r.(*telegram.ResultBase)
+	// TODO: implement proper result handling
+	_, ok := r.(*telegram.ResultBase)
 	if !ok {
 		return nil, fmt.Errorf("telebot: unsupported result type: %T", r)
 	}
-	b.ProcessResult(base)
 
 	params := map[string]interface{}{
 		"web_app_query_id": query.ID,
@@ -934,7 +926,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *tele
 		Result *telegram.WebAppMessage
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 
 	return resp.Result, err
@@ -945,28 +937,28 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *tele
 //
 // Usually, Telegram-provided File objects miss FilePath so you might need to
 // perform an additional request to fetch them.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) FileByID(fileID string) (communications.File, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) FileByID(fileID string) (files.FileRef, error) {
 	params := map[string]string{
 		"file_id": fileID,
 	}
 
 	data, err := b.Raw("getFile", params)
 	if err != nil {
-		return File{}, err
+		return files.FileRef{}, err
 	}
 
 	var resp struct {
-		Result File
+		Result files.FileRef
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return File{}, wrapError(err)
+		return files.FileRef{}, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
 
 // Download saves the file from Telegram servers locally.
 // Maximum file size to download is 20 MB.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Download(file *communications.File, localFilename string) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Download(file *files.FileRef, localFilename string) error {
 	reader, err := b.File(file)
 	if err != nil {
 		return err
@@ -975,37 +967,42 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Download(file *communica
 
 	out, err := os.Create(localFilename)
 	if err != nil {
-		return wrapError(err)
+		return errors.Wrap(err)
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, reader)
 	if err != nil {
-		return wrapError(err)
+		return errors.Wrap(err)
 	}
 
-	file.FileLocal = localFilename
 	return nil
 }
 
 // File gets a file from Telegram servers.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) File(file *communications.File) (io.ReadCloser, error) {
-	f, err := b.FileByID(file.FileID)
-	if err != nil {
-		return nil, err
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) File(file *files.FileRef) (io.ReadCloser, error) {
+	var filePath string
+	if file.FilePath != "" {
+		filePath = file.FilePath
+	} else {
+		f, err := b.FileByID(file.FileID)
+		if err != nil {
+			return nil, err
+		}
+		filePath = f.FilePath
+		file.FilePath = filePath // cache the file path
 	}
 
-	url := b.URL + "/file/bot" + b.Token + "/" + f.FilePath
-	file.FilePath = f.FilePath // saving file path
+	url := b.apiURL + "/file/bot" + b.token + "/" + filePath
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 
 	resp, err := b.client.Do(req)
 	if err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -1024,7 +1021,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) File(file *communication
 //
 // If the message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg communications.Editable, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg bot.Editable, opts ...communications.SendOptions) (*Message, error) {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -1032,8 +1029,8 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg com
 		"message_id": msgID,
 	}
 
-	sendOpts := b.extractOptions(opts)
-	b.RawEmbedSendOptions(params, sendOpts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	params = sendOpts.Inject(params)
 
 	data, err := b.Raw("stopMessageLiveLocation", params)
 	if err != nil {
@@ -1048,7 +1045,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg com
 //
 // It supports ReplyMarkup.
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopPoll(msg communications.Editable, opts ...interface{}) (*Poll, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopPoll(msg bot.Editable, opts ...communications.SendOptions) (*Poll, error) {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -1056,8 +1053,8 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopPoll(msg communicati
 		"message_id": msgID,
 	}
 
-	sendOpts := b.extractOptions(opts)
-	b.RawEmbedSendOptions(params, sendOpts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	params = sendOpts.Inject(params)
 
 	data, err := b.Raw("stopPoll", params)
 	if err != nil {
@@ -1068,13 +1065,13 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopPoll(msg communicati
 		Result *Poll
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
 
 // Leave makes bot leave a group, supergroup or channel.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Leave(chat communications.Recipient) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Leave(chat bot.Recipient) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1087,7 +1084,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Leave(chat communication
 //
 // It supports Silent option.
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Pin(msg communications.Editable, opts ...interface{}) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Pin(msg bot.Editable, opts ...communications.SendOptions) error {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -1095,8 +1092,8 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Pin(msg communications.E
 		"message_id": msgID,
 	}
 
-	sendOpts := b.extractOptions(opts)
-	b.RawEmbedSendOptions(params, sendOpts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	params = sendOpts.Inject(params)
 
 	_, err := b.Raw("pinChatMessage", params)
 	return err
@@ -1104,7 +1101,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Pin(msg communications.E
 
 // Unpin unpins a message in a supergroup or a channel.
 // It supports tb.Silent option.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Unpin(chat communications.Recipient, messageID ...int) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Unpin(chat bot.Recipient, messageID ...int) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1118,7 +1115,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Unpin(chat communication
 
 // UnpinAll unpins all messages in a supergroup or a channel.
 // It supports tb.Silent option.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnpinAll(chat communications.Recipient) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnpinAll(chat bot.Recipient) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1147,13 +1144,10 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatByUsername(name stri
 	}
 
 	var resp struct {
-		Result *Chat
+		Result *telegram.Chat
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
-	}
-	if resp.Result.Type == ChatChannel && resp.Result.Username == "" {
-		resp.Result.Type = ChatChannelPrivate
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
@@ -1171,18 +1165,18 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ProfilePhotosOf(user *te
 
 	var resp struct {
 		Result struct {
-			Count  int     `json:"total_count"`
-			Photos []Photo `json:"photos"`
+			Count  int              `json:"total_count"`
+			Photos []telegram.Photo `json:"photos"`
 		}
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result.Photos, nil
 }
 
 // ChatMemberOf returns information about a member of a chat.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatMemberOf(chat, user communications.Recipient) (*telegram.ChatMember, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatMemberOf(chat, user bot.Recipient) (*telegram.ChatMember, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 		"user_id": user.Recipient(),
@@ -1194,10 +1188,10 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatMemberOf(chat, user 
 	}
 
 	var resp struct {
-		Result *ChatMember
+		Result *telegram.ChatMember
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
@@ -1215,10 +1209,10 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MenuButton(chat *telegra
 	}
 
 	var resp struct {
-		Result *MenuButton
+		Result *telegram.MenuButton
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
@@ -1239,9 +1233,9 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMenuButton(chat *tele
 	}
 
 	switch v := mb.(type) {
-	case MenuButtonType:
-		params["menu_button"] = MenuButton{Type: v}
-	case *MenuButton:
+	case telegram.MenuButtonType:
+		params["menu_button"] = telegram.MenuButton{Type: v}
+	case *telegram.MenuButton:
 		params["menu_button"] = v
 	}
 
@@ -1260,7 +1254,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Logout() (bool, error) {
 		Result bool `json:"result"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return false, wrapError(err)
+		return false, errors.Wrap(err)
 	}
 
 	return resp.Result, nil
@@ -1277,7 +1271,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Close() (bool, error) {
 		Result bool `json:"result"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return false, wrapError(err)
+		return false, errors.Wrap(err)
 	}
 
 	return resp.Result, nil
@@ -1357,7 +1351,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StarTransactions(offset,
 		}
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result.Transactions, nil
 }
@@ -1380,7 +1374,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) botInfo(language, key st
 		Result *BotInfo
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }

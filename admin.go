@@ -5,7 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/bot"
+	"github.com/alagunto/tb/errors"
 	"github.com/alagunto/tb/telegram"
 )
 
@@ -111,7 +112,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AdminsOf(chat *telegram.
 		Result []telegram.ChatMember
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
@@ -131,7 +132,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Len(chat *telegram.Chat)
 		Result int
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return 0, wrapError(err)
+		return 0, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
@@ -152,7 +153,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetAdminTitle(chat *tele
 // BanSenderChat will use this method to ban a channel chat in a supergroup or a channel.
 // Until the chat is unbanned, the owner of the banned chat won't be able
 // to send messages on behalf of any of their channels.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) BanSenderChat(chat *telegram.Chat, sender communications.Recipient) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) BanSenderChat(chat *telegram.Chat, sender bot.Recipient) error {
 	params := map[string]string{
 		"chat_id":        chat.Recipient(),
 		"sender_chat_id": sender.Recipient(),
@@ -164,7 +165,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) BanSenderChat(chat *tele
 
 // UnbanSenderChat will use this method to unban a previously banned channel chat in a supergroup or channel.
 // The bot must be an administrator for this to work and must have the appropriate administrator rights.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnbanSenderChat(chat *telegram.Chat, sender communications.Recipient) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnbanSenderChat(chat *telegram.Chat, sender bot.Recipient) error {
 	params := map[string]string{
 		"chat_id":        chat.Recipient(),
 		"sender_chat_id": sender.Recipient(),

@@ -191,3 +191,30 @@ func MergeMultipleSendOptions(others ...SendOptions) SendOptions {
 	}
 	return result
 }
+
+// ParseOptions converts ...interface{} options into SendOptions
+func ParseOptions(opts ...interface{}) SendOptions {
+	result := NewSendOptions()
+
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case SendOptions:
+			result = result.Merge(v)
+		case *SendOptions:
+			if v != nil {
+				result = result.Merge(*v)
+			}
+		case *telegram.ReplyMarkup:
+			result.ReplyMarkup = v
+		case telegram.ParseMode:
+			result.ParseMode = v
+		case telegram.Entities:
+			result.Entities = v
+		// Add other option types as needed
+		default:
+			// Unknown option type, ignore
+		}
+	}
+
+	return result
+}

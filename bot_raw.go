@@ -24,84 +24,22 @@ import (
 // Raw lets you call any method of Bot API manually.
 // It also handles API errors, so you only need to unwrap
 // result field from json data.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Raw(method string, payload interface{}) ([]byte, error) {
-	// Apply rate limiting if configured
-	if b.rateLimiter != nil {
-		b.rateLimiter.Wait()
-	}
-
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Raw(method string, payload any) ([]byte, error) {
 	// Define the actual API call
-	apiCall := func() ([]byte, error) {
-		return b.rawAPICall(method, payload)
-	}
-
-	// Apply retry policy if configured
-	if b.retryPolicy != nil {
-		return WithRetry(apiCall, *b.retryPolicy)
-	}
-
-	return apiCall()
+	return b.rawAPICall(method, payload)
 }
 
 // rawAPICall performs the actual HTTP request to Telegram API.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) rawAPICall(method string, payload interface{}) ([]byte, error) {
-	url := b.apiURL + "/bot" + b.token + "/" + method
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(payload); err != nil {
-		return nil, err
-	}
-
-	// Cancel the request immediately without waiting for the timeout
-	// when bot is about to stop.
-	// This may become important if doing long polling with long timeout.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() {
-		b.stopMu.RLock()
-		stopCh := b.stopClient
-		b.stopMu.RUnlock()
-
-		select {
-		case <-stopCh:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) rawAPICall(method string, payload map[string]any) (map[string]any, error) {
+	r := NewApiRequester[map[string]any, map[string]any](b.token, b.apiURL, b.client)
+	data, err := r.Request(context.Background(), method, payload)
 	if err != nil {
 		return nil, errors.Wrap(err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := b.client.Do(req)
-	if err != nil {
-		return nil, errors.Wrap(err)
-	}
-	resp.Close = true
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.Wrap(err)
-	}
-
-	if b.settings.Verbose {
-		verbose(method, payload, data)
-	}
-
-	// returning data as well
-	return data, extractOk(data)
+	return *data, nil
 }
 
 func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RawSendFiles(method string, filesToSend map[string]files.FileSource, params map[string]string) ([]byte, error) {
-	// Apply rate limiting if configured
-	if b.rateLimiter != nil {
-		b.rateLimiter.Wait()
-	}
-
 	rawFiles := make(map[string]interface{})
 	fileNames := make(map[string]string)
 
@@ -226,7 +164,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RawSendText(to bot.Recip
 		"chat_id": to.Recipient(),
 		"text":    text,
 	}
-	b.RawEmbedSendOptions(params, opt)
+	params = opt.Inject(params)
 
 	data, err := b.Raw("sendMessage", params)
 	if err != nil {
@@ -310,15 +248,15 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) GetUpdates(offset, limit
 	return resp.Result, nil
 }
 
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) forwardCopyMany(to communications.Recipient, msgs []communications.Editable, key string, opts ...*communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) forwardCopyMany(to bot.Recipient, msgs []bot.Editable, key string, opts ...*communications.SendOptions) ([]telegram.Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 	}
 
 	embedMessages(params, msgs)
 
-	if len(opts) > 0 {
-		b.RawEmbedSendOptions(params, opts[0])
+	if len(opts) > 0 && opts[0] != nil {
+		params = opts[0].Inject(params)
 	}
 
 	data, err := b.Raw(key, params)

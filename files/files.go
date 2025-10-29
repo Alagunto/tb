@@ -37,6 +37,7 @@ type FileSource struct {
 
 	// Reader is an io.Reader for streaming file content
 	Reader io.Reader
+
 	// Filename is required when using Reader
 	Filename string
 }
@@ -159,6 +160,18 @@ type FileRef struct {
 
 	// FileSize is the file size in bytes (if known)
 	FileSize int64 `json:"file_size,omitempty"`
+
+	// FilePath is the file path on Telegram servers (used for downloading)
+	FilePath string `json:"file_path,omitempty"`
+
+	// FileURL is the HTTP/HTTPS URL for remote files
+	FileURL string
+
+	// FileLocal is the local filesystem path for downloaded files
+	FileLocal string
+
+	// FileReader is an io.Reader for streaming file content
+	FileReader io.Reader
 }
 
 // IsEmpty checks if the FileRef is uninitialized.
@@ -171,13 +184,12 @@ func (fr *FileRef) AsSource() FileSource {
 	return UseTelegramFile(fr.FileID)
 }
 
-// Process is not applicable for FileRef since it represents files already uploaded.
-// FileRef doesn't need to be processed for upload.
-func (fr *FileRef) Process(key string, files map[string]interface{}) string {
-	if fr.FileID != "" {
-		// For files already on Telegram, just return the file_id
-		return fr.FileID
-	}
-	// This shouldn't happen for FileRef, but return empty if no file_id
-	return ""
+// InCloud returns true if the file exists on Telegram servers (has FileID)
+func (fr *FileRef) InCloud() bool {
+	return fr.FileID != ""
+}
+
+// OnDisk returns true if the file exists on the local filesystem
+func (fr *FileRef) OnDisk() bool {
+	return fr.FileLocal != ""
 }
