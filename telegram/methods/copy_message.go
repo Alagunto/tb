@@ -4,6 +4,8 @@ import "github.com/alagunto/tb/telegram"
 
 // CopyMessageRequest represents the request for copyMessage method.
 type CopyMessageRequest struct {
+	telegram.HasReplyMarkup
+
 	// Unique identifier for the target chat or username of the target channel
 	ChatID string `json:"chat_id"`
 
@@ -23,7 +25,7 @@ type CopyMessageRequest struct {
 	ParseMode string `json:"parse_mode,omitempty"`
 
 	// List of special entities that appear in the new caption
-	CaptionEntities interface{} `json:"caption_entities,omitempty"`
+	CaptionEntities telegram.Entities `json:"caption_entities,omitempty"`
 
 	// Pass True if the caption must be shown above the message media
 	ShowCaptionAboveMedia bool `json:"show_caption_above_media,omitempty"`
@@ -36,9 +38,16 @@ type CopyMessageRequest struct {
 
 	// Description of the message to reply to
 	ReplyParameters *telegram.ReplyParams `json:"reply_parameters,omitempty"`
+}
 
-	// Additional interface options
-	ReplyMarkup interface{} `json:"reply_markup,omitempty"`
+// SetParseMode implements SetsParseMode interface.
+func (r *CopyMessageRequest) SetParseMode(mode telegram.ParseMode) {
+	r.ParseMode = string(mode)
+}
+
+// SetEntities implements SetsEntities interface.
+func (r *CopyMessageRequest) SetEntities(entities telegram.Entities) {
+	r.CaptionEntities = entities
 }
 
 // CopyMessageResponse represents the response for copyMessage method.

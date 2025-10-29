@@ -447,16 +447,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Edit(msg bot.Editable, w
 			req.MessageID = msgID
 		}
 
-		if sendOpts.ParseMode != "" {
-			req.ParseMode = string(sendOpts.ParseMode)
-		}
-		if len(sendOpts.Entities) > 0 {
-			req.Entities = sendOpts.Entities
-		}
-		if sendOpts.ReplyMarkup != nil {
-			sendOpts.ReplyMarkup.InlineKeyboard = sendOpts.PrepareButtons(sendOpts.ReplyMarkup.InlineKeyboard)
-			req.ReplyMarkup = sendOpts.ReplyMarkup
-		}
+		sendOpts.InjectIntoMethodRequest(&req)
 
 		r := NewApiRequester[methods.EditMessageTextRequest, methods.EditMessageTextResponse](b.token, b.apiURL, b.client)
 		result, err := r.Request(context.Background(), "editMessageText", req)
@@ -477,10 +468,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Edit(msg bot.Editable, w
 			req.MessageID = msgID
 		}
 
-		if sendOpts.ReplyMarkup != nil {
-			sendOpts.ReplyMarkup.InlineKeyboard = sendOpts.PrepareButtons(sendOpts.ReplyMarkup.InlineKeyboard)
-			req.ReplyMarkup = sendOpts.ReplyMarkup
-		}
+		sendOpts.InjectIntoMethodRequest(&req)
 
 		r := NewApiRequester[methods.EditMessageChecklistRequest, methods.EditMessageChecklistResponse](b.token, b.apiURL, b.client)
 		result, err := r.Request(context.Background(), "editMessageChecklist", req)
@@ -515,10 +503,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Edit(msg bot.Editable, w
 		if v.LivePeriod != 0 {
 			req.LivePeriod = v.LivePeriod
 		}
-		if sendOpts.ReplyMarkup != nil {
-			sendOpts.ReplyMarkup.InlineKeyboard = sendOpts.PrepareButtons(sendOpts.ReplyMarkup.InlineKeyboard)
-			req.ReplyMarkup = sendOpts.ReplyMarkup
-		}
+		sendOpts.InjectIntoMethodRequest(&req)
 
 		r := NewApiRequester[methods.EditMessageLiveLocationRequest, methods.EditMessageLiveLocationResponse](b.token, b.apiURL, b.client)
 		result, err := r.Request(context.Background(), "editMessageLiveLocation", req)
@@ -583,7 +568,9 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditCaption(msg bot.Edit
 	sendOpts := communications.MergeMultipleSendOptions(opts...)
 
 	req := methods.EditMessageCaptionRequest{
-		Caption: b.CensorText(caption),
+		Caption:         b.CensorText(caption),
+		ParseMode:       string(sendOpts.ParseMode),
+		CaptionEntities: sendOpts.Entities,
 	}
 
 	if chatID == 0 { // if inline message
@@ -593,16 +580,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditCaption(msg bot.Edit
 		req.MessageID = msgID
 	}
 
-	if sendOpts.ParseMode != "" {
-		req.ParseMode = string(sendOpts.ParseMode)
-	}
-	if len(sendOpts.Entities) > 0 {
-		req.CaptionEntities = sendOpts.Entities
-	}
-	if sendOpts.ReplyMarkup != nil {
-		sendOpts.ReplyMarkup.InlineKeyboard = sendOpts.PrepareButtons(sendOpts.ReplyMarkup.InlineKeyboard)
-		req.ReplyMarkup = sendOpts.ReplyMarkup
-	}
+	sendOpts.InjectIntoMethodRequest(&req)
 
 	r := NewApiRequester[methods.EditMessageCaptionRequest, methods.EditMessageCaptionResponse](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "editMessageCaption", req)
@@ -667,10 +645,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditMedia(msg bot.Editab
 		req.MessageID = msgID
 	}
 
-	if sendOpts.ReplyMarkup != nil {
-		sendOpts.ReplyMarkup.InlineKeyboard = sendOpts.PrepareButtons(sendOpts.ReplyMarkup.InlineKeyboard)
-		req.ReplyMarkup = sendOpts.ReplyMarkup
-	}
+	sendOpts.InjectIntoMethodRequest(&req)
 
 	// Create the requester
 	r := NewApiRequester[methods.EditMessageMediaRequest, methods.EditMessageMediaResponse](b.token, b.apiURL, b.client)
@@ -767,10 +742,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg bot
 		req.MessageID = msgID
 	}
 
-	if sendOpts.ReplyMarkup != nil {
-		sendOpts.ReplyMarkup.InlineKeyboard = sendOpts.PrepareButtons(sendOpts.ReplyMarkup.InlineKeyboard)
-		req.ReplyMarkup = sendOpts.ReplyMarkup
-	}
+	sendOpts.InjectIntoMethodRequest(&req)
 
 	r := NewApiRequester[methods.StopMessageLiveLocationRequest, methods.StopMessageLiveLocationResponse](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "stopMessageLiveLocation", req)
@@ -796,10 +768,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopPoll(msg bot.Editabl
 		MessageID: msgID,
 	}
 
-	if sendOpts.ReplyMarkup != nil {
-		sendOpts.ReplyMarkup.InlineKeyboard = sendOpts.PrepareButtons(sendOpts.ReplyMarkup.InlineKeyboard)
-		req.ReplyMarkup = sendOpts.ReplyMarkup
-	}
+	sendOpts.InjectIntoMethodRequest(&req)
 
 	r := NewApiRequester[methods.StopPollRequest, methods.StopPollResponse](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "stopPoll", req)

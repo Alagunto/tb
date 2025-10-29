@@ -167,6 +167,43 @@ func (o SendOptions) PrepareButtons(keys [][]telegram.InlineButton) [][]telegram
 	return keys
 }
 
+// InjectIntoMethodRequest injects SendOptions fields into a method request
+// using type assertions and setter interfaces.
+func (o *SendOptions) InjectIntoMethodRequest(request interface{}) {
+	if o == nil || request == nil {
+		return
+	}
+
+	// Inject reply markup
+	if o.ReplyMarkup != nil {
+		if setter, ok := request.(telegram.SetsReplyMarkup); ok {
+			o.ReplyMarkup.InlineKeyboard = o.PrepareButtons(o.ReplyMarkup.InlineKeyboard)
+			setter.SetReplyMarkup(o.ReplyMarkup)
+		}
+	}
+
+	// Inject parse mode
+	if o.ParseMode != telegram.ParseModeDefault {
+		if setter, ok := request.(telegram.SetsParseMode); ok {
+			setter.SetParseMode(o.ParseMode)
+		}
+	}
+
+	// Inject entities
+	if len(o.Entities) > 0 {
+		if setter, ok := request.(telegram.SetsEntities); ok {
+			setter.SetEntities(o.Entities)
+		}
+	}
+
+	// Inject business connection ID
+	if o.BusinessConnectionID != "" {
+		if setter, ok := request.(telegram.SetsBusinessConnection); ok {
+			setter.SetBusinessConnectionID(o.BusinessConnectionID)
+		}
+	}
+}
+
 func (o SendOptions) MergeWithMany(others ...SendOptions) SendOptions {
 	result := o
 	for _, other := range others {
@@ -180,32 +217,5 @@ func MergeMultipleSendOptions(others ...SendOptions) SendOptions {
 	for _, other := range others {
 		result = result.Merge(other)
 	}
-	return result
-}
-
-// ParseOptions converts ...interface{} options into SendOptions
-func ParseOptions(opts ...interface{}) SendOptions {
-	result := NewSendOptions()
-
-	for _, opt := range opts {
-		switch v := opt.(type) {
-		case SendOptions:
-			result = result.Merge(v)
-		case *SendOptions:
-			if v != nil {
-				result = result.Merge(*v)
-			}
-		case *telegram.ReplyMarkup:
-			result.ReplyMarkup = v
-		case telegram.ParseMode:
-			result.ParseMode = v
-		case telegram.Entities:
-			result.Entities = v
-		// Add other option types as needed
-		default:
-			// Unknown option type, ignore
-		}
-	}
-
 	return result
 }

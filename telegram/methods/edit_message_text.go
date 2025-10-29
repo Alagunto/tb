@@ -4,6 +4,9 @@ import "github.com/alagunto/tb/telegram"
 
 // EditMessageTextRequest represents the request for editMessageText method.
 type EditMessageTextRequest struct {
+	telegram.HasReplyMarkup
+	telegram.HasBusinessConnection
+
 	// Unique identifier for the target chat or username of the target channel
 	ChatID string `json:"chat_id,omitempty"`
 
@@ -20,16 +23,20 @@ type EditMessageTextRequest struct {
 	ParseMode string `json:"parse_mode,omitempty"`
 
 	// List of special entities that appear in message text
-	Entities interface{} `json:"entities,omitempty"`
+	Entities telegram.Entities `json:"entities,omitempty"`
 
 	// Link preview generation options for the message
-	LinkPreviewOptions interface{} `json:"link_preview_options,omitempty"`
+	LinkPreviewOptions *telegram.PreviewOptions `json:"link_preview_options,omitempty"`
+}
 
-	// Additional interface options
-	ReplyMarkup interface{} `json:"reply_markup,omitempty"`
+// SetParseMode implements SetsParseMode interface.
+func (r *EditMessageTextRequest) SetParseMode(mode telegram.ParseMode) {
+	r.ParseMode = string(mode)
+}
 
-	// Unique identifier of the business connection
-	BusinessConnectionID string `json:"business_connection_id,omitempty"`
+// SetEntities implements SetsEntities interface.
+func (r *EditMessageTextRequest) SetEntities(entities telegram.Entities) {
+	r.Entities = entities
 }
 
 // EditMessageTextResponse represents the response for editMessageText method.

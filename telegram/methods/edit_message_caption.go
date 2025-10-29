@@ -4,6 +4,9 @@ import "github.com/alagunto/tb/telegram"
 
 // EditMessageCaptionRequest represents the request for editMessageCaption method.
 type EditMessageCaptionRequest struct {
+	telegram.HasReplyMarkup
+	telegram.HasBusinessConnection
+
 	// Unique identifier for the target chat or username of the target channel
 	ChatID string `json:"chat_id,omitempty"`
 
@@ -20,16 +23,20 @@ type EditMessageCaptionRequest struct {
 	ParseMode string `json:"parse_mode,omitempty"`
 
 	// List of special entities that appear in the caption
-	CaptionEntities interface{} `json:"caption_entities,omitempty"`
+	CaptionEntities telegram.Entities `json:"caption_entities,omitempty"`
 
 	// Pass True if the caption must be shown above the message media
 	ShowCaptionAboveMedia bool `json:"show_caption_above_media,omitempty"`
+}
 
-	// Additional interface options
-	ReplyMarkup interface{} `json:"reply_markup,omitempty"`
+// SetParseMode implements SetsParseMode interface.
+func (r *EditMessageCaptionRequest) SetParseMode(mode telegram.ParseMode) {
+	r.ParseMode = string(mode)
+}
 
-	// Unique identifier of the business connection
-	BusinessConnectionID string `json:"business_connection_id,omitempty"`
+// SetEntities implements SetsEntities interface.
+func (r *EditMessageCaptionRequest) SetEntities(entities telegram.Entities) {
+	r.CaptionEntities = entities
 }
 
 // EditMessageCaptionResponse represents the response for editMessageCaption method.
