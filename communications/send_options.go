@@ -3,7 +3,6 @@ package communications
 import (
 	"encoding/json"
 	"reflect"
-	"strconv"
 
 	"github.com/alagunto/tb/telegram"
 )
@@ -63,7 +62,7 @@ func (o SendOptions) Merge(other SendOptions) SendOptions {
 }
 
 // InjectInto adds SendOptions parameters directly into the provided params map.
-func (o *SendOptions) InjectInto(params map[string]string) error {
+func (o *SendOptions) InjectInto(params map[string]any) error {
 	if o == nil {
 		return nil
 	}
@@ -74,60 +73,45 @@ func (o *SendOptions) InjectInto(params map[string]string) error {
 		if err != nil {
 			return err
 		}
-		params["reply_parameters"] = string(replyParams)
+		params["reply_parameters"] = replyParams
 	}
 
 	if o.DisableWebPagePreview {
-		params["disable_web_page_preview"] = "true"
+		params["disable_web_page_preview"] = true
 	}
 
 	if o.DisableNotification {
-		params["disable_notification"] = "true"
+		params["disable_notification"] = true
 	}
 
 	if o.ParseMode != telegram.ParseModeDefault {
-		params["parse_mode"] = string(o.ParseMode)
+		params["parse_mode"] = o.ParseMode
 	}
 
 	if len(o.Entities) > 0 {
 		// if we have entities specified, parse_mode is not being respected by telegram
 		delete(params, "parse_mode")
-
-		entities, err := json.Marshal(o.Entities)
-		if err != nil {
-			return err
-		}
-
-		// send* methods accept either entities (for text messages) or caption_entities (for media)
-		if params["caption"] != "" {
-			params["caption_entities"] = string(entities)
-		} else {
-			params["entities"] = string(entities)
-		}
+		params["entities"] = o.Entities
 	}
 
 	if o.AllowWithoutReply {
 		// Optional. Pass True if the message should be sent even if the specified message to be replied to is not found.
 		// Always False for replies in another chat or forum topic.
 		// Always True for messages sent on behalf of a business account.
-		params["allow_sending_without_reply"] = "true"
+		params["allow_sending_without_reply"] = true
 	}
 
 	if o.ReplyMarkup != nil {
-		o.ReplyMarkup.InlineKeyboard = o.prepareButtons(o.ReplyMarkup.InlineKeyboard)
-		replyMarkup, err := json.Marshal(o.ReplyMarkup)
-		if err != nil {
-			return err
-		}
-		params["reply_markup"] = string(replyMarkup)
+		o.ReplyMarkup.InlineKeyboard = o.PrepareButtons(o.ReplyMarkup.InlineKeyboard)
+		params["reply_markup"] = o.ReplyMarkup
 	}
 
 	if o.Protected {
-		params["protect_content"] = "true"
+		params["protect_content"] = true
 	}
 
 	if o.ThreadID != 0 {
-		params["message_thread_id"] = strconv.Itoa(o.ThreadID)
+		params["message_thread_id"] = o.ThreadID
 	}
 
 	if o.BusinessConnectionID != "" {
@@ -135,14 +119,14 @@ func (o *SendOptions) InjectInto(params map[string]string) error {
 	}
 
 	if o.EffectID != "" {
-		params["message_effect_id"] = string(o.EffectID)
+		params["message_effect_id"] = o.EffectID
 	}
 
 	return nil
 }
 
-func (o SendOptions) Inject(originalParams map[string]string) map[string]string {
-	injectedParams := make(map[string]string)
+func (o SendOptions) Inject(originalParams map[string]any) map[string]any {
+	injectedParams := make(map[string]any)
 	// Copy all original params to injectedParams — those were before us and should be preserved (or overridden)
 	for key, value := range originalParams {
 		injectedParams[key] = value
@@ -154,7 +138,14 @@ func (o SendOptions) Inject(originalParams map[string]string) map[string]string 
 	return injectedParams
 }
 
-func (o SendOptions) prepareButtons(keys [][]telegram.InlineButton) [][]telegram.InlineButton {
+func (o SendOptions) ToMap() map[string]any {
+	params := make(map[string]any)
+	o.InjectInto(params)
+	return params
+}
+
+// PrepareButtons processes InlineButtons with Unique field for callback handling
+func (o SendOptions) PrepareButtons(keys [][]telegram.InlineButton) [][]telegram.InlineButton {
 	if len(keys) < 1 || len(keys[0]) < 1 {
 		return keys
 	}

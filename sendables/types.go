@@ -13,3 +13,7 @@ const (
 	SendMethodVideoNote SendMethod = "sendVideoNote"
 	SendMethodAnimation SendMethod = "sendAnimation"
 )
+
+func (s SendMethod) String() string {
+	return string(s)
+}

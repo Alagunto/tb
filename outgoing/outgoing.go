@@ -29,7 +29,7 @@ type Method struct {
 	Name string
 
 	// Params are the text parameters to send with the request
-	Params map[string]string
+	Params map[string]any
 
 	// Files are the file sources to upload (if any)
 	Files map[string]files.FileSource

@@ -30,8 +30,12 @@ type nativeContext struct {
 
 var _ Interface = (*nativeContext)(nil)
 
-func (c *nativeContext) Update() telegram.Update {
-	return c.u
+func (c *nativeContext) Update() *telegram.Update {
+	return &c.u
+}
+
+func (c *nativeContext) Bot() interface{} {
+	return c.API
 }
 
 func (c *nativeContext) contextualSendOptions() communications.SendOptions {
@@ -306,16 +310,6 @@ func (c *nativeContext) Forward(msg bot.Editable, opts ...communications.SendOpt
 	return err
 }
 
-func (c *nativeContext) ForwardTo(to bot.Recipient, opts ...communications.SendOptions) error {
-	msg := c.Message()
-	if msg == nil {
-		return errors.Wrap(errors.WithInvalidParam(errors.ErrTelebot, "message", nil))
-	}
-	opt := c.contextualSendOptions().MergeWithMany(opts...)
-	_, err := c.API.ForwardTo(to, msg, opt)
-	return err
-}
-
 func (c *nativeContext) EditLast(what interface{}, opts ...communications.SendOptions) error {
 	if c.u.ChosenInlineResult != nil {
 		_, err := c.Edit(c.u.ChosenInlineResult, what, opts...)
@@ -348,31 +342,15 @@ func (c *nativeContext) DeleteLast() error {
 	return c.API.Delete(msg)
 }
 
-func (c *nativeContext) Notify(action telegram.ChatAction) error {
-	opt := c.contextualSendOptions()
-	return c.API.Notify(c.Recipient(), action, opt)
-}
-
-func (c *nativeContext) RespondToCallback(resp ...*telegram.CallbackResponse) error {
-	if c.u.CallbackQuery == nil {
-		return errors.Wrap(errors.WithInvalidParam(errors.ErrTelebot, "callback", nil))
+func (c *nativeContext) AnswerInlineQuery(query *telegram.InlineQuery, resp *telegram.QueryResponse) error {
+	// If query is not provided, use the one from the update
+	if query == nil {
+		if c.u.InlineQuery == nil {
+			return errors.WithInvalidParam(errors.ErrTelebot, "inline_query", nil)
+		}
+		query = c.u.InlineQuery
 	}
-	return c.API.RespondToCallback(c.u.CallbackQuery, resp...)
-}
-
-func (c *nativeContext) RespondText(text string) error {
-	return c.RespondToCallback(&telegram.CallbackResponse{Text: text})
-}
-
-func (c *nativeContext) RespondAlert(text string) error {
-	return c.RespondToCallback(&telegram.CallbackResponse{Text: text, ShowAlert: true})
-}
-
-func (c *nativeContext) AnswerInlineQuery(resp *telegram.QueryResponse) error {
-	if c.u.InlineQuery == nil {
-		return errors.WithInvalidParam(errors.ErrTelebot, "inline_query", nil)
-	}
-	return c.API.AnswerInlineQuery(c.u.InlineQuery, resp)
+	return c.AnswerInlineQuery(query, resp)
 }
 
 func (c *nativeContext) Set(key string, value interface{}) {

@@ -24,8 +24,8 @@ type Interface interface {
 	// CallbackMessage returns the message that was used to trigger the callback query if such presented.
 	CallbackMessage() *telegram.Message
 
-	// Query returns stored query if such presented.
-	Query() *telegram.InlineQuery
+	// InlineQuery returns stored inline query if such presented.
+	InlineQuery() *telegram.InlineQuery
 
 	// InlineResult returns stored inline result if such presented.
 	InlineResult() *telegram.InlineResult

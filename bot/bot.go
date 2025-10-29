@@ -44,7 +44,7 @@ type API interface {
 	Accept(query *telegram.PreCheckoutQuery, errorMessage ...string) error
 	RespondToCallback(c *telegram.CallbackQuery, resp ...*telegram.CallbackResponse) error
 	AnswerInlineQuery(query *telegram.InlineQuery, resp *telegram.QueryResponse) error
-	AnswerWebAppQuery(query *telegram.WebApp, r telegram.Result) (*telegram.WebAppMessage, error)
+	// AnswerWebAppQuery(query *telegram.WebApp, r telegram.Result) (*telegram.WebAppMessage, error)
 	FileByID(fileID string) (files.FileRef, error)
 	Download(file *files.FileRef, localFilename string) error
 	File(file *files.FileRef) (io.ReadCloser, error)
