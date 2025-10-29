@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -12,104 +11,106 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/alagunto/tb/bot"
 	"github.com/alagunto/tb/censorship"
 	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/errors"
+	"github.com/alagunto/tb/outgoing"
+	"github.com/alagunto/tb/request"
 	"github.com/alagunto/tb/telegram"
 )
 
 // NewBot does try to build a Bot with token `token`, which
 // is a secret API key assigned to particular bot.
-func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](
-	createNewContext func(ContextInterface) (Ctx, error),
-	pref Settings[Ctx, HandlerFunc, MiddlewareFunc],
-) (*Bot[Ctx, HandlerFunc, MiddlewareFunc], error) {
-	pref.DefaultsForEmptyValues()
+func NewBot[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](
+	requestBuilder func(request.Interface) (RequestType, error),
+	settings Settings[RequestType, HandlerFunc, MiddlewareFunc],
+) (*Bot[RequestType, HandlerFunc, MiddlewareFunc], error) {
+	settings.DefaultsForEmptyValues()
 
-	client := pref.Client
+	bot := &Bot[RequestType, HandlerFunc, MiddlewareFunc]{
+		settings: settings,
 
-	bot := &Bot[Ctx, HandlerFunc, MiddlewareFunc]{
-		Token:            pref.Token,
-		URL:              pref.URL,
-		Poller:           pref.Poller,
-		onError:          pref.OnError,
-		createNewContext: createNewContext,
+		requestBuilder: requestBuilder,
+		token:          settings.Token,
+		apiURL:         settings.URL,
+		poller:         settings.Poller,
+		onError:        settings.OnError,
 
-		Updates:          make(chan Update, pref.Updates),
+		updates:          make(chan telegram.Update, settings.Updates),
 		handlers:         make(map[string]HandlerFunc),
 		originalHandlers: make(map[string]HandlerFunc),
 		stop:             make(chan chan struct{}),
 
-		synchronous: pref.Synchronous,
-		verbose:     pref.Verbose,
-		parseMode:   pref.ParseMode,
-		client:      client,
-		retryPolicy: pref.RetryPolicy,
-		rateLimiter: pref.RateLimiter,
-		censorer:    pref.Censorer,
+		client:   settings.Client,
+		censorer: settings.Censorer,
 	}
 
-	if pref.Offline {
-		bot.Me = &User{}
+	// Instantly fetch the bot's information if not offline
+	if settings.Offline {
+		bot.me = &telegram.User{}
 	} else {
 		user, err := bot.getMe()
 		if err != nil {
 			return nil, err
 		}
-		bot.Me = user
+		bot.me = user
 	}
 
+	// Create the root group of handlers
 	bot.group = bot.Group()
+
 	return bot, nil
 }
 
 // Bot represents a separate Telegram bot instance.
-type Bot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
-	Me               *User
-	Token            string
-	URL              string
-	Updates          chan Update
-	Poller           Poller
-	onError          func(error, Ctx, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc])
-	createNewContext func(ContextInterface) (Ctx, error)
+type Bot[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
+	// Token is the bot's token, used to authenticate with the Telegram API
+	token string
 
-	group            *Group[Ctx, HandlerFunc, MiddlewareFunc]
+	// apiURL is the base URL of the Telegram API
+	apiURL string
+
+	// updates is the channel for incoming updates
+	updates chan telegram.Update
+
+	// poller is the poller for incoming updates
+	poller Poller
+
+	// onError is the callback function for errors
+	onError func(error, RequestType, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc])
+
+	settings Settings[RequestType, HandlerFunc, MiddlewareFunc]
+
+	// requestBuilder is the function to build request contexts that are passed to handlers
+	requestBuilder func(request.Interface) (RequestType, error)
+
+	// group is the root group of handlers tree
+	group *Group[RequestType, HandlerFunc, MiddlewareFunc]
+	// ???
 	handlers         map[string]HandlerFunc
 	originalHandlers map[string]HandlerFunc
-	synchronous      bool
-	verbose          bool
-	parseMode        ParseMode
-	censorer         censorship.Censorer
-	stop             chan chan struct{}
-	client           *http.Client
 
-	stopMu      sync.RWMutex
-	stopClient  chan struct{}
-	handlersWg  sync.WaitGroup
-	retryPolicy *RetryPolicy
-	rateLimiter *RateLimiter
-}
+	handlersWg sync.WaitGroup
 
-func defaultOnError[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](err error, _ Ctx, _ DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]) {
-	log.Println(err)
-}
+	censorer censorship.Censorer
+	client   *http.Client
 
-type DebugInfo[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
-	Handler  HandlerFunc
-	Stack    string
-	Endpoint string
-}
+	stopMu     sync.RWMutex
+	stop       chan chan struct{}
+	stopClient chan struct{}
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) OnError(err error, c Ctx, debugInfo DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]) {
-	b.onError(err, c, debugInfo)
+	// me is the bot's user information, cached for performance
+	me *telegram.User
 }
 
 // Group returns a new group.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Group() *Group[Ctx, HandlerFunc, MiddlewareFunc] {
-	return &Group[Ctx, HandlerFunc, MiddlewareFunc]{b: b}
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Group() *Group[RequestType, HandlerFunc, MiddlewareFunc] {
+	return &Group[RequestType, HandlerFunc, MiddlewareFunc]{b: b}
 }
 
 // Use adds middleware to the global bot chain.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Use(middleware ...MiddlewareFunc) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Use(middleware ...MiddlewareFunc) {
 	b.group.Use(middleware...)
 }
 
@@ -135,20 +136,20 @@ var (
 // Middleware usage:
 //
 //	b.Handle("/ban", onBan, middleware.Whitelist(ids...))
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
-	end := extractEndpoint[Ctx](endpoint)
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
+	end := extractEndpoint[RequestType](endpoint)
 	if end == "" {
 		panic("telebot: unsupported endpoint")
 	}
 
 	if len(b.group.middleware) > 0 {
-		m = appendMiddleware[Ctx, HandlerFunc](b.group.middleware, m)
+		m = appendMiddleware[RequestType, HandlerFunc](b.group.middleware, m)
 	}
 
 	if _, ok := b.handlers[end]; ok {
 		panic("telebot: handler is already registered for endpoint " + end + ", overriding the existing handler is almost always a bug")
 	}
-	handler := func(c Ctx) error {
+	handler := func(c RequestType) error {
 		return applyMiddleware(h, m...)(c)
 	}
 	b.handlers[end] = handler
@@ -156,24 +157,24 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Handle(endpoint interface{}, h H
 }
 
 // Trigger executes the registered handler by the endpoint.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Trigger(endpoint interface{}, c Ctx) error {
-	end := extractEndpoint[Ctx](endpoint)
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Trigger(endpoint interface{}, c RequestType) error {
+	end := extractEndpoint[RequestType](endpoint)
 	if end == "" {
-		return fmt.Errorf("telebot: unsupported endpoint")
+		return fmt.Errorf("telebot: unsupported endpoint: %v", endpoint)
 	}
 
 	handler, ok := b.handlers[end]
 	if !ok {
-		return fmt.Errorf("telebot: no handler found for given endpoint")
+		return fmt.Errorf("telebot: no handler found for given endpoint: %v", endpoint)
 	}
 
 	return handler(c)
 }
 
 // Start brings bot into motion by consuming incoming
-// updates (see Bot.Updates channel).
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Start() {
-	if b.Poller == nil {
+// updates (see Bot.updates channel).
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Start() {
+	if b.poller == nil {
 		panic("telebot: can't start without a poller")
 	}
 
@@ -191,15 +192,20 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Start() {
 	stopConfirm := make(chan struct{})
 
 	go func() {
-		b.Poller.Poll(b, b.Updates, stop)
+		b.poller.Poll(b, b.updates, stop)
 		close(stopConfirm)
 	}()
 
 	for {
 		select {
 		// handle incoming updates
-		case upd := <-b.Updates:
-			b.ProcessUpdate(upd)
+		case upd := <-b.updates:
+			ctx, err := b.NewContext(upd)
+			if err != nil {
+				b.onError(err, ctx, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc]{})
+				continue
+			}
+			b.ProcessUpdate(ctx, upd)
 			// call to stop polling
 		case confirm := <-b.stop:
 			close(stop)
@@ -211,7 +217,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Start() {
 }
 
 // Stop gracefully shuts the poller down and waits for all handlers to complete.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Stop() {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Stop() {
 	b.stopMu.Lock()
 	ch := b.stopClient
 	b.stopClient = nil
@@ -229,15 +235,10 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Stop() {
 	b.handlersWg.Wait()
 }
 
-// NewMarkup simply returns newly created markup instance.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) NewMarkup() *ReplyMarkup {
-	return &ReplyMarkup{}
-}
-
 // NewContext returns a new native context object,
 // field by the passed update.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) NewContext(u Update) (Ctx, error) {
-	return b.createNewContext(NewContext(b, u))
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) NewContext(u telegram.Update) (RequestType, error) {
+	return b.requestBuilder(u)
 }
 
 // Send accepts 2+ arguments, starting with destination chat, followed by
@@ -254,26 +255,78 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) NewContext(u Update) (Ctx, error
 //   - *ReplyMarkup (a component of SendOptions)
 //   - Option (a shortcut flag for popular options)
 //   - ParseMode (HTML, Markdown, etc)
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Send(to Recipient, what interface{}, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Send(to bot.Recipient, what interface{}, opts ...interface{}) (*telegram.Message, error) {
 	if to == nil {
-		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
+		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
 
-	sendOpts := b.extractOptions(opts)
+	sendOpts := communications.MergeMultipleSendOptions(opts...)
 
 	switch object := what.(type) {
 	case string:
 		return b.RawSendText(to, object, sendOpts)
-	case Sendable:
+	case communications.Sendable:
 		return object.Send(b, to, sendOpts)
+	case outgoing.Content:
+		return b.sendContent(to, object, sendOpts)
 	default:
-		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrUnsupportedWhat, "what", fmt.Sprintf("%v", what)))
+		return nil, errors.WithInvalidParam(errors.ErrUnsupportedWhat, "what", fmt.Sprintf("%v", what))
+	}
+}
+
+// sendContent handles sending content that implements the outgoing.Content interface.
+// This is the new file upload system that makes upload timing explicit.
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendContent(to bot.Recipient, content outgoing.Content, opts *communications.SendOptions) (*telegram.Message, error) {
+	method := content.ToTelegramSendMethod()
+
+	// Start with base params
+	params := make(map[string]string)
+	params["chat_id"] = to.Recipient()
+
+	// Add content-specific params
+	for k, v := range method.Params {
+		params[k] = v
+	}
+
+	// Inject SendOptions
+	if opts != nil {
+		opts.InjectInto(params)
+	}
+
+	// Send the request using the new FileSource format
+	data, err := b.RawSendFiles(method.Name, method.Files, params)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse response
+	var resp struct {
+		Result telegram.Message `json:"result"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, wrapError(err)
+	}
+
+	// Let content update itself with the response (if it implements ResponseHandler)
+	if handler, ok := content.(outgoing.ResponseHandler); ok {
+		if err := handler.UpdateFromResponse(&resp.Result); err != nil {
+			return nil, err
+		}
+	}
+
+	return &resp.Result, nil
+}
+
+// RawEmbedSendOptions embeds SendOptions into the parameter map.
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[string]string, opt *communications.SendOptions) {
+	if opt != nil {
+		opt.InjectInto(params)
 	}
 }
 
 // SendPaid sends multiple instances of paid media as a single message.
 // To include the caption, make sure the first PaidInputtable of an album has it.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendPaid(to Recipient, stars int, a PaidAlbum, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendPaid(to communications.Recipient, stars int, a PaidAlbum, opts ...interface{}) (*Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -285,10 +338,10 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendPaid(to Recipient, stars int
 	sendOpts := b.extractOptions(opts)
 
 	media := make([]string, len(a))
-	files := make(map[string]File)
+	files := make(map[string]communications.File)
 
 	for i, x := range a {
-		repr := x.MediaFile().process(strconv.Itoa(i), files)
+		repr := x.MediaFile().Process(strconv.Itoa(i), files)
 		if repr == "" {
 			return nil, fmt.Errorf("telebot: paid media entry #%d does not exist", i)
 		}
@@ -321,17 +374,17 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendPaid(to Recipient, stars int
 // SendAlbum sends multiple instances of media as a single message.
 // To include the caption, make sure the first Inputtable of an album has it.
 // From all existing options, it only supports tele.Silent.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendAlbum(to communications.Recipient, a Album, opts ...interface{}) ([]Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendAlbum(to communications.Recipient, a Album, opts ...interface{}) ([]Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
 
 	sendOpts := b.extractOptions(opts)
 	media := make([]string, len(a))
-	files := make(map[string]File)
+	files := make(map[string]communications.File)
 
 	for i, x := range a {
-		repr := x.MediaFile().process(strconv.Itoa(i), files)
+		repr := x.MediaFile().Process(strconv.Itoa(i), files)
 		if repr == "" {
 			return nil, fmt.Errorf("telebot: album entry #%d does not exist", i)
 		}
@@ -391,19 +444,19 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SendAlbum(to communications.Reci
 
 // Reply behaves just like Send() with an exception of "reply-to" indicator.
 // This function will panic upon nil Message.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Reply(to *Message, what interface{}, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Reply(to *Message, what interface{}, opts ...interface{}) (*Message, error) {
 	sendOpts := b.extractOptions(opts)
 	if sendOpts == nil {
 		sendOpts = &SendOptions{}
 	}
 
-	sendOpts.ReplyTo = to
+	sendOpts.ReplyToMessageID = to
 	return b.Send(to.Chat, what, sendOpts)
 }
 
 // Forward behaves just like Send() but of all options it only supports Silent (see Bots API).
 // This function will panic upon nil Editable.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Forward(to Recipient, msg Editable, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Forward(to communications.Recipient, msg communications.Editable, opts ...interface{}) (*Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -430,7 +483,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Forward(to Recipient, msg Editab
 // If some of the specified messages can't be found or forwarded, they are skipped.
 // Service messages and messages with protected content can't be forwarded.
 // Album grouping is kept for forwarded messages.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ForwardMany(to Recipient, msgs []Editable, opts ...*SendOptions) ([]Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ForwardMany(to communications.Recipient, msgs []communications.Editable, opts ...*communications.SendOptions) ([]Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -440,7 +493,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ForwardMany(to Recipient, msgs [
 // Copy behaves just like Forward() but the copied message doesn't have a link to the original message (see Bots API).
 //
 // This function will panic upon nil Editable.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Copy(to Recipient, msg Editable, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Copy(to communications.Recipient, msg communications.Editable, opts ...interface{}) (*Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -470,7 +523,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Copy(to Recipient, msg Editable,
 // correct_option_id is known to the bot. The method is analogous
 // to the method forwardMessages, but the copied messages don't have a link to the original message.
 // Album grouping is kept for copied messages.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CopyMany(to communications.Recipient, msgs []communications.Editable, opts ...*communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) CopyMany(to communications.Recipient, msgs []communications.Editable, opts ...*communications.SendOptions) ([]telegram.Message, error) {
 	if to == nil {
 		return nil, ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -492,7 +545,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CopyMany(to communications.Recip
 //	b.Edit(m, tele.Location{42.1337, 69.4242})
 //	b.Edit(c, "edit inline message from the callback")
 //	b.Edit(r, "edit message from chosen inline result")
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Edit(msg communications.Editable, what interface{}, opts ...interface{}) (*telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Edit(msg communications.Editable, what interface{}, opts ...interface{}) (*telegram.Message, error) {
 	var (
 		method       string
 		paramsString = make(map[string]string)
@@ -561,7 +614,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Edit(msg communications.Editable
 //
 // If edited message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditReplyMarkup(msg Editable, markup *ReplyMarkup) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditReplyMarkup(msg communications.Editable, markup *ReplyMarkup) (*Message, error) {
 	msgID, chatID := msg.MessageSig()
 	params := make(map[string]string)
 
@@ -594,7 +647,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditReplyMarkup(msg Editable, ma
 //
 // If edited message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditCaption(msg communications.Editable, caption string, opts ...interface{}) (*telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditCaption(msg communications.Editable, caption string, opts ...interface{}) (*telegram.Message, error) {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -629,13 +682,13 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditCaption(msg communications.E
 //
 //	b.EditMedia(m, &tele.Photo{File: tele.FromDisk("chicken.jpg")})
 //	b.EditMedia(m, &tele.Video{File: tele.FromURL("http://video.mp4")})
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditMedia(msg communications.Editable, media media.Inputtable, opts ...interface{}) (*telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditMedia(msg communications.Editable, media Inputtable, opts ...interface{}) (*telegram.Message, error) {
 	var (
 		repr  string
 		file  = media.MediaFile()
-		files = make(map[string]File)
+		files = make(map[string]communications.File)
 
-		thumb     *Photo
+		thumb     *telegram.Photo
 		thumbName = "thumb"
 	)
 
@@ -718,7 +771,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditMedia(msg communications.Edi
 //   - If the bot is an administrator of a group, it can delete any message there.
 //   - If the bot has can_delete_messages permission in a supergroup or a
 //     channel, it can delete any message there.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Delete(msg Editable) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Delete(msg communications.Editable) error {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -732,7 +785,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Delete(msg Editable) error {
 
 // DeleteMany deletes multiple messages simultaneously.
 // If some of the specified messages can't be found, they are skipped.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeleteMany(msgs []Editable) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) DeleteMany(msgs []communications.Editable) error {
 	params := make(map[string]string)
 	embedMessages(params, msgs)
 
@@ -749,7 +802,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeleteMany(msgs []Editable) erro
 //
 // Currently, Telegram supports only a narrow range of possible
 // actions, these are aligned as constants of this package.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Notify(to Recipient, action ChatAction, threadID ...int) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Notify(to communications.Recipient, action telegram.ChatAction, threadID ...int) error {
 	if to == nil {
 		return ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
 	}
@@ -775,7 +828,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Notify(to Recipient, action Chat
 //	b.Ship(query)          // OK
 //	b.Ship(query, opts...) // OK with options
 //	b.Ship(query, "Oops!") // Error message
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Ship(query *ShippingQuery, what ...interface{}) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Ship(query *telegram.ShippingQuery, what ...interface{}) error {
 	params := map[string]string{
 		"shipping_query_id": query.ID,
 	}
@@ -805,7 +858,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Ship(query *ShippingQuery, what 
 }
 
 // Accept finalizes the deal.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Accept(query *PreCheckoutQuery, errorMessage ...string) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Accept(query *telegram.PreCheckoutQuery, errorMessage ...string) error {
 	params := map[string]string{
 		"pre_checkout_query_id": query.ID,
 	}
@@ -829,7 +882,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Accept(query *PreCheckoutQuery, 
 //
 //	b.Respond(c)
 //	b.Respond(c, response)
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Respond(c *telegram.CallbackQuery, resp ...*telegram.CallbackResponse) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Respond(c *telegram.CallbackQuery, resp ...*telegram.CallbackResponse) error {
 	var r *CallbackResponse
 	if resp == nil {
 		r = &CallbackResponse{}
@@ -845,7 +898,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Respond(c *telegram.CallbackQuer
 // Answer sends a response for a given inline query. A query can only
 // be responded to once, subsequent attempts to respond to the same query
 // will result in an error.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Answer(query *telegram.InlineQuery, resp *telegram.QueryResponse) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Answer(query *telegram.InlineQuery, resp *telegram.QueryResponse) error {
 	resp.QueryID = query.ID
 
 	for _, result := range resp.Results {
@@ -860,7 +913,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Answer(query *telegram.InlineQue
 
 // AnswerWebApp sends a response for a query from Web App and returns
 // information about an inline message sent by a Web App on behalf of a user
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *telegram.InlineQuery, r telegram.Result) (*telegram.WebAppMessage, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *telegram.InlineQuery, r telegram.Result) (*telegram.WebAppMessage, error) {
 	base, ok := r.(*telegram.ResultBase)
 	if !ok {
 		return nil, fmt.Errorf("telebot: unsupported result type: %T", r)
@@ -892,7 +945,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *telegram.Inl
 //
 // Usually, Telegram-provided File objects miss FilePath so you might need to
 // perform an additional request to fetch them.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) FileByID(fileID string) (File, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) FileByID(fileID string) (communications.File, error) {
 	params := map[string]string{
 		"file_id": fileID,
 	}
@@ -913,7 +966,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) FileByID(fileID string) (File, e
 
 // Download saves the file from Telegram servers locally.
 // Maximum file size to download is 20 MB.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Download(file *File, localFilename string) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Download(file *communications.File, localFilename string) error {
 	reader, err := b.File(file)
 	if err != nil {
 		return err
@@ -936,7 +989,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Download(file *File, localFilena
 }
 
 // File gets a file from Telegram servers.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) File(file *File) (io.ReadCloser, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) File(file *communications.File) (io.ReadCloser, error) {
 	f, err := b.FileByID(file.FileID)
 	if err != nil {
 		return nil, err
@@ -971,7 +1024,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) File(file *File) (io.ReadCloser,
 //
 // If the message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg Editable, opts ...interface{}) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg communications.Editable, opts ...interface{}) (*Message, error) {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -995,7 +1048,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg Editable, o
 //
 // It supports ReplyMarkup.
 // This function will panic upon nil Editable.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) StopPoll(msg Editable, opts ...interface{}) (*Poll, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopPoll(msg communications.Editable, opts ...interface{}) (*Poll, error) {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -1021,7 +1074,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) StopPoll(msg Editable, opts ...i
 }
 
 // Leave makes bot leave a group, supergroup or channel.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Leave(chat Recipient) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Leave(chat communications.Recipient) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1034,7 +1087,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Leave(chat Recipient) error {
 //
 // It supports Silent option.
 // This function will panic upon nil Editable.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Pin(msg Editable, opts ...interface{}) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Pin(msg communications.Editable, opts ...interface{}) error {
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
@@ -1051,7 +1104,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Pin(msg Editable, opts ...interf
 
 // Unpin unpins a message in a supergroup or a channel.
 // It supports tb.Silent option.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Unpin(chat Recipient, messageID ...int) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Unpin(chat communications.Recipient, messageID ...int) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1065,7 +1118,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Unpin(chat Recipient, messageID 
 
 // UnpinAll unpins all messages in a supergroup or a channel.
 // It supports tb.Silent option.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) UnpinAll(chat Recipient) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnpinAll(chat communications.Recipient) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1078,12 +1131,12 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) UnpinAll(chat Recipient) error {
 //
 // Including current name of the user for one-on-one conversations,
 // current username of a user, group or channel, etc.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ChatByID(id int64) (*Chat, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatByID(id int64) (*telegram.Chat, error) {
 	return b.ChatByUsername(strconv.FormatInt(id, 10))
 }
 
 // ChatByUsername fetches chat info by its username.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ChatByUsername(name string) (*Chat, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatByUsername(name string) (*telegram.Chat, error) {
 	params := map[string]string{
 		"chat_id": name,
 	}
@@ -1106,7 +1159,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ChatByUsername(name string) (*Ch
 }
 
 // ProfilePhotosOf returns list of profile pictures for a user.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProfilePhotosOf(user *User) ([]Photo, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ProfilePhotosOf(user *telegram.User) ([]telegram.Photo, error) {
 	params := map[string]string{
 		"user_id": user.Recipient(),
 	}
@@ -1129,7 +1182,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProfilePhotosOf(user *User) ([]P
 }
 
 // ChatMemberOf returns information about a member of a chat.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ChatMemberOf(chat, user Recipient) (*ChatMember, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatMemberOf(chat, user communications.Recipient) (*telegram.ChatMember, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 		"user_id": user.Recipient(),
@@ -1151,7 +1204,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ChatMemberOf(chat, user Recipien
 
 // MenuButton returns the current value of the bot's menu button in a private chat,
 // or the default menu button.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) MenuButton(chat *User) (*MenuButton, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MenuButton(chat *telegram.User) (*MenuButton, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -1177,7 +1230,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) MenuButton(chat *User) (*MenuBut
 //
 //   - MenuButtonType for simple menu buttons (default, commands)
 //   - MenuButton complete structure for web_app menu button type
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetMenuButton(chat *User, mb interface{}) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMenuButton(chat *telegram.User, mb interface{}) error {
 	params := map[string]interface{}{}
 
 	// chat_id is optional
@@ -1197,7 +1250,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetMenuButton(chat *User, mb int
 }
 
 // Logout logs out from the cloud Bot API server before launching the bot locally.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Logout() (bool, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Logout() (bool, error) {
 	data, err := b.Raw("logOut", nil)
 	if err != nil {
 		return false, err
@@ -1214,7 +1267,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Logout() (bool, error) {
 }
 
 // Close closes the bot instance before moving it from one local server to another.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Close() (bool, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Close() (bool, error) {
 	data, err := b.Raw("close", nil)
 	if err != nil {
 		return false, err
@@ -1238,7 +1291,7 @@ type BotInfo struct {
 }
 
 // SetMyName change's the bot name.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetMyName(name, language string) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMyName(name, language string) error {
 	params := map[string]string{
 		"name":          name,
 		"language_code": language,
@@ -1249,13 +1302,13 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetMyName(name, language string)
 }
 
 // MyName returns the current bot name for the given user language.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) MyName(language string) (*BotInfo, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MyName(language string) (*BotInfo, error) {
 	return b.botInfo(language, "getMyName")
 }
 
 // SetMyDescription change's the bot description, which is shown in the chat
 // with the bot if the chat is empty.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetMyDescription(desc, language string) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMyDescription(desc, language string) error {
 	params := map[string]string{
 		"description":   desc,
 		"language_code": language,
@@ -1266,13 +1319,13 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetMyDescription(desc, language 
 }
 
 // MyDescription the current bot description for the given user language.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) MyDescription(language string) (*BotInfo, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MyDescription(language string) (*BotInfo, error) {
 	return b.botInfo(language, "getMyDescription")
 }
 
 // SetMyShortDescription change's the bot short description, which is shown on
 // the bot's profile page and is sent together with the link when users share the bot.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetMyShortDescription(desc, language string) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMyShortDescription(desc, language string) error {
 	params := map[string]string{
 		"short_description": desc,
 		"language_code":     language,
@@ -1283,11 +1336,11 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetMyShortDescription(desc, lang
 }
 
 // MyShortDescription the current bot short description for the given user language.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) MyShortDescription(language string) (*BotInfo, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MyShortDescription(language string) (*BotInfo, error) {
 	return b.botInfo(language, "getMyShortDescription")
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) StarTransactions(offset, limit int) ([]StarTransaction, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StarTransactions(offset, limit int) ([]StarTransaction, error) {
 	params := map[string]int{
 		"offset": offset,
 		"limit":  limit,
@@ -1309,11 +1362,11 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) StarTransactions(offset, limit i
 	return resp.Result.Transactions, nil
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) GetMe() (*User, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) GetMe() (*telegram.User, error) {
 	return b.getMe()
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) botInfo(language, key string) (*BotInfo, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) botInfo(language, key string) (*BotInfo, error) {
 	params := map[string]string{
 		"language_code": language,
 	}
@@ -1332,7 +1385,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) botInfo(language, key string) (*
 	return resp.Result, nil
 }
 
-func extractEndpoint[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](endpoint interface{}) string {
+func extractEndpoint[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](endpoint interface{}) string {
 	switch end := endpoint.(type) {
 	case string:
 		return end

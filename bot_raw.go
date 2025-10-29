@@ -6,33 +6,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/alagunto/tb/bot"
 	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/errors"
+	"github.com/alagunto/tb/files"
 	"github.com/alagunto/tb/telegram"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
-type RawBotInterface interface {
-	RawSendFiles(method string, files map[string]File, params map[string]string) ([]byte, error)
-	RawSendMedia(media Media, params map[string]string, files map[string]File) (*Message, error)
-	RawSendText(to communications.Recipient, text string, opt *communications.SendOptions) (*Message, error)
-	RawGetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]Update, error)
-	RawEmbedSendOptions(params map[string]string, opt *communications.SendOptions)
-	Raw(method string, payload interface{}) ([]byte, error)
-	CensorText(text string) string
-}
-
 // Raw lets you call any method of Bot API manually.
 // It also handles API errors, so you only need to unwrap
 // result field from json data.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Raw(method string, payload interface{}) ([]byte, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Raw(method string, payload interface{}) ([]byte, error) {
 	// Apply rate limiting if configured
 	if b.rateLimiter != nil {
 		b.rateLimiter.Wait()
@@ -52,8 +44,8 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Raw(method string, payload inter
 }
 
 // rawAPICall performs the actual HTTP request to Telegram API.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) rawAPICall(method string, payload interface{}) ([]byte, error) {
-	url := b.URL + "/bot" + b.Token + "/" + method
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) rawAPICall(method string, payload interface{}) ([]byte, error) {
+	url := b.apiURL + "/bot" + b.token + "/" + method
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(payload); err != nil {
@@ -80,23 +72,23 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) rawAPICall(method string, payloa
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)
 	if err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := b.client.Do(req)
 	if err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	resp.Close = true
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 
-	if b.verbose {
+	if b.settings.Verbose {
 		verbose(method, payload, data)
 	}
 
@@ -104,25 +96,35 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) rawAPICall(method string, payloa
 	return data, extractOk(data)
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendFiles(method string, files map[string]File, params map[string]string) ([]byte, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RawSendFiles(method string, filesToSend map[string]files.FileSource, params map[string]string) ([]byte, error) {
 	// Apply rate limiting if configured
 	if b.rateLimiter != nil {
 		b.rateLimiter.Wait()
 	}
 
 	rawFiles := make(map[string]interface{})
-	for name, f := range files {
-		switch {
-		case f.InCloud():
-			params[name] = f.FileID
-		case f.FileURL != "":
-			params[name] = f.FileURL
-		case f.OnDisk():
-			rawFiles[name] = f.FileLocal
-		case f.FileReader != nil:
-			rawFiles[name] = f.FileReader
-		default:
-			return nil, fmt.Errorf("telebot: file for field %s doesn't exist", name)
+	fileNames := make(map[string]string)
+
+	for name, source := range filesToSend {
+		paramValue, needsUpload, err := source.ToTelegramParam(name)
+		if err != nil {
+			return nil, errors.Wrap(err)
+		}
+
+		if needsUpload {
+			// File needs to be uploaded
+			switch source.Type() {
+			case files.SourceLocalFile:
+				rawFiles[name] = source.LocalPath
+			case files.SourceTelegramFile:
+				rawFiles[name] = source.Reader
+			default:
+				return nil, fmt.Errorf("telebot: unsupported file source type for field %s", name)
+			}
+			fileNames[name] = source.GetFilenameForUpload()
+		} else {
+			// File is already on Telegram or accessible via URL
+			params[name] = paramValue
 		}
 	}
 
@@ -132,7 +134,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendFiles(method string, file
 
 	// File upload logic - wrap in retry if configured
 	uploadFunc := func() ([]byte, error) {
-		return b.sendFilesWithMultipart(method, rawFiles, files, params)
+		return b.sendFilesWithMultipart(method, rawFiles, fileNames, params)
 	}
 
 	if b.retryPolicy != nil {
@@ -143,7 +145,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendFiles(method string, file
 }
 
 // sendFilesWithMultipart performs the actual file upload via multipart/form-data
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendFilesWithMultipart(method string, rawFiles map[string]interface{}, files map[string]File, params map[string]string) ([]byte, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendFilesWithMultipart(method string, rawFiles map[string]interface{}, fileNames map[string]string, params map[string]string) ([]byte, error) {
 	pipeReader, pipeWriter := io.Pipe()
 	writer := multipart.NewWriter(pipeWriter)
 
@@ -151,7 +153,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendFilesWithMultipart(method st
 		defer pipeWriter.Close()
 
 		for field, file := range rawFiles {
-			if err := addFileToWriter(writer, files[field].fileName, field, file); err != nil {
+			if err := addFileToWriter(writer, fileNames[field], field, file); err != nil {
 				pipeWriter.CloseWithError(err)
 				return
 			}
@@ -168,11 +170,11 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendFilesWithMultipart(method st
 		}
 	}()
 
-	url := b.URL + "/bot" + b.Token + "/" + method
+	url := b.apiURL + "/bot" + b.token + "/" + method
 
 	resp, err := b.client.Post(url, writer.FormDataContentType(), pipeReader)
 	if err != nil {
-		err = wrapError(err)
+		err = errors.Wrap(err)
 		pipeReader.CloseWithError(err)
 		return nil, err
 	}
@@ -180,12 +182,12 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) sendFilesWithMultipart(method st
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusInternalServerError {
-		return nil, ErrInternal
+		return nil, errors.ErrTelegramInternal
 	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 
 	return data, extractOk(data)
@@ -198,37 +200,28 @@ func addFileToWriter(writer *multipart.Writer, filename, field string, file inte
 	} else if path, ok := file.(string); ok {
 		f, err := os.Open(path)
 		if err != nil {
-			return err
+			return errors.Wrap(err)
 		}
 		defer f.Close()
 		reader = f
 	} else {
-		return fmt.Errorf("telebot: file for field %v should be io.ReadCloser or string", field)
+		// TODO: fix error
+		return errors.WithInvalidParam(errors.ErrUnsupportedWhat, "file", fmt.Sprintf("%v", file))
 	}
 
 	part, err := writer.CreateFormFile(field, filename)
 	if err != nil {
-		return err
+		return errors.Wrap(err)
 	}
 
 	_, err = io.Copy(part, reader)
-	return err
-}
-
-func (f *File) process(name string, files map[string]File) string {
-	switch {
-	case f.InCloud():
-		return f.FileID
-	case f.FileURL != "":
-		return f.FileURL
-	case f.OnDisk() || f.FileReader != nil:
-		files[name] = *f
-		return "attach://" + name
+	if err != nil {
+		return errors.Wrap(err)
 	}
-	return ""
+	return nil
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendText(to communications.Recipient, text string, opt *communications.SendOptions) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RawSendText(to bot.Recipient, text string, opt communications.SendOptions) (*Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 		"text":    text,
@@ -237,13 +230,19 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendText(to communications.Re
 
 	data, err := b.Raw("sendMessage", params)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err)
 	}
 
-	return extractMessage(data)
+	var resp struct {
+		Result telegram.Message `json:"result"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, errors.Wrap(err)
+	}
+	return &resp.Result, nil
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendMedia(media Media, params map[string]string, files map[string]File) (*Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RawSendMedia(media Media, params map[string]string, filesToSend map[string]files.FileSource) (*Message, error) {
 	kind := media.MediaType()
 	caser := cases.Title(language.English)
 	what := "send" + caser.String(kind)
@@ -252,35 +251,39 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawSendMedia(media Media, params
 		kind = "video_note"
 	}
 
-	sendFiles := map[string]File{kind: *media.MediaFile()}
-	for k, v := range files {
-		sendFiles[k] = v
-	}
-
-	data, err := b.RawSendFiles(what, sendFiles, params)
+	data, err := b.RawSendFiles(what, filesToSend, params)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err)
 	}
 
-	return extractMessage(data)
+	var resp struct {
+		Result telegram.Message `json:"result"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, errors.Wrap(err)
+	}
+	return &resp.Result, nil
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) getMe() (*telegram.User, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) getMe() (*telegram.User, error) {
 	data, err := b.Raw("getMe", nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err)
 	}
 
 	var resp struct {
 		Result *telegram.User
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawGetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]telegram.Update, error) {
+// GetUpdates fetches updates from the Telegram API.
+// Do not use this method directly by default, instead use Start() to start the Poller to fetch updates automatically.
+// Use it only if you need to fetch updates manually, without starting the bot as usual.
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) GetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]telegram.Update, error) {
 	params := map[string]string{
 		"offset":  strconv.Itoa(offset),
 		"timeout": strconv.Itoa(int(timeout / time.Second)),
@@ -295,19 +298,19 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawGetUpdates(offset, limit int,
 
 	data, err := b.Raw("getUpdates", params)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err)
 	}
 
 	var resp struct {
 		Result []telegram.Update
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) forwardCopyMany(to communications.Recipient, msgs []communications.Editable, key string, opts ...*communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) forwardCopyMany(to communications.Recipient, msgs []communications.Editable, key string, opts ...*communications.SendOptions) ([]telegram.Message, error) {
 	params := map[string]string{
 		"chat_id": to.Recipient(),
 	}
@@ -331,12 +334,9 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) forwardCopyMany(to communication
 			Result bool
 		}
 		if err := json.Unmarshal(data, &resp); err != nil {
-			return nil, wrapError(err)
+			return nil, errors.Wrap(err)
 		}
-		if resp.Result {
-			return nil, ErrWithCurrentStack(ErrTrueResult)
-		}
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
@@ -358,76 +358,5 @@ func extractOk(data []byte) error {
 		return nil
 	}
 
-	err := Err(e.Description)
-	switch err {
-	case nil:
-	case ErrGroupMigrated:
-		migratedTo, ok := e.Parameters["migrate_to_chat_id"]
-		if !ok {
-			return NewError(e.Code, e.Description)
-		}
-
-		return GroupError{
-			err:        err.(*Error),
-			MigratedTo: int64(migratedTo.(float64)),
-		}
-	default:
-		return err
-	}
-
-	switch e.Code {
-	case http.StatusTooManyRequests:
-		retryAfter, ok := e.Parameters["retry_after"]
-		if !ok {
-			return NewError(e.Code, e.Description)
-		}
-
-		err = FloodError{
-			err:        NewError(e.Code, e.Description),
-			RetryAfter: int(retryAfter.(float64)),
-		}
-	default:
-		err = fmt.Errorf("telegram: %s (%d)", e.Description, e.Code)
-	}
-
-	return err
-}
-
-// extractMessage extracts common Message result from given data.
-// Should be called after extractOk or b.Raw() to handle possible errors.
-func extractMessage(data []byte) (*Message, error) {
-	var resp struct {
-		Result *Message
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		var resp struct {
-			Result bool
-		}
-		if err := json.Unmarshal(data, &resp); err != nil {
-			return nil, wrapError(err)
-		}
-		if resp.Result {
-			return nil, ErrWithCurrentStack(ErrTrueResult)
-		}
-		return nil, wrapError(err)
-	}
-	return resp.Result, nil
-}
-
-func verbose(method string, payload interface{}, data []byte) {
-	body, _ := json.Marshal(payload)
-	body = bytes.ReplaceAll(body, []byte(`\"`), []byte(`"`))
-	body = bytes.ReplaceAll(body, []byte(`"{`), []byte(`{`))
-	body = bytes.ReplaceAll(body, []byte(`}"`), []byte(`}`))
-
-	indent := func(b []byte) string {
-		var buf bytes.Buffer
-		json.Indent(&buf, b, "", "  ")
-		return buf.String()
-	}
-
-	log.Printf(
-		"[verbose] telebot: sent request\nMethod: %v\nParams: %v\nResponse: %v",
-		method, indent(body), indent(data),
-	)
+	return errors.Wrap(fmt.Errorf("telegram: %s (%d)", e.Description, e.Code))
 }

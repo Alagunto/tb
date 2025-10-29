@@ -206,23 +206,23 @@ type Message struct {
 	// AutoDeleteTimer represents about a change in auto-delete timer settings
 	AutoDeleteTimer *AutoDeleteTimer `json:"message_auto_delete_timer_changed,omitempty"`
 
-	// TopicCreated is forum topic created
-	TopicCreated *Topic `json:"forum_topic_created,omitempty"`
+	// ThreadCreated is forum topic created
+	ThreadCreated *Thread `json:"forum_topic_created,omitempty"`
 
-	// TopicEdited is forum topic edited
-	TopicEdited *Topic `json:"forum_topic_edited,omitempty"`
+	// ThreadEdited is forum topic edited
+	ThreadEdited *Thread `json:"forum_topic_edited,omitempty"`
 
-	// TopicClosed is forum topic closed
-	TopicClosed *struct{} `json:"forum_topic_closed,omitempty"`
+	// ThreadClosed is forum topic closed
+	ThreadClosed *struct{} `json:"forum_topic_closed,omitempty"`
 
-	// TopicReopened is forum topic reopened
-	TopicReopened *Topic `json:"forum_topic_reopened,omitempty"`
+	// ThreadReopened is forum topic reopened
+	ThreadReopened *Thread `json:"forum_topic_reopened,omitempty"`
 
-	// GeneralTopicHidden is general forum topic hidden
-	GeneralTopicHidden *struct{} `json:"general_topic_hidden,omitempty"`
+	// GeneralThreadHidden is general forum topic hidden
+	GeneralThreadHidden *struct{} `json:"general_topic_hidden,omitempty"`
 
-	// GeneralTopicUnhidden is general forum topic unhidden
-	GeneralTopicUnhidden *struct{} `json:"general_topic_unhidden,omitempty"`
+	// GeneralThreadUnhidden is general forum topic unhidden
+	GeneralThreadUnhidden *struct{} `json:"general_topic_unhidden,omitempty"`
 
 	// VideoChatScheduled is video chat scheduled
 	VideoChatScheduled *VideoChatScheduled `json:"video_chat_scheduled,omitempty"`

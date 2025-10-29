@@ -16,14 +16,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type usedCtx = ContextInterface
-type usedHandlerFunc = func(usedCtx) error
+type usedRequestType = ContextInterface
+type usedHandlerFunc = func(usedRequestType) error
 type usedMiddlewareFunc = func(usedHandlerFunc) usedHandlerFunc
 
 var (
 	// required to test send and edit methods
 	token = os.Getenv("TELEBOT_SECRET")
-	b, _  = newTestBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc]() // cached bot instance to avoid getMe method flooding
+	b, _  = newTestBot[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]() // cached bot instance to avoid getMe method flooding
 
 	chatID, _    = strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
 	userID, _    = strconv.ParseInt(os.Getenv("USER_ID"), 10, 64)
@@ -37,16 +37,16 @@ var (
 	thumb = FromURL("https://telegra.ph/file/fe28e378784b3a4e367fb.png")
 )
 
-func defaultSettings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc]() Settings[Ctx, HandlerFunc, MiddlewareFunc] {
-	return Settings[Ctx, HandlerFunc, MiddlewareFunc]{Token: token}
+func defaultSettings[RequestType ContextInterface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc]() Settings[RequestType, HandlerFunc, MiddlewareFunc] {
+	return Settings[RequestType, HandlerFunc, MiddlewareFunc]{Token: token}
 }
 
-func defaultWrapBasicContext[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](c ContextInterface) (Ctx, error) {
-	return any(c).(Ctx), nil
+func defaultWrapBasicContext[RequestType ContextInterface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](c ContextInterface) (RequestType, error) {
+	return any(c).(RequestType), nil
 }
 
-func newTestBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc]() (*Bot[Ctx, HandlerFunc, MiddlewareFunc], error) {
-	return NewBot(defaultWrapBasicContext[Ctx, HandlerFunc, MiddlewareFunc], defaultSettings[Ctx, HandlerFunc, MiddlewareFunc]())
+func newTestBot[RequestType ContextInterface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc]() (*Bot[RequestType, HandlerFunc, MiddlewareFunc], error) {
+	return NewBot(defaultWrapBasicContext[RequestType, HandlerFunc, MiddlewareFunc], defaultSettings[RequestType, HandlerFunc, MiddlewareFunc]())
 }
 
 func TestNewBot(t *testing.T) {
@@ -62,7 +62,7 @@ func TestNewBot(t *testing.T) {
 	_, err = NewBot(defaultWrapBasicContext[ContextInterface, func(ContextInterface) error, func(func(ContextInterface) error) func(ContextInterface) error], pref)
 	assert.Error(t, err)
 
-	b, err := NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Offline: true})
+	b, err := NewBot(defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], Settings[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]{Offline: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestNewBot(t *testing.T) {
 	assert.Equal(t, 100, cap(b.Updates))
 	assert.NotZero(t, b.client.Timeout)
 
-	pref = defaultSettings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]()
+	pref = defaultSettings[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]()
 	client := &http.Client{Timeout: time.Minute}
 	pref.URL = "http://api.telegram.org" // not https
 	pref.Client = client
@@ -81,7 +81,7 @@ func TestNewBot(t *testing.T) {
 	pref.ParseMode = ModeHTML
 	pref.Offline = true
 
-	b, err = NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], pref)
+	b, err = NewBot(defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], pref)
 	require.NoError(t, err)
 	assert.Equal(t, client, b.client)
 	assert.Equal(t, pref.URL, b.URL)
@@ -95,20 +95,20 @@ func TestBotHandle(t *testing.T) {
 		t.Skip("Cached bot instance is bad (probably wrong or empty TELEBOT_SECRET)")
 	}
 
-	b.Handle("/start", func(c usedCtx) error { return nil })
+	b.Handle("/start", func(c usedRequestType) error { return nil })
 	assert.Contains(t, b.handlers, "/start")
 
 	reply := ReplyButton{Text: "reply"}
-	b.Handle(&reply, func(c usedCtx) error { return nil })
+	b.Handle(&reply, func(c usedRequestType) error { return nil })
 
 	inline := InlineButton{Unique: "inline"}
-	b.Handle(&inline, func(c usedCtx) error { return nil })
+	b.Handle(&inline, func(c usedRequestType) error { return nil })
 
 	btnReply := (&ReplyMarkup{}).Text("btnReply")
-	b.Handle(&btnReply, func(c usedCtx) error { return nil })
+	b.Handle(&btnReply, func(c usedRequestType) error { return nil })
 
 	btnInline := (&ReplyMarkup{}).Data("", "btnInline")
-	b.Handle(&btnInline, func(c usedCtx) error { return nil })
+	b.Handle(&btnInline, func(c usedRequestType) error { return nil })
 
 	assert.Contains(t, b.handlers, btnReply.CallbackUnique())
 	assert.Contains(t, b.handlers, btnInline.CallbackUnique())
@@ -121,10 +121,10 @@ func TestBotStart(t *testing.T) {
 		t.Skip("TELEBOT_SECRET is required")
 	}
 
-	pref := defaultSettings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]()
+	pref := defaultSettings[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]()
 	pref.Poller = &LongPoller{}
 
-	b, err := NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], pref)
+	b, err := NewBot(defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], pref)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,12 +135,12 @@ func TestBotStart(t *testing.T) {
 	go b.Start()
 	b.Stop()
 
-	tp := newTestPoller[usedCtx, usedHandlerFunc, usedMiddlewareFunc]()
+	tp := newTestPoller[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]()
 	go func() {
 		tp.updates <- Update{Message: &Message{Text: "/start"}}
 	}()
 
-	b, err = NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], pref)
+	b, err = NewBot(defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], pref)
 	require.NoError(t, err)
 	b.Poller = tp
 
@@ -160,171 +160,166 @@ func TestBotStart(t *testing.T) {
 }
 
 func TestBotProcessUpdate(t *testing.T) {
-	b, err := NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+	b, err := NewBot(defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], Settings[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.Handle(OnMedia, func(c usedCtx) error {
+	b.Handle(OnMedia, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Photo)
 		return nil
 	})
 	b.ProcessUpdate(Update{Message: &Message{Photo: &Photo{}}})
 
-	b.Handle("/start", func(c usedCtx) error {
+	b.Handle("/start", func(c usedRequestType) error {
 		assert.Equal(t, "/start", c.Text())
 		return nil
 	})
-	b.Handle("hello", func(c usedCtx) error {
+	b.Handle("hello", func(c usedRequestType) error {
 		assert.Equal(t, "hello", c.Text())
 		return nil
 	})
-	b.Handle(OnText, func(c usedCtx) error {
+	b.Handle(OnText, func(c usedRequestType) error {
 		assert.Equal(t, "text", c.Text())
 		return nil
 	})
-	b.Handle(OnPinned, func(c usedCtx) error {
+	b.Handle(OnPinned, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message())
 		return nil
 	})
-	b.Handle(OnPhoto, func(c usedCtx) error {
+	b.Handle(OnPhoto, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Photo)
 		return nil
 	})
-	b.Handle(OnVoice, func(c usedCtx) error {
+	b.Handle(OnVoice, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Voice)
 		return nil
 	})
-	b.Handle(OnAudio, func(c usedCtx) error {
+	b.Handle(OnAudio, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Audio)
 		return nil
 	})
-	b.Handle(OnAnimation, func(c usedCtx) error {
+	b.Handle(OnAnimation, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Animation)
 		return nil
 	})
-	b.Handle(OnDocument, func(c usedCtx) error {
+	b.Handle(OnDocument, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Document)
 		return nil
 	})
-	b.Handle(OnSticker, func(c usedCtx) error {
+	b.Handle(OnSticker, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Sticker)
 		return nil
 	})
-	b.Handle(OnVideo, func(c usedCtx) error {
+	b.Handle(OnVideo, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Video)
 		return nil
 	})
-	b.Handle(OnVideoNote, func(c usedCtx) error {
+	b.Handle(OnVideoNote, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().VideoNote)
 		return nil
 	})
-	b.Handle(OnContact, func(c usedCtx) error {
+	b.Handle(OnContact, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Contact)
 		return nil
 	})
-	b.Handle(OnLocation, func(c usedCtx) error {
+	b.Handle(OnLocation, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Location)
 		return nil
 	})
-	b.Handle(OnVenue, func(c usedCtx) error {
+	b.Handle(OnVenue, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Venue)
 		return nil
 	})
-	b.Handle(OnDice, func(c usedCtx) error {
+	b.Handle(OnDice, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Dice)
 		return nil
 	})
-	b.Handle(OnInvoice, func(c usedCtx) error {
+	b.Handle(OnInvoice, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Invoice)
 		return nil
 	})
-	b.Handle(OnPayment, func(c usedCtx) error {
+	b.Handle(OnPayment, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().Payment)
 		return nil
 	})
-	b.Handle(OnRefund, func(c usedCtx) error {
-		assert.NotNil(t, c.Message().RefundedPayment)
-		return nil
-	})
-	b.Handle(OnAddedToGroup, func(c usedCtx) error {
 		assert.NotNil(t, c.Message().GroupCreated)
 		return nil
 	})
-	b.Handle(OnUserJoined, func(c usedCtx) error {
+	b.Handle(OnUserJoined, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().UserJoined)
 		return nil
 	})
-	b.Handle(OnUserLeft, func(c usedCtx) error {
+	b.Handle(OnUserLeft, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().UserLeft)
 		return nil
 	})
-	b.Handle(OnNewGroupTitle, func(c usedCtx) error {
+	b.Handle(OnNewGroupTitle, func(c usedRequestType) error {
 		assert.Equal(t, "title", c.Message().NewGroupTitle)
 		return nil
 	})
-	b.Handle(OnNewGroupPhoto, func(c usedCtx) error {
+	b.Handle(OnNewGroupPhoto, func(c usedRequestType) error {
 		assert.NotNil(t, c.Message().NewGroupPhoto)
 		return nil
 	})
-	b.Handle(OnGroupPhotoDeleted, func(c usedCtx) error {
+	b.Handle(OnGroupPhotoDeleted, func(c usedRequestType) error {
 		assert.True(t, c.Message().GroupPhotoDeleted)
 		return nil
 	})
-	b.Handle(OnMigration, func(c usedCtx) error {
+	b.Handle(OnMigration, func(c usedRequestType) error {
 		from, to := c.Migration()
 		assert.Equal(t, int64(1), from)
 		assert.Equal(t, int64(2), to)
 		return nil
 	})
-	b.Handle(OnEdited, func(c usedCtx) error {
+	b.Handle(OnEdited, func(c usedRequestType) error {
 		assert.Equal(t, "edited", c.Message().Text)
 		return nil
 	})
-	b.Handle(OnChannelPost, func(c usedCtx) error {
+	b.Handle(OnChannelPost, func(c usedRequestType) error {
 		assert.Equal(t, "post", c.Message().Text)
 		return nil
 	})
-	b.Handle(OnEditedChannelPost, func(c usedCtx) error {
+	b.Handle(OnEditedChannelPost, func(c usedRequestType) error {
 		assert.Equal(t, "edited post", c.Message().Text)
 		return nil
 	})
-	b.Handle(OnCallback, func(c usedCtx) error {
+	b.Handle(OnCallback, func(c usedRequestType) error {
 		if data := c.Callback().Data; data[0] != '\f' {
 			assert.Equal(t, "callback", data)
 		}
 		return nil
 	})
-	b.Handle("\funique", func(c usedCtx) error {
+	b.Handle("\funique", func(c usedRequestType) error {
 		assert.Equal(t, "callback", c.Callback().Data)
 		return nil
 	})
-	b.Handle(OnQuery, func(c usedCtx) error {
+	b.Handle(OnQuery, func(c usedRequestType) error {
 		assert.Equal(t, "query", c.Data())
 		return nil
 	})
-	b.Handle(OnInlineResult, func(c usedCtx) error {
+	b.Handle(OnInlineResult, func(c usedRequestType) error {
 		assert.Equal(t, "result", c.InlineResult().ResultID)
 		return nil
 	})
-	b.Handle(OnShipping, func(c usedCtx) error {
+	b.Handle(OnShipping, func(c usedRequestType) error {
 		assert.Equal(t, "shipping", c.ShippingQuery().ID)
 		return nil
 	})
-	b.Handle(OnCheckout, func(c usedCtx) error {
+	b.Handle(OnCheckout, func(c usedRequestType) error {
 		assert.Equal(t, "checkout", c.PreCheckoutQuery().ID)
 		return nil
 	})
-	b.Handle(OnPoll, func(c usedCtx) error {
+	b.Handle(OnPoll, func(c usedRequestType) error {
 		assert.Equal(t, "poll", c.Poll().ID)
 		return nil
 	})
-	b.Handle(OnPollAnswer, func(c usedCtx) error {
+	b.Handle(OnPollAnswer, func(c usedRequestType) error {
 		assert.Equal(t, "poll", c.PollAnswer().PollID)
 		return nil
 	})
 
-	b.Handle(OnWebApp, func(c usedCtx) error {
+	b.Handle(OnWebApp, func(c usedRequestType) error {
 		assert.Equal(t, "webapp", c.Message().WebAppData.Data)
 		return nil
 	})
@@ -374,13 +369,13 @@ func TestBotProcessUpdate(t *testing.T) {
 }
 
 func TestBotOnError(t *testing.T) {
-	b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+	b, err := NewBot[usedRequestType, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], Settings[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var ok bool
-	b.onError = func(err error, c usedCtx, debugInfo DebugInfo[usedCtx, usedHandlerFunc, usedMiddlewareFunc]) {
+	b.onError = func(err error, c usedRequestType, debugInfo DebugInfo[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]) {
 		assert.Equal(t, b, c.Bot())
 		assert.NotNil(t, err)
 		ok = true
@@ -388,7 +383,7 @@ func TestBotOnError(t *testing.T) {
 		assert.NotEmpty(t, debugInfo.Stack)
 	}
 
-	b.runHandler(func(c usedCtx) error {
+	b.runHandler(func(c usedRequestType) error {
 		return errors.New("not nil")
 	}, &nativeContext{b: b}, "")
 
@@ -400,7 +395,7 @@ func TestBotMiddleware(t *testing.T) {
 		var trace []string
 
 		handler := func(name string) usedHandlerFunc {
-			return func(c usedCtx) error {
+			return func(c usedRequestType) error {
 				trace = append(trace, name)
 				return nil
 			}
@@ -408,7 +403,7 @@ func TestBotMiddleware(t *testing.T) {
 
 		middleware := func(name string) usedMiddlewareFunc {
 			return func(next usedHandlerFunc) usedHandlerFunc {
-				return func(c usedCtx) error {
+				return func(c usedRequestType) error {
 					trace = append(trace, name+":in")
 					err := next(c)
 					trace = append(trace, name+":out")
@@ -417,7 +412,7 @@ func TestBotMiddleware(t *testing.T) {
 			}
 		}
 
-		b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+		b, err := NewBot[usedRequestType, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], Settings[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -457,20 +452,20 @@ func TestBotMiddleware(t *testing.T) {
 	})
 
 	fatal := func(next usedHandlerFunc) usedHandlerFunc {
-		return func(c usedCtx) error {
+		return func(c usedRequestType) error {
 			t.Fatal("fatal middleware should not be called")
 			return nil
 		}
 	}
 
 	nop := func(next usedHandlerFunc) usedHandlerFunc {
-		return func(c usedCtx) error {
+		return func(c usedRequestType) error {
 			return next(c)
 		}
 	}
 
 	t.Run("combining with global middleware", func(t *testing.T) {
-		b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+		b, err := NewBot[usedRequestType, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], Settings[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -480,14 +475,14 @@ func TestBotMiddleware(t *testing.T) {
 		b.group.middleware = make([]usedMiddlewareFunc, 0, 2)
 		b.Use(nop)
 
-		b.Handle("/a", func(c usedCtx) error { return nil }, nop)
-		b.Handle("/b", func(c usedCtx) error { return nil }, fatal)
+		b.Handle("/a", func(c usedRequestType) error { return nil }, nop)
+		b.Handle("/b", func(c usedRequestType) error { return nil }, fatal)
 
 		b.ProcessUpdate(Update{Message: &Message{Text: "/a"}})
 	})
 
 	t.Run("combining with group middleware", func(t *testing.T) {
-		b, err := NewBot[usedCtx, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], Settings[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
+		b, err := NewBot[usedRequestType, usedHandlerFunc, usedMiddlewareFunc](defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], Settings[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]{Synchronous: true, Offline: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -498,8 +493,8 @@ func TestBotMiddleware(t *testing.T) {
 		g.middleware = make([]usedMiddlewareFunc, 0, 2)
 		g.Use(nop)
 
-		g.Handle("/a", func(c usedCtx) error { return nil }, nop)
-		g.Handle("/b", func(c usedCtx) error { return nil }, fatal)
+		g.Handle("/a", func(c usedRequestType) error { return nil }, nop)
+		g.Handle("/b", func(c usedRequestType) error { return nil }, fatal)
 
 		b.ProcessUpdate(Update{Message: &Message{Text: "/a"}})
 	})

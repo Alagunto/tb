@@ -77,8 +77,8 @@ type PreviewOptions struct {
 type ParseMode string
 
 const (
-	ModeDefault    ParseMode = ""
-	ModeMarkdown   ParseMode = "Markdown"
-	ModeMarkdownV2 ParseMode = "MarkdownV2"
-	ModeHTML       ParseMode = "HTML"
+	ParseModeDefault    ParseMode = ""
+	ParseModeMarkdown   ParseMode = "Markdown"
+	ParseModeMarkdownV2 ParseMode = "MarkdownV2"
+	ParseModeHTML       ParseMode = "HTML"
 )

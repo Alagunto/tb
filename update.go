@@ -7,25 +7,9 @@ import (
 	"github.com/alagunto/tb/telegram"
 )
 
-// Update is an alias for telegram.Update
-type Update = telegram.Update
-
 // ProcessUpdate processes a single incoming update.
 // A started bot calls this function automatically.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessUpdate(u telegram.Update) {
-	c, err := b.NewContext(nativeContext{
-		u: &u,
-		b: b,
-	})
-	if err != nil {
-		if b.onError != nil {
-			b.onError(err, c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{
-				Endpoint: "ProcessUpdate",
-			})
-		}
-		return
-	}
-
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ProcessUpdate(c RequestType, u telegram.Update) {
 	if u.Message != nil {
 		m := u.Message
 
@@ -46,7 +30,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessUpdate(u telegram.Update)
 				// Syntax: "</command>@<bot> <payload>"
 				command, botName := match[0][1], match[0][3]
 
-				if botName != "" && !strings.EqualFold(b.Me.Username, botName) {
+				if botName != "" && !strings.EqualFold(b.me.Username, botName) {
 					return
 				}
 
@@ -253,27 +237,27 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessUpdate(u telegram.Update)
 		}
 
 		// Topics
-		if m.TopicCreated != nil {
+		if m.ThreadCreated != nil {
 			b.runHandler(c, OnTopicCreated)
 			return
 		}
-		if m.TopicReopened != nil {
+		if m.ThreadReopened != nil {
 			b.runHandler(c, OnTopicReopened)
 			return
 		}
-		if m.TopicClosed != nil {
+		if m.ThreadClosed != nil {
 			b.runHandler(c, OnTopicClosed)
 			return
 		}
-		if m.TopicEdited != nil {
+		if m.ThreadEdited != nil {
 			b.runHandler(c, OnTopicEdited)
 			return
 		}
-		if m.GeneralTopicHidden != nil {
+		if m.GeneralThreadHidden != nil {
 			b.runHandler(c, OnGeneralTopicHidden)
 			return
 		}
-		if m.GeneralTopicUnhidden != nil {
+		if m.GeneralThreadUnhidden != nil {
 			b.runHandler(c, OnGeneralTopicUnhidden)
 			return
 		}
@@ -360,7 +344,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) ProcessUpdate(u telegram.Update)
 	}
 }
 
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(c Ctx, endpoint string) bool {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) runHandler(c RequestType, endpoint string) bool {
 	handler, ok := b.handlers[endpoint]
 	if !ok {
 		return false
@@ -369,7 +353,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(c Ctx, endpoint strin
 	defer func() {
 		if r := recover(); r != nil {
 			if b.onError != nil {
-				b.onError(r.(error), c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{
+				b.onError(r.(error), c, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc]{
 					Handler:  handler,
 					Endpoint: endpoint,
 				})
@@ -381,7 +365,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(c Ctx, endpoint strin
 
 	// Execute handler directly (middleware is handled by Group)
 	if err := handler(c); err != nil && b.onError != nil {
-		b.onError(err, c, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]{
+		b.onError(err, c, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc]{
 			Handler:  handler,
 			Endpoint: endpoint,
 		})
@@ -390,7 +374,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) runHandler(c Ctx, endpoint strin
 	return true
 }
 
-func isUserInList(user *User, list []telegram.User) bool {
+func isUserInList(user *telegram.User, list []telegram.User) bool {
 	for _, user2 := range list {
 		if user.ID == user2.ID {
 			return true

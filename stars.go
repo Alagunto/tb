@@ -1,6 +1,10 @@
 package tb
 
-import "time"
+import (
+	"time"
+
+	"github.com/alagunto/tb/telegram"
+)
 
 type TransactionType = string
 
@@ -44,7 +48,7 @@ type StarTransaction struct {
 type TransactionPartner struct {
 	// Type of the state
 	Type    TransactionType `json:"type"`
-	User    *User           `json:"user,omitempty"`
+	User    *telegram.User  `json:"user,omitempty"`
 	Payload string          `json:"invoice_payload"`
 
 	// (Optional) State of the transaction if the transaction is outgoing$$

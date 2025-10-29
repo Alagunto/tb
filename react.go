@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 
 	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/errors"
 	"github.com/alagunto/tb/telegram"
 )
 
 // React changes the chosen reactions on a message. Service messages can't be
 // reacted to. Automatically forwarded messages from a channel to its discussion group have
 // the same available reactions as messages in the channel.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) React(to communications.Recipient, msg communications.Editable, r telegram.Reactions) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) React(to communications.Recipient, msg communications.Editable, r telegram.Reactions) error {
 	if to == nil {
-		return ErrWithCurrentStack(ErrWithInvalidParam(ErrBadRecipient, "recipient", "nil"))
+		return errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", "nil")
 	}
 
 	msgID, _ := msg.MessageSig()

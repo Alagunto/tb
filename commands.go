@@ -1,6 +1,10 @@
 package tb
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/alagunto/tb/errors"
+)
 
 // Command represents a bot command.
 type Command struct {
@@ -39,7 +43,7 @@ type CommandScope struct {
 }
 
 // Commands returns the current list of the bot's commands for the given scope and user language.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Commands(opts ...interface{}) ([]Command, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Commands(opts ...interface{}) ([]Command, error) {
 	params := extractCommandsParams(opts...)
 	data, err := b.Raw("getMyCommands", params)
 	if err != nil {
@@ -50,20 +54,20 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Commands(opts ...interface{}) ([
 		Result []Command
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }
 
 // SetCommands changes the list of the bot's commands.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) SetCommands(opts ...interface{}) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetCommands(opts ...interface{}) error {
 	params := extractCommandsParams(opts...)
 	_, err := b.Raw("setMyCommands", params)
 	return err
 }
 
 // DeleteCommands deletes the list of the bot's commands for the given scope and user language.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) DeleteCommands(opts ...interface{}) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) DeleteCommands(opts ...interface{}) error {
 	params := extractCommandsParams(opts...)
 	_, err := b.Raw("deleteMyCommands", params)
 	return err

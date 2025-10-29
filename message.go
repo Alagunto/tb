@@ -11,6 +11,10 @@ type (
 	EntityType    = telegram.EntityType
 	Entities      = telegram.Entities
 	ParseMode     = telegram.ParseMode
+	Album         = telegram.Album
+	PaidAlbum     = telegram.PaidAlbum
+	Inputtable    = telegram.Inputtable
+	Media         = telegram.Media
 )
 
 // Re-export entity type constants
@@ -38,10 +42,10 @@ const (
 
 // Re-export parse mode constants
 const (
-	ModeDefault    = telegram.ModeDefault
-	ModeMarkdown   = telegram.ModeMarkdown
-	ModeMarkdownV2 = telegram.ModeMarkdownV2
-	ModeHTML       = telegram.ModeHTML
+	ModeDefault    = telegram.ParseModeDefault
+	ModeMarkdown   = telegram.ParseModeMarkdown
+	ModeMarkdownV2 = telegram.ParseModeMarkdownV2
+	ModeHTML       = telegram.ParseModeHTML
 )
 
 // Type aliases for reactions

@@ -1,15 +1,17 @@
 package tb
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/alagunto/tb/censorship"
+	"github.com/alagunto/tb/request"
 )
 
 // Settings represents a utility struct for passing certain
 // properties of a bot around and is required to make bots.
-type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
+type Settings[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
 	URL   string
 	Token string
 
@@ -35,23 +37,13 @@ type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc 
 	// OnError is a callback function that will get called on errors
 	// resulted from the handler. It is used as post-middleware function.
 	// Notice that context can be nil. Receives error, context and stack trace.
-	OnError func(error, Ctx, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc])
+	OnError func(error, RequestType, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc])
 
 	// HTTP Client used to make requests to telegram api
 	Client *http.Client
 
 	// Offline allows to create a bot without network for testing purposes.
 	Offline bool
-
-	// RetryPolicy configures automatic retry behavior for failed API calls.
-	// If nil, no automatic retry is performed.
-	// Use DefaultRetryPolicy() for sensible defaults.
-	RetryPolicy *RetryPolicy
-
-	// RateLimiter limits the rate of API calls to prevent hitting Telegram limits.
-	// If nil, no rate limiting is applied.
-	// Recommended: NewRateLimiter(30, time.Second) for 30 requests per second.
-	RateLimiter *RateLimiter
 
 	// Censorer censors text sent by the bot.
 	// .CensorText(string) string receives the original text and returns the censored text.
@@ -60,7 +52,7 @@ type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc 
 	Censorer censorship.Censorer
 }
 
-func (s *Settings[Ctx, HandlerFunc, MiddlewareFunc]) DefaultsForEmptyValues() {
+func (s *Settings[RequestType, HandlerFunc, MiddlewareFunc]) DefaultsForEmptyValues() {
 	if s.Updates == 0 {
 		s.Updates = 100
 	}
@@ -76,7 +68,9 @@ func (s *Settings[Ctx, HandlerFunc, MiddlewareFunc]) DefaultsForEmptyValues() {
 		s.Poller = &LongPoller{}
 	}
 	if s.OnError == nil {
-		s.OnError = defaultOnError
+		s.OnError = func(err error, c RequestType, info DebugInfo[RequestType, HandlerFunc, MiddlewareFunc]) {
+			fmt.Println(err, c, info)
+		}
 	}
 
 }

@@ -1,5 +1,10 @@
 package telegram
 
+import (
+	"github.com/alagunto/tb/outgoing"
+	"github.com/alagunto/tb/params"
+)
+
 // Location object represents geographic position.
 type Location struct {
 	Lat                float32  `json:"latitude"`
@@ -15,4 +20,26 @@ type Location struct {
 	// (Optional) Unique identifier of the business connection
 	// on behalf of which the message to be edited was sent
 	BusinessConnectionID string `json:"business_connection_id,omitempty"`
+}
+
+// ToTelegramSendMethod implements the outgoing.Content interface.
+func (l *Location) ToTelegramSendMethod() *outgoing.Method {
+	b := params.New()
+	b.AddFloat("latitude", l.Lat)
+	b.AddFloat("longitude", l.Lng)
+
+	if l.HorizontalAccuracy != nil {
+		b.AddFloat("horizontal_accuracy", *l.HorizontalAccuracy)
+	}
+
+	b.AddInt("heading", l.Heading)
+	b.AddInt("proximity_alert_radius", l.AlertRadius)
+	b.AddInt("live_period", l.LivePeriod)
+	b.Add("business_connection_id", l.BusinessConnectionID)
+
+	return &outgoing.Method{
+		Name:   "sendLocation",
+		Params: b.Build(),
+		Files:  nil,
+	}
 }

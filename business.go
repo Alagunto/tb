@@ -3,11 +3,12 @@ package tb
 import (
 	"encoding/json"
 
+	"github.com/alagunto/tb/errors"
 	"github.com/alagunto/tb/telegram"
 )
 
 // BusinessConnection returns the information about the connection of the bot with a business account.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) BusinessConnection(id string) (*telegram.BusinessConnection, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) BusinessConnection(id string) (*telegram.BusinessConnection, error) {
 	params := map[string]string{
 		"business_connection_id": id,
 	}
@@ -21,7 +22,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) BusinessConnection(id string) (*
 		Result *telegram.BusinessConnection
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, wrapError(err)
+		return nil, errors.Wrap(err)
 	}
 	return resp.Result, nil
 }

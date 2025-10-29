@@ -1,6 +1,11 @@
 package tb
 
-import "time"
+import (
+	"time"
+
+	"github.com/alagunto/tb/bot"
+	"github.com/alagunto/tb/telegram"
+)
 
 var AllowedUpdates = []string{
 	"message",
@@ -39,7 +44,7 @@ type Poller interface {
 	//
 	// Poller must listen for stop constantly and close
 	// it as soon as it's done polling.
-	Poll(b RawBotInterface, updates chan Update, stop chan struct{})
+	Poll(b bot.API, updates chan telegram.Update, stop chan struct{})
 }
 
 // LongPoller is a classic LongPoller with timeout.
@@ -68,7 +73,7 @@ type LongPoller struct {
 }
 
 // Poll does long polling.
-func (p *LongPoller) Poll(b RawBotInterface, dest chan Update, stop chan struct{}) {
+func (p *LongPoller) Poll(b bot.API, dest chan telegram.Update, stop chan struct{}) {
 	for {
 		select {
 		case <-stop:
@@ -76,7 +81,7 @@ func (p *LongPoller) Poll(b RawBotInterface, dest chan Update, stop chan struct{
 		default:
 		}
 
-		updates, err := b.RawGetUpdates(p.LastUpdateID+1, p.Limit, p.Timeout, p.AllowedUpdates)
+		updates, err := b.GetUpdates(p.LastUpdateID+1, p.Limit, p.Timeout, p.AllowedUpdates)
 		if err != nil {
 			continue
 		}
@@ -96,11 +101,11 @@ func (p *LongPoller) Poll(b RawBotInterface, dest chan Update, stop chan struct{
 type MiddlewarePoller struct {
 	Capacity int // Default: 1
 	Poller   Poller
-	Filter   func(*Update) bool
+	Filter   func(*telegram.Update) bool
 }
 
 // NewMiddlewarePoller wait for it... constructs a new middleware poller.
-func NewMiddlewarePoller(original Poller, filter func(*Update) bool) *MiddlewarePoller {
+func NewMiddlewarePoller(original Poller, filter func(*telegram.Update) bool) *MiddlewarePoller {
 	return &MiddlewarePoller{
 		Poller: original,
 		Filter: filter,
@@ -108,12 +113,12 @@ func NewMiddlewarePoller(original Poller, filter func(*Update) bool) *Middleware
 }
 
 // Poll sieves updates through middleware filter.
-func (p *MiddlewarePoller) Poll(b RawBotInterface, dest chan Update, stop chan struct{}) {
+func (p *MiddlewarePoller) Poll(b bot.API, dest chan telegram.Update, stop chan struct{}) {
 	if p.Capacity < 1 {
 		p.Capacity = 1
 	}
 
-	middle := make(chan Update, p.Capacity)
+	middle := make(chan telegram.Update, p.Capacity)
 	stopPoller := make(chan struct{})
 	stopConfirm := make(chan struct{})
 

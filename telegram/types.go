@@ -27,6 +27,26 @@ type InputMedia interface {
 	MediaFile() interface{}
 }
 
+// Media is an alias for InputMedia for backward compatibility.
+type Media = InputMedia
+
+// PaidAlbum is a group of paid media messages.
+type PaidAlbum []PaidInputtable
+
+// PaidInputtable represents paid media to be sent.
+type PaidInputtable interface {
+	MediaType() string
+	MediaFile() interface{}
+	InputMedia() interface{}
+}
+
+// Inputtable represents media that can be edited.
+type Inputtable interface {
+	MediaType() string
+	MediaFile() interface{}
+	InputMedia() interface{}
+}
+
 // EffectID represents a unique identifier for a message effect.
 // Used to add visual effects to messages (for private chats only).
 type EffectID string

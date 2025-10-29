@@ -3,22 +3,25 @@ package tb
 import (
 	"testing"
 
+	"github.com/alagunto/tb/bot"
+	"github.com/alagunto/tb/request"
+	"github.com/alagunto/tb/telegram"
 	"github.com/stretchr/testify/assert"
 )
 
-type testPoller[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
-	updates chan Update
+type testPoller[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
+	updates chan telegram.Update
 	done    chan struct{}
 }
 
-func newTestPoller[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc]() *testPoller[Ctx, HandlerFunc, MiddlewareFunc] {
-	return &testPoller[Ctx, HandlerFunc, MiddlewareFunc]{
-		updates: make(chan Update),
+func newTestPoller[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc]() *testPoller[RequestType, HandlerFunc, MiddlewareFunc] {
+	return &testPoller[RequestType, HandlerFunc, MiddlewareFunc]{
+		updates: make(chan telegram.Update),
 		done:    make(chan struct{}),
 	}
 }
 
-func (p *testPoller[Ctx, HandlerFunc, MiddlewareFunc]) Poll(b RawBotInterface, updates chan Update, stop chan struct{}) {
+func (p *testPoller[RequestType, HandlerFunc, MiddlewareFunc]) Poll(b bot.API, updates chan telegram.Update, stop chan struct{}) {
 	for {
 		select {
 		case upd := <-p.updates:
@@ -30,19 +33,19 @@ func (p *testPoller[Ctx, HandlerFunc, MiddlewareFunc]) Poll(b RawBotInterface, u
 }
 
 func TestMiddlewarePoller(t *testing.T) {
-	p := &testPoller[usedCtx, usedHandlerFunc, usedMiddlewareFunc]{updates: make(chan Update), done: make(chan struct{})}
+	p := &testPoller[usedRequestType, usedHandlerFunc, usedMiddlewareFunc]{updates: make(chan telegram.Update), done: make(chan struct{})}
 	var ids []int
 
-	pref := defaultSettings[usedCtx]()
+	pref := defaultSettings[usedRequestType]()
 	pref.Poller = p
 	pref.Offline = true
 
-	b, err := NewBot(defaultWrapBasicContext[usedCtx, usedHandlerFunc, usedMiddlewareFunc], pref)
+	b, err := NewBot(defaultWrapBasicContext[usedRequestType, usedHandlerFunc, usedMiddlewareFunc], pref)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.Poller = NewMiddlewarePoller(p, func(u *Update) bool {
+	b.Poller = NewMiddlewarePoller(p, func(u *telegram.Update) bool {
 		if u.ID > 0 {
 			ids = append(ids, u.ID)
 			return true
@@ -53,9 +56,9 @@ func TestMiddlewarePoller(t *testing.T) {
 	})
 
 	go func() {
-		p.updates <- Update{ID: 1}
-		p.updates <- Update{ID: 2}
-		p.updates <- Update{ID: 0}
+		p.updates <- telegram.Update{ID: 1}
+		p.updates <- telegram.Update{ID: 2}
+		p.updates <- telegram.Update{ID: 0}
 	}()
 
 	go b.Start()

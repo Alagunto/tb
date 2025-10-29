@@ -1,11 +1,11 @@
 package telegram
 
 // Topic represents a forum topic.
-type Topic struct {
+type Thread struct {
 	Name              string `json:"name"`
 	IconColor         int    `json:"icon_color"`
 	IconCustomEmojiID string `json:"icon_custom_emoji_id"`
-	ThreadID          int    `json:"message_thread_id"`
+	ID                int    `json:"message_thread_id"`
 }
 
 // Game object represents a game.

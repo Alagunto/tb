@@ -1,6 +1,12 @@
 package communications
 
-import "github.com/alagunto/tb/telegram"
+import (
+	"encoding/json"
+	"reflect"
+	"strconv"
+
+	"github.com/alagunto/tb/telegram"
+)
 
 // SendOptions has most complete control over in what way the message
 // must be sent, providing an API-complete set of custom properties
@@ -10,10 +16,7 @@ import "github.com/alagunto/tb/telegram"
 // the way through bot logic, so you might want to consider storing
 // and re-using it somewhere or be using Option flags instead.
 type SendOptions struct {
-	// If the message is a reply, original message.
-	ReplyTo *telegram.Message
-
-	// See ReplyMarkup struct definition.
+	// Describes the reply markup for the message
 	ReplyMarkup *telegram.ReplyMarkup
 
 	// For text messages, disables previews for links in this message.
@@ -37,9 +40,6 @@ type SendOptions struct {
 	// ThreadID supports sending messages to a thread.
 	ThreadID int
 
-	// HasSpoiler marks the message as containing a spoiler.
-	HasSpoiler bool
-
 	// ReplyParams Describes the message to reply to
 	ReplyParams *telegram.ReplyParams
 
@@ -50,214 +50,144 @@ type SendOptions struct {
 	EffectID telegram.EffectID
 }
 
-// Copy creates a deep copy of SendOptions with all nested structures properly copied.
-func (og *SendOptions) Copy() *SendOptions {
-	if og == nil {
+func (o SendOptions) Merge(other SendOptions) SendOptions {
+	result := SendOptions{}
+	srcVal := reflect.ValueOf(o)
+	dstVal := reflect.ValueOf(result)
+
+	for i := 0; i < srcVal.NumField(); i++ {
+		dstVal.Field(i).Set(srcVal.Field(i))
+	}
+
+	return result
+}
+
+// InjectInto adds SendOptions parameters directly into the provided params map.
+func (o *SendOptions) InjectInto(params map[string]string) error {
+	if o == nil {
 		return nil
 	}
 
-	cp := *og
+	// Handle ReplyParams (takes precedence over ReplyTo)
+	if o.ReplyParams != nil {
+		replyParams, err := json.Marshal(o.ReplyParams)
+		if err != nil {
+			return err
+		}
+		params["reply_parameters"] = string(replyParams)
+	}
 
-	// Deep copy ReplyTo message
-	cp.ReplyTo = deepCopyMessage(og.ReplyTo)
+	if o.DisableWebPagePreview {
+		params["disable_web_page_preview"] = "true"
+	}
 
-	// Deep copy ReplyMarkup
-	cp.ReplyMarkup = deepCopyReplyMarkup(og.ReplyMarkup)
+	if o.DisableNotification {
+		params["disable_notification"] = "true"
+	}
 
-	// Deep copy Entities slice
-	if og.Entities != nil {
-		cp.Entities = make(telegram.Entities, len(og.Entities))
-		for i, entity := range og.Entities {
-			cp.Entities[i] = deepCopyMessageEntity(entity)
+	if o.ParseMode != telegram.ParseModeDefault {
+		params["parse_mode"] = string(o.ParseMode)
+	}
+
+	if len(o.Entities) > 0 {
+		// if we have entities specified, parse_mode is not being respected by telegram
+		delete(params, "parse_mode")
+
+		entities, err := json.Marshal(o.Entities)
+		if err != nil {
+			return err
+		}
+
+		// send* methods accept either entities (for text messages) or caption_entities (for media)
+		if params["caption"] != "" {
+			params["caption_entities"] = string(entities)
+		} else {
+			params["entities"] = string(entities)
 		}
 	}
 
-	// Deep copy ReplyParams
-	cp.ReplyParams = deepCopyReplyParams(og.ReplyParams)
-
-	return &cp
-}
-
-// deepCopyMessage creates a deep copy of a Message.
-// Note: This is a shallow copy of most fields as Message is typically read-only.
-// We copy the pointer to avoid shared references but don't recursively copy all nested messages.
-func deepCopyMessage(msg *telegram.Message) *telegram.Message {
-	if msg == nil {
-		return nil
-	}
-	msgCopy := *msg
-	return &msgCopy
-}
-
-// deepCopyReplyMarkup creates a deep copy of ReplyMarkup with all nested slices and pointers.
-func deepCopyReplyMarkup(markup *telegram.ReplyMarkup) *telegram.ReplyMarkup {
-	if markup == nil {
-		return nil
+	if o.AllowWithoutReply {
+		// Optional. Pass True if the message should be sent even if the specified message to be replied to is not found.
+		// Always False for replies in another chat or forum topic.
+		// Always True for messages sent on behalf of a business account.
+		params["allow_sending_without_reply"] = "true"
 	}
 
-	cp := *markup
+	if o.ReplyMarkup != nil {
+		o.ReplyMarkup.InlineKeyboard = o.prepareButtons(o.ReplyMarkup.InlineKeyboard)
+		replyMarkup, err := json.Marshal(o.ReplyMarkup)
+		if err != nil {
+			return err
+		}
+		params["reply_markup"] = string(replyMarkup)
+	}
 
-	// Deep copy InlineKeyboard
-	if markup.InlineKeyboard != nil {
-		cp.InlineKeyboard = make([][]telegram.InlineButton, len(markup.InlineKeyboard))
-		for i, row := range markup.InlineKeyboard {
-			cp.InlineKeyboard[i] = make([]telegram.InlineButton, len(row))
-			for j, btn := range row {
-				cp.InlineKeyboard[i][j] = deepCopyInlineButton(btn)
+	if o.Protected {
+		params["protect_content"] = "true"
+	}
+
+	if o.ThreadID != 0 {
+		params["message_thread_id"] = strconv.Itoa(o.ThreadID)
+	}
+
+	if o.BusinessConnectionID != "" {
+		params["business_connection_id"] = o.BusinessConnectionID
+	}
+
+	if o.EffectID != "" {
+		params["message_effect_id"] = string(o.EffectID)
+	}
+
+	return nil
+}
+
+func (o SendOptions) Inject(originalParams map[string]string) map[string]string {
+	injectedParams := make(map[string]string)
+	// Copy all original params to injectedParams — those were before us and should be preserved (or overridden)
+	for key, value := range originalParams {
+		injectedParams[key] = value
+	}
+
+	// Use InjectInto for the actual injection logic
+	_ = o.InjectInto(injectedParams)
+
+	return injectedParams
+}
+
+func (o SendOptions) prepareButtons(keys [][]telegram.InlineButton) [][]telegram.InlineButton {
+	if len(keys) < 1 || len(keys[0]) < 1 {
+		return keys
+	}
+
+	for i := range keys {
+		for j := range keys[i] {
+			key := &keys[i][j]
+			if key.Unique != "" {
+				// Format: "\f<callback_name>|<data>"
+				data := key.Data
+				if data == "" {
+					key.Data = "\f" + key.Unique
+				} else {
+					key.Data = "\f" + key.Unique + "|" + data
+				}
 			}
 		}
 	}
-
-	// Deep copy ReplyKeyboard
-	if markup.ReplyKeyboard != nil {
-		cp.ReplyKeyboard = make([][]telegram.ReplyButton, len(markup.ReplyKeyboard))
-		for i, row := range markup.ReplyKeyboard {
-			cp.ReplyKeyboard[i] = make([]telegram.ReplyButton, len(row))
-			for j, btn := range row {
-				cp.ReplyKeyboard[i][j] = deepCopyReplyButton(btn)
-			}
-		}
-	}
-
-	return &cp
+	return keys
 }
 
-// deepCopyInlineButton creates a deep copy of an InlineButton.
-func deepCopyInlineButton(btn telegram.InlineButton) telegram.InlineButton {
-	cp := btn
-
-	if btn.InlineQueryChosenChat != nil {
-		chatCopy := *btn.InlineQueryChosenChat
-		cp.InlineQueryChosenChat = &chatCopy
+func (o SendOptions) MergeWithMany(others ...SendOptions) SendOptions {
+	result := o
+	for _, other := range others {
+		result = result.Merge(other)
 	}
-
-	if btn.Login != nil {
-		loginCopy := *btn.Login
-		cp.Login = &loginCopy
-	}
-
-	if btn.WebApp != nil {
-		webAppCopy := *btn.WebApp
-		cp.WebApp = &webAppCopy
-	}
-
-	if btn.CallbackGame != nil {
-		gameCopy := *btn.CallbackGame
-		cp.CallbackGame = &gameCopy
-	}
-
-	return cp
+	return result
 }
 
-// deepCopyReplyButton creates a deep copy of a ReplyButton.
-func deepCopyReplyButton(btn telegram.ReplyButton) telegram.ReplyButton {
-	cp := btn
-
-	if btn.User != nil {
-		userCopy := deepCopyReplyRecipient(*btn.User)
-		cp.User = &userCopy
+func MergeMultipleSendOptions(others ...SendOptions) SendOptions {
+	result := NewSendOptions()
+	for _, other := range others {
+		result = result.Merge(other)
 	}
-
-	if btn.Chat != nil {
-		chatCopy := deepCopyReplyRecipient(*btn.Chat)
-		cp.Chat = &chatCopy
-	}
-
-	if btn.WebApp != nil {
-		webAppCopy := *btn.WebApp
-		cp.WebApp = &webAppCopy
-	}
-
-	return cp
-}
-
-// deepCopyReplyRecipient creates a deep copy of ReplyRecipient with all pointer fields.
-func deepCopyReplyRecipient(rr telegram.ReplyRecipient) telegram.ReplyRecipient {
-	cp := rr
-
-	// Copy *bool fields
-	if rr.Bot != nil {
-		val := *rr.Bot
-		cp.Bot = &val
-	}
-	if rr.Premium != nil {
-		val := *rr.Premium
-		cp.Premium = &val
-	}
-	if rr.Forum != nil {
-		val := *rr.Forum
-		cp.Forum = &val
-	}
-	if rr.WithUsername != nil {
-		val := *rr.WithUsername
-		cp.WithUsername = &val
-	}
-	if rr.Created != nil {
-		val := *rr.Created
-		cp.Created = &val
-	}
-	if rr.BotMember != nil {
-		val := *rr.BotMember
-		cp.BotMember = &val
-	}
-	if rr.RequestTitle != nil {
-		val := *rr.RequestTitle
-		cp.RequestTitle = &val
-	}
-	if rr.RequestName != nil {
-		val := *rr.RequestName
-		cp.RequestName = &val
-	}
-	if rr.RequestUsername != nil {
-		val := *rr.RequestUsername
-		cp.RequestUsername = &val
-	}
-	if rr.RequestPhoto != nil {
-		val := *rr.RequestPhoto
-		cp.RequestPhoto = &val
-	}
-
-	// Copy ChatPermissions pointers (shallow copy as it's typically read-only)
-	if rr.UserRights != nil {
-		rightsCopy := *rr.UserRights
-		cp.UserRights = &rightsCopy
-	}
-	if rr.BotRights != nil {
-		rightsCopy := *rr.BotRights
-		cp.BotRights = &rightsCopy
-	}
-
-	return cp
-}
-
-// deepCopyMessageEntity creates a deep copy of a MessageEntity.
-func deepCopyMessageEntity(entity telegram.MessageEntity) telegram.MessageEntity {
-	cp := entity
-
-	// Copy User pointer if present
-	if entity.User != nil {
-		userCopy := *entity.User
-		cp.User = &userCopy
-	}
-
-	return cp
-}
-
-// deepCopyReplyParams creates a deep copy of ReplyParams.
-func deepCopyReplyParams(params *telegram.ReplyParams) *telegram.ReplyParams {
-	if params == nil {
-		return nil
-	}
-
-	cp := *params
-
-	// Deep copy QuoteEntities slice
-	if params.QuoteEntities != nil {
-		cp.QuoteEntities = make([]telegram.MessageEntity, len(params.QuoteEntities))
-		for i, entity := range params.QuoteEntities {
-			cp.QuoteEntities[i] = deepCopyMessageEntity(entity)
-		}
-	}
-
-	return &cp
+	return result
 }
