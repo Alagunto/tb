@@ -66,14 +66,14 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) GetMe() (*telegram.User,
 }
 
 // StarTransactions returns the bot's star transactions.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StarTransactions(offset, limit int) ([]StarTransaction, error) {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StarTransactions(offset, limit int) ([]telegram.StarTransaction, error) {
 	req := methods.GetStarTransactionsRequest{
 		Offset: offset,
 		Limit:  limit,
 	}
 
 	type starTransactionsResponse struct {
-		Transactions []StarTransaction `json:"transactions"`
+		Transactions []telegram.StarTransaction `json:"transactions"`
 	}
 
 	r := NewApiRequester[methods.GetStarTransactionsRequest, starTransactionsResponse](b.token, b.apiURL, b.client)

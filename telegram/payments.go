@@ -114,6 +114,6 @@ type Currency struct {
 	SymbolLeft   bool        `json:"symbol_left"`
 	SpaceBetween bool        `json:"space_between"`
 	Exp          int         `json:"exp"`
-	MinAmount    interface{} `json:"min_amount"`
-	MaxAmount    interface{} `json:"max_amount"`
+	MinAmount    int `json:"min_amount"`
+	MaxAmount    int `json:"max_amount"`
 }

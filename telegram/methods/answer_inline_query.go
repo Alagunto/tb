@@ -20,7 +20,7 @@ type AnswerInlineQueryRequest struct {
 	NextOffset string `json:"next_offset,omitempty"`
 
 	// A button to be shown above inline query results
-	Button interface{} `json:"button,omitempty"`
+	Button *telegram.QueryResponseButton `json:"button,omitempty"`
 }
 
 // AnswerInlineQueryResponse represents the response for answerInlineQuery method.

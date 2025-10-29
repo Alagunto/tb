@@ -1,34 +1,9 @@
 package tb
 
-import (
-	"time"
+import "github.com/alagunto/tb/telegram"
 
-	"github.com/alagunto/tb/telegram"
-)
-
-type Checklist struct {
-	Title                    string
-	TitleEntities            []MessageEntity
-	Tasks                    []ChecklistTask
-	OthersCanAddTasks        bool
-	OthersCanMarkTasksAsDone bool
-}
-
-type ChecklistTask struct {
-	ID              int
-	Text            string
-	TextEntities    []MessageEntity
-	CompletedByUser *telegram.User
-	CompletionDate  *time.Time
-}
-
-type ChecklistTasksDone struct {
-	ChecklistMessage       *Message
-	MarkedAsDoneTaskIDs    []int
-	MarkedAsNotDoneTaskIDs []int
-}
-
-type ChecklistTasksAdded struct {
-	ChecklistMessage *Message
-	Tasks            []ChecklistTask
-}
+// Type aliases for backward compatibility
+type Checklist = telegram.Checklist
+type ChecklistTask = telegram.ChecklistTask
+type ChecklistTasksDone = telegram.ChecklistTasksDone
+type ChecklistTasksAdded = telegram.ChecklistTasksAdded
