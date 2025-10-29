@@ -11,7 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
+
+	"github.com/alagunto/tb/censorship"
 )
 
 // NewBot does try to build a Bot with token `token`, which
@@ -20,24 +21,9 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 	createNewContext func(ContextInterface) (Ctx, error),
 	pref Settings[Ctx, HandlerFunc, MiddlewareFunc],
 ) (*Bot[Ctx, HandlerFunc, MiddlewareFunc], error) {
-	if pref.Updates == 0 {
-		pref.Updates = 100
-	}
+	pref.DefaultsForEmptyValues()
 
 	client := pref.Client
-	if client == nil {
-		client = &http.Client{Timeout: time.Minute}
-	}
-
-	if pref.URL == "" {
-		pref.URL = DefaultApiURL
-	}
-	if pref.Poller == nil {
-		pref.Poller = &LongPoller{}
-	}
-	if pref.OnError == nil {
-		pref.OnError = defaultOnError
-	}
 
 	bot := &Bot[Ctx, HandlerFunc, MiddlewareFunc]{
 		Token:            pref.Token,
@@ -51,13 +37,13 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 		originalHandlers: make(map[string]HandlerFunc),
 		stop:             make(chan chan struct{}),
 
-		synchronous:   pref.Synchronous,
-		verbose:       pref.Verbose,
-		parseMode:     pref.ParseMode,
-		censoredWords: pref.CensoredWords,
-		client:        client,
-		retryPolicy:   pref.RetryPolicy,
-		rateLimiter:   pref.RateLimiter,
+		synchronous: pref.Synchronous,
+		verbose:     pref.Verbose,
+		parseMode:   pref.ParseMode,
+		client:      client,
+		retryPolicy: pref.RetryPolicy,
+		rateLimiter: pref.RateLimiter,
+		censorer:    pref.Censorer,
 	}
 
 	if pref.Offline {
@@ -72,38 +58,6 @@ func NewBot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc fu
 
 	bot.group = bot.Group()
 	return bot, nil
-}
-
-// censorText filters out censored words from the given text (case-insensitive).
-// It replaces censored words with asterisks of the same length.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) censorText(text string) string {
-	if len(b.censoredWords) == 0 {
-		return text
-	}
-
-	result := text
-	for _, word := range b.censoredWords {
-		if word == "" {
-			continue
-		}
-
-		// Create a case-insensitive regex to find all variations of the word
-		// Using \b for word boundaries to match complete words only
-		pattern := `(?i)\b` + regexp.QuoteMeta(word) + `\b`
-		re := regexp.MustCompile(pattern)
-
-		// Replace with asterisks of the same length
-		result = re.ReplaceAllStringFunc(result, func(match string) string {
-			return strings.Repeat("*", len(match))
-		})
-	}
-
-	return result
-}
-
-// CensorText is the public interface method that implements RawBotInterface.
-func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) CensorText(text string) string {
-	return b.censorText(text)
 }
 
 // Bot represents a separate Telegram bot instance.
@@ -122,7 +76,7 @@ type Bot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(
 	synchronous      bool
 	verbose          bool
 	parseMode        ParseMode
-	censoredWords    []string
+	censorer         censorship.Censorer
 	stop             chan chan struct{}
 	client           *http.Client
 
@@ -131,57 +85,6 @@ type Bot[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(
 	handlersWg  sync.WaitGroup
 	retryPolicy *RetryPolicy
 	rateLimiter *RateLimiter
-}
-
-// Settings represents a utility struct for passing certain
-// properties of a bot around and is required to make bots.
-type Settings[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
-	URL   string
-	Token string
-
-	// Updates channel capacity, defaulted to 100.
-	Updates int
-
-	// Poller is the provider of Updates.
-	Poller Poller
-
-	// Synchronous prevents handlers from running in parallel.
-	// It makes ProcessUpdate return after the handler is finished.
-	Synchronous bool
-
-	// Verbose forces bot to log all upcoming requests.
-	// Use for debugging purposes only.
-	Verbose bool
-
-	// ParseMode used to set default parse mode of all sent messages.
-	// It attaches to every send, edit or whatever method. You also
-	// will be able to override the default mode by passing a new one.
-	ParseMode ParseMode
-
-	// OnError is a callback function that will get called on errors
-	// resulted from the handler. It is used as post-middleware function.
-	// Notice that context can be nil. Receives error, context and stack trace.
-	OnError func(error, Ctx, DebugInfo[Ctx, HandlerFunc, MiddlewareFunc])
-
-	// HTTP Client used to make requests to telegram api
-	Client *http.Client
-
-	// Offline allows to create a bot without network for testing purposes.
-	Offline bool
-
-	// CensoredWords is a list of words that should be filtered from all outgoing messages.
-	// Filtering is case-insensitive and removes any variation of the specified strings.
-	CensoredWords []string
-
-	// RetryPolicy configures automatic retry behavior for failed API calls.
-	// If nil, no automatic retry is performed.
-	// Use DefaultRetryPolicy() for sensible defaults.
-	RetryPolicy *RetryPolicy
-
-	// RateLimiter limits the rate of API calls to prevent hitting Telegram limits.
-	// If nil, no rate limiting is applied.
-	// Recommended: NewRateLimiter(30, time.Second) for 30 requests per second.
-	RateLimiter *RateLimiter
 }
 
 func defaultOnError[Ctx ContextInterface, HandlerFunc func(Ctx) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](err error, _ Ctx, _ DebugInfo[Ctx, HandlerFunc, MiddlewareFunc]) {
@@ -608,7 +511,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) Edit(msg Editable, what interfac
 		return b.EditMedia(msg, v, opts...)
 	case string:
 		method = "editMessageText"
-		params["text"] = b.censorText(v)
+		params["text"] = b.CensorText(v)
 	case Checklist:
 		method = "editMessageChecklist"
 		params["checklist"] = v
@@ -693,7 +596,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) EditCaption(msg Editable, captio
 	msgID, chatID := msg.MessageSig()
 
 	params := map[string]string{
-		"caption": b.censorText(caption),
+		"caption": b.CensorText(caption),
 	}
 
 	if chatID == 0 { // if inline message

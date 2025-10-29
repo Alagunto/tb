@@ -263,7 +263,7 @@ func (b *Bot[Ctx, HandlerFunc, MiddlewareFunc]) RawEmbedSendOptions(params map[s
 	}
 	for _, field := range textFields {
 		if text, exists := params[field]; exists && text != "" {
-			params[field] = b.censorText(text)
+			params[field] = b.CensorText(text)
 		}
 	}
 
