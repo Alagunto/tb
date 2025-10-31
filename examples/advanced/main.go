@@ -14,7 +14,7 @@ import (
 
 // Admin IDs - replace with actual admin user IDs
 var adminIDs = map[int64]bool{
-	123456789: true, // Replace with actual admin ID
+	975559469: true, // Replace with actual admin ID
 }
 
 func main() {
