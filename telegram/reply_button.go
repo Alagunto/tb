@@ -7,10 +7,10 @@ package telegram
 type ReplyButton struct {
 	Text string `json:"text"`
 
-	Contact      bool                      `json:"request_contact,omitempty"`
-	Location     bool                      `json:"request_location,omitempty"`
-	Poll         *KeyboardButtonPollType   `json:"request_poll,omitempty"`
-	User         *KeyboardButtonRequestUser `json:"request_users,omitempty"`
-	Chat         *KeyboardButtonRequestChat `json:"request_chat,omitempty"`
-	WebApp       *WebAppInfo               `json:"web_app,omitempty"`
+	Contact  bool                       `json:"request_contact,omitempty"`
+	Location bool                       `json:"request_location,omitempty"`
+	Poll     *KeyboardButtonPollType    `json:"request_poll,omitempty"`
+	User     *KeyboardButtonRequestUser `json:"request_users,omitempty"`
+	Chat     *KeyboardButtonRequestChat `json:"request_chat,omitempty"`
+	WebApp   *WebAppInfo                `json:"web_app,omitempty"`
 }
