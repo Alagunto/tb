@@ -1,9 +1,6 @@
-package media
+package telegram
 
-import (
-	"github.com/alagunto/tb/files"
-	"github.com/alagunto/tb/telegram"
-)
+import "github.com/alagunto/tb/files"
 
 // Video represents a video file.
 //
@@ -30,16 +27,16 @@ type VideoNote struct {
 //
 // https://core.telegram.org/bots/api#inputmediavideo
 type InputMediaVideo struct {
-	Type                  string             `json:"type"`
-	Media                 string             `json:"media"`
-	Thumbnail             string             `json:"thumbnail,omitempty"`
-	Caption               string             `json:"caption,omitempty"`
-	ParseMode             telegram.ParseMode `json:"parse_mode,omitempty"`
-	CaptionEntities       telegram.Entities  `json:"caption_entities,omitempty"`
-	Width                 int                `json:"width,omitempty"`
-	Height                int                `json:"height,omitempty"`
-	Duration              int                `json:"duration,omitempty"`
-	SupportsStreaming     bool               `json:"supports_streaming,omitempty"`
-	HasSpoiler            bool               `json:"has_spoiler,omitempty"`
-	ShowCaptionAboveMedia bool               `json:"show_caption_above_media,omitempty"`
+	Type                  string    `json:"type"`
+	Media                 string    `json:"media"`
+	Thumbnail             string    `json:"thumbnail,omitempty"`
+	Caption               string    `json:"caption,omitempty"`
+	ParseMode             ParseMode `json:"parse_mode,omitempty"`
+	CaptionEntities       Entities  `json:"caption_entities,omitempty"`
+	Width                 int       `json:"width,omitempty"`
+	Height                int       `json:"height,omitempty"`
+	Duration              int       `json:"duration,omitempty"`
+	SupportsStreaming     bool      `json:"supports_streaming,omitempty"`
+	HasSpoiler            bool      `json:"has_spoiler,omitempty"`
+	ShowCaptionAboveMedia bool      `json:"show_caption_above_media,omitempty"`
 }

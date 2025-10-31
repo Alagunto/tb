@@ -1,9 +1,6 @@
-package media
+package telegram
 
-import (
-	"github.com/alagunto/tb/files"
-	"github.com/alagunto/tb/telegram"
-)
+import "github.com/alagunto/tb/files"
 
 // Document represents a general file (as opposed to photos, voice messages and audio files).
 //
@@ -17,11 +14,11 @@ type Document struct {
 //
 // https://core.telegram.org/bots/api#inputmediadocument
 type InputMediaDocument struct {
-	Type                        string             `json:"type"`
-	Media                       string             `json:"media"`
-	Thumbnail                   string             `json:"thumbnail,omitempty"`
-	Caption                     string             `json:"caption,omitempty"`
-	ParseMode                   telegram.ParseMode `json:"parse_mode,omitempty"`
-	CaptionEntities             telegram.Entities  `json:"caption_entities,omitempty"`
-	DisableContentTypeDetection bool               `json:"disable_content_type_detection,omitempty"`
+	Type                        string    `json:"type"`
+	Media                       string    `json:"media"`
+	Thumbnail                   string    `json:"thumbnail,omitempty"`
+	Caption                     string    `json:"caption,omitempty"`
+	ParseMode                   ParseMode `json:"parse_mode,omitempty"`
+	CaptionEntities             Entities  `json:"caption_entities,omitempty"`
+	DisableContentTypeDetection bool      `json:"disable_content_type_detection,omitempty"`
 }

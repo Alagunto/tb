@@ -1,4 +1,4 @@
-package media
+package telegram
 
 import "github.com/alagunto/tb/files"
 
