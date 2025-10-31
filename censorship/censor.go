@@ -1,8 +1,7 @@
 package censorship
 
 import (
-	"regexp"
-	"strings"
+	ahocorasick "github.com/pgavlin/aho-corasick"
 )
 
 type Censorer interface {
@@ -10,40 +9,62 @@ type Censorer interface {
 }
 
 type SpecificSubstringsCensorer struct {
-	censoredWords []string
+	ac              ahocorasick.AhoCorasick
+	censoredWords   []string
+	caseInsensitive bool
 }
 
 func NewSpecificSubstringsCensorer(censoredWords []string) Censorer {
-	return &SpecificSubstringsCensorer{censoredWords: censoredWords}
+	return NewSpecificSubstringsCensorerWithOptions(censoredWords, true)
 }
 
-// censorText filters out censored words from the given text (case-insensitive).
+func NewSpecificSubstringsCensorerWithOptions(censoredWords []string, caseInsensitive bool) Censorer {
+	if len(censoredWords) == 0 {
+		return &SpecificSubstringsCensorer{
+			censoredWords:   censoredWords,
+			caseInsensitive: caseInsensitive,
+		}
+	}
+
+	// Build the Aho-Corasick automaton
+	builder := ahocorasick.NewAhoCorasickBuilder(ahocorasick.Opts{
+		AsciiCaseInsensitive: caseInsensitive,
+		MatchOnlyWholeWords:  true,
+		MatchKind:            ahocorasick.LeftMostLongestMatch,
+		DFA:                  true, // Use DFA for O(N) performance
+	})
+
+	ac := builder.Build(censoredWords)
+
+	return &SpecificSubstringsCensorer{
+		ac:              ac,
+		censoredWords:   censoredWords,
+		caseInsensitive: caseInsensitive,
+	}
+}
+
+// CensorText filters out censored words from the given text.
 // It replaces censored words with asterisks of the same length.
-func (c *SpecificSubstringsCensorer) censorText(text string) string {
+func (c *SpecificSubstringsCensorer) CensorText(text string) string {
 	if len(c.censoredWords) == 0 {
 		return text
 	}
 
-	result := text
-	for _, word := range c.censoredWords {
-		if word == "" {
-			continue
-		}
+	// Find all matches using Aho-Corasick
+	matches := c.ac.FindAll(text)
 
-		// Create a case-insensitive regex to find all variations of the word
-		// Using \b for word boundaries to match complete words only
-		pattern := `(?i)\b` + regexp.QuoteMeta(word) + `\b`
-		re := regexp.MustCompile(pattern)
-
-		// Replace with asterisks of the same length
-		result = re.ReplaceAllStringFunc(result, func(match string) string {
-			return strings.Repeat("*", len(match))
-		})
+	if len(matches) == 0 {
+		return text
 	}
 
-	return result
-}
+	// Build result by replacing matches with asterisks
+	// Work with bytes since Aho-Corasick returns byte indices
+	result := []byte(text)
+	for _, match := range matches {
+		for i := match.Start(); i < match.End(); i++ {
+			result[i] = '*'
+		}
+	}
 
-func (c *SpecificSubstringsCensorer) CensorText(text string) string {
-	return c.censorText(text)
+	return string(result)
 }

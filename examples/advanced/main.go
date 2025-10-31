@@ -201,10 +201,10 @@ func main() {
 		}
 
 		text := strings.Join(args, " ")
-		opts := tb.SendOptions().WithParseMode(telegram.ParseModeHTML)
-
 		response := fmt.Sprintf("🔊 <b>Echo:</b>\n%s", text)
-		return c.Reply(response, opts)
+
+		// New chainable API - much cleaner!
+		return c.Reply(response, tb.Send().WithParseMode(telegram.ParseModeHTML))
 	})
 
 	// Handle all text messages

@@ -67,8 +67,8 @@ func main() {
 		}
 
 		text := fmt.Sprintf("Message with effect: %s", description)
-		opts := tb.SendOptions().WithEffectID(effectID)
-		return c.Reply(text, opts)
+		// New chainable API - WithEffect is an alias for WithEffectID
+		return c.Reply(text, tb.Send().WithEffect(effectID))
 	}
 
 	// Fire effect
@@ -119,8 +119,8 @@ func main() {
 
 		for _, effect := range effects {
 			text := fmt.Sprintf("Effect: %s", effect.description)
-			opts := tb.SendOptions().WithEffectID(effect.id)
-			if err := c.Reply(text, opts); err != nil {
+			// New chainable API
+			if err := c.Reply(text, tb.Send().WithEffect(effect.id)); err != nil {
 				log.Printf("Error sending effect %s: %v", effect.description, err)
 			}
 			// Small delay between messages
