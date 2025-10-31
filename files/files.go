@@ -116,7 +116,7 @@ func (fs *FileSource) Validate() error {
 
 // ToTelegramParam converts the FileSource to a Telegram API parameter value.
 // Returns the parameter value, whether upload is needed, and an error.
-func (fs *FileSource) ToTelegramParam(fieldName string) (paramValue string, needsUpload bool, err error) {
+func (fs *FileSource) ToTelegramParam(filename string) (paramValue string, needsUpload bool, err error) {
 	if err := fs.Validate(); err != nil {
 		return "", false, err
 	}
@@ -128,10 +128,10 @@ func (fs *FileSource) ToTelegramParam(fieldName string) (paramValue string, need
 		return fs.URL, false, nil
 	case SourceLocalFile:
 		// For local files, we use attach:// protocol
-		return fmt.Sprintf("attach://%s", fieldName), true, nil
+		return fmt.Sprintf("attach://%s", filename), true, nil
 	case SourceReader:
 		// For readers, we also use attach:// protocol
-		return fmt.Sprintf("attach://%s", fieldName), true, nil
+		return fmt.Sprintf("attach://%s", filename), true, nil
 	default:
 		return "", false, fmt.Errorf("unknown source type")
 	}

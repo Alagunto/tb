@@ -14,7 +14,7 @@ import (
 
 // Raw lets you call any method of Bot API manually.
 // This method is for external use only - bot.go methods should use ApiRequester directly.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Raw(method string, payload any) ([]byte, error) {
+func (b *Bot[RequestType]) Raw(method string, payload any) ([]byte, error) {
 	// Convert payload to map[string]any if it isn't already
 	var params map[string]any
 	switch p := payload.(type) {
@@ -49,7 +49,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Raw(method string, paylo
 
 // Internal helper methods that use ApiRequester with proper types
 
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendText(to bot.Recipient, text string, opt *communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) sendText(to bot.Recipient, text string, opt *communications.SendOptions) (*telegram.Message, error) {
 	params := map[string]any{
 		"chat_id": to.Recipient(),
 		"text":    text,
@@ -65,7 +65,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendText(to bot.Recipien
 	return result, nil
 }
 
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendFiles(method string, filesToSend map[string]files.FileSource, params map[string]any) (*telegram.Message, error) {
+func (b *Bot[RequestType]) sendFiles(method string, filesToSend map[string]files.FileSource, params map[string]any) (*telegram.Message, error) {
 	// Create the requester
 	r := NewApiRequester[map[string]any, telegram.Message](b.token, b.apiURL, b.client)
 
@@ -93,7 +93,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendFiles(method string,
 	return result, nil
 }
 
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) getMe() (*telegram.User, error) {
+func (b *Bot[RequestType]) getMe() (*telegram.User, error) {
 	r := NewApiRequester[map[string]any, telegram.User](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "getMe", make(map[string]any))
 	if err != nil {
@@ -105,7 +105,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) getMe() (*telegram.User,
 // GetUpdates fetches updates from the Telegram API.
 // Do not use this method directly by default, instead use Start() to start the Poller to fetch updates automatically.
 // Use it only if you need to fetch updates manually, without starting the bot as usual.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) GetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]telegram.Update, error) {
+func (b *Bot[RequestType]) GetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]telegram.Update, error) {
 	params := map[string]any{
 		"offset":  offset,
 		"timeout": int(timeout / time.Second),

@@ -9,6 +9,7 @@ import (
 	"github.com/alagunto/tb"
 	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/files"
+	"github.com/alagunto/tb/outgoing"
 	"github.com/alagunto/tb/request"
 	"github.com/alagunto/tb/telegram"
 )
@@ -169,17 +170,19 @@ func main() {
 
 	// Media album example
 	bot.Handle("/album", func(c *request.Native) error {
-		album := telegram.Album{
-			&telegram.InputMediaPhoto{Photo: &telegram.Photo{
-				Source:  files.UseURL("https://via.placeholder.com/300x200?text=Photo+1"),
-				Caption: "First photo in the album",
-			}},
-			&telegram.InputMediaPhoto{Photo: &telegram.Photo{
-				Source: files.UseURL("https://via.placeholder.com/300x200?text=Photo+2"),
-			}},
-			&telegram.InputMediaPhoto{Photo: &telegram.Photo{
-				Source: files.UseURL("https://via.placeholder.com/300x200?text=Photo+3"),
-			}},
+		album := telegram.InputAlbum{
+			Media: []outgoing.Content{
+				&telegram.Photo{
+					Source:  files.UseURL("https://via.placeholder.com/300x200?text=Photo+1"),
+					Caption: "First photo in the album",
+				},
+				&telegram.Photo{
+					Source: files.UseURL("https://via.placeholder.com/300x200?text=Photo+2"),
+				},
+				&telegram.Photo{
+					Source: files.UseURL("https://via.placeholder.com/300x200?text=Photo+3"),
+				},
+			},
 		}
 		return c.SendAlbum(album)
 	})

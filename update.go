@@ -9,7 +9,7 @@ import (
 
 // ProcessUpdate processes a single incoming update.
 // A started bot calls this function automatically.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ProcessUpdate(c RequestType, u telegram.Update) {
+func (b *Bot[RequestType]) ProcessUpdate(c RequestType, u telegram.Update) {
 	if u.Message != nil {
 		m := u.Message
 
@@ -344,7 +344,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ProcessUpdate(c RequestT
 	}
 }
 
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) runHandler(c RequestType, endpoint string) bool {
+func (b *Bot[RequestType]) runHandler(c RequestType, endpoint string) bool {
 	handler, ok := b.handlers[endpoint]
 	if !ok {
 		return false
@@ -353,10 +353,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) runHandler(c RequestType
 	defer func() {
 		if r := recover(); r != nil {
 			if b.onError != nil {
-				b.onError(r.(error), c, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc]{
-					Handler:  handler,
-					Endpoint: endpoint,
-				})
+				b.onError(r.(error), c)
 			} else {
 				debug.PrintStack()
 			}
@@ -365,10 +362,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) runHandler(c RequestType
 
 	// Execute handler directly (middleware is handled by Group)
 	if err := handler(c); err != nil && b.onError != nil {
-		b.onError(err, c, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc]{
-			Handler:  handler,
-			Endpoint: endpoint,
-		})
+		b.onError(err, c)
 	}
 
 	return true

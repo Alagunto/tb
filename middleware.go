@@ -19,18 +19,18 @@ func applyMiddleware[RequestType request.Interface, HandlerFunc func(RequestType
 }
 
 // Group is a separated group of handlers, united by the general middleware.
-type Group[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
-	b          *Bot[RequestType, HandlerFunc, MiddlewareFunc]
-	middleware []MiddlewareFunc
+type Group[RequestType request.Interface] struct {
+	b          *Bot[RequestType]
+	middleware []func(func(RequestType) error) func(RequestType) error
 }
 
 // Use adds middleware to the chain.
-func (g *Group[RequestType, HandlerFunc, MiddlewareFunc]) Use(middleware ...MiddlewareFunc) {
+func (g *Group[RequestType]) Use(middleware ...func(func(RequestType) error) func(RequestType) error) {
 	g.middleware = append(g.middleware, middleware...)
 }
 
 // Handle adds endpoint handler to the bot, combining group's middleware
 // with the optional given middleware.
-func (g *Group[RequestType, HandlerFunc, MiddlewareFunc]) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
-	g.b.Handle(endpoint, h, appendMiddleware[RequestType, HandlerFunc, MiddlewareFunc](g.middleware, m)...)
+func (g *Group[RequestType]) Handle(endpoint interface{}, h func(RequestType) error, m ...func(func(RequestType) error) func(RequestType) error) {
+	g.b.Handle(endpoint, h, appendMiddleware[RequestType](g.middleware, m)...)
 }

@@ -17,7 +17,7 @@ import (
 //
 // Usually, Telegram-provided File objects miss FilePath so you might need to
 // perform an additional request to fetch them.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) FileByID(fileID string) (files.FileRef, error) {
+func (b *Bot[RequestType]) FileByID(fileID string) (files.FileRef, error) {
 	req := methods.GetFileRequest{
 		FileID: fileID,
 	}
@@ -32,7 +32,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) FileByID(fileID string) 
 
 // Download saves the file from Telegram servers locally.
 // Maximum file size to download is 20 MB.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Download(file *files.FileRef, localFilename string) error {
+func (b *Bot[RequestType]) Download(file *files.FileRef, localFilename string) error {
 	reader, err := b.File(file)
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Download(file *files.Fil
 }
 
 // File gets a file from Telegram servers.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) File(file *files.FileRef) (io.ReadCloser, error) {
+func (b *Bot[RequestType]) File(file *files.FileRef) (io.ReadCloser, error) {
 	var filePath string
 	if file.FilePath != "" {
 		filePath = file.FilePath

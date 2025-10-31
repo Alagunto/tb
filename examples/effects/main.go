@@ -12,22 +12,6 @@ import (
 	"github.com/alagunto/tb/telegram"
 )
 
-// Context wraps request.Interface to provide convenient access to native context methods
-type Context struct {
-	request.Interface
-}
-
-// Reply is a convenience method that uses ReplyTo internally
-func (c *Context) Reply(what interface{}, opts ...communications.SendOptions) error {
-	msg := c.Message()
-	if msg == nil {
-		return fmt.Errorf("no message to reply to")
-	}
-	opt := communications.MergeMultipleSendOptions(opts...)
-	_, err := c.ReplyTo(msg, what, opt)
-	return err
-}
-
 func main() {
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
@@ -35,8 +19,8 @@ func main() {
 	}
 
 	// Create a request builder function
-	requestBuilder := func(req request.Interface) (*Context, error) {
-		return &Context{Interface: req}, nil
+	requestBuilder := func(req request.Interface) (*request.Native, error) {
+		return request.NewNativeFromRequest(req), nil
 	}
 
 	// Create bot settings
@@ -58,7 +42,7 @@ func main() {
 	}
 
 	// Start command
-	bot.Handle("/start", func(c *Context) error {
+	bot.Handle("/start", func(c *request.Native) error {
 		return c.Reply("Welcome! This bot demonstrates message effects.\n\n" +
 			"⚠️ Note: Message effects only work in private chats!\n\n" +
 			"Commands:\n" +
@@ -74,54 +58,54 @@ func main() {
 	})
 
 	// Helper function to send message with effect
-	sendWithEffect := func(c *Context, effectID telegram.EffectID, description string) error {
+	sendWithEffect := func(c *request.Native, effectID telegram.EffectID, description string) error {
 		text := fmt.Sprintf("Message with effect: %s", description)
 		opts := communications.NewSendOptions().WithEffectID(effectID)
 		return c.Reply(text, opts)
 	}
 
 	// Rainbow effect
-	bot.Handle("/effect_rainbow", func(c *Context) error {
+	bot.Handle("/effect_rainbow", func(c *request.Native) error {
 		return sendWithEffect(c, telegram.EffectID("rainbow"), "Rainbow")
 	})
 
 	// Snow effect
-	bot.Handle("/effect_snow", func(c *Context) error {
+	bot.Handle("/effect_snow", func(c *request.Native) error {
 		return sendWithEffect(c, telegram.EffectID("snow"), "Snow")
 	})
 
 	// Hearts effect
-	bot.Handle("/effect_hearts", func(c *Context) error {
+	bot.Handle("/effect_hearts", func(c *request.Native) error {
 		return sendWithEffect(c, telegram.EffectID("hearts"), "Hearts")
 	})
 
 	// Celebration effect
-	bot.Handle("/effect_celebrate", func(c *Context) error {
+	bot.Handle("/effect_celebrate", func(c *request.Native) error {
 		return sendWithEffect(c, telegram.EffectID("celebrate"), "Celebration")
 	})
 
 	// Fireworks effect
-	bot.Handle("/effect_fireworks", func(c *Context) error {
+	bot.Handle("/effect_fireworks", func(c *request.Native) error {
 		return sendWithEffect(c, telegram.EffectID("fireworks"), "Fireworks")
 	})
 
 	// Shake effect
-	bot.Handle("/effect_shake", func(c *Context) error {
+	bot.Handle("/effect_shake", func(c *request.Native) error {
 		return sendWithEffect(c, telegram.EffectID("shake"), "Shake")
 	})
 
 	// Explosion effect
-	bot.Handle("/effect_explosion", func(c *Context) error {
+	bot.Handle("/effect_explosion", func(c *request.Native) error {
 		return sendWithEffect(c, telegram.EffectID("explosion"), "Explosion")
 	})
 
 	// Boom effect
-	bot.Handle("/effect_boom", func(c *Context) error {
+	bot.Handle("/effect_boom", func(c *request.Native) error {
 		return sendWithEffect(c, telegram.EffectID("boom"), "Boom")
 	})
 
 	// Send all effects
-	bot.Handle("/effect_all", func(c *Context) error {
+	bot.Handle("/effect_all", func(c *request.Native) error {
 		effects := []struct {
 			id          telegram.EffectID
 			description string
@@ -150,7 +134,7 @@ func main() {
 	})
 
 	// Handle messages sent with effects
-	bot.Handle(tb.OnText, func(c *Context) error {
+	bot.Handle(tb.OnText, func(c *request.Native) error {
 		return c.Reply("Send /start to see available effects!")
 	})
 

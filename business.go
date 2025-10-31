@@ -8,7 +8,7 @@ import (
 )
 
 // BusinessConnection returns the information about the connection of the bot with a business account.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) BusinessConnection(id string) (*telegram.BusinessConnection, error) {
+func (b *Bot[RequestType]) BusinessConnection(id string) (*telegram.BusinessConnection, error) {
 	params := map[string]string{
 		"business_connection_id": id,
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 // AnswerInlineQuery sends a response to an inline query.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AnswerInlineQuery(query *telegram.InlineQuery, resp *telegram.InlineQueryResponse) error {
+func (b *Bot[RequestType]) AnswerInlineQuery(query *telegram.InlineQuery, resp *telegram.InlineQueryResponse) error {
 	if query == nil {
 		return errors.WithInvalidParam(errors.ErrTelebot, "query", nil)
 	}
@@ -39,7 +39,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AnswerInlineQuery(query 
 //
 //	b.RespondToCallback(c)
 //	b.RespondToCallback(c, response)
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RespondToCallback(c *telegram.CallbackQuery, resp ...*telegram.CallbackResponse) error {
+func (b *Bot[RequestType]) RespondToCallback(c *telegram.CallbackQuery, resp ...*telegram.CallbackResponse) error {
 	req := methods.AnswerCallbackQueryRequest{
 		CallbackQueryID: c.ID,
 	}
@@ -63,7 +63,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RespondToCallback(c *tel
 //	b.Ship(query)          // OK
 //	b.Ship(query, opts...) // OK with options
 //	b.Ship(query, "Oops!") // Error message
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Ship(query *telegram.ShippingQuery, what ...interface{}) error {
+func (b *Bot[RequestType]) Ship(query *telegram.ShippingQuery, what ...interface{}) error {
 	req := methods.AnswerShippingQueryRequest{
 		ShippingQueryID: query.ID,
 	}
@@ -93,7 +93,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Ship(query *telegram.Shi
 }
 
 // Accept finalizes the deal.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Accept(query *telegram.PreCheckoutQuery, errorMessage ...string) error {
+func (b *Bot[RequestType]) Accept(query *telegram.PreCheckoutQuery, errorMessage ...string) error {
 	req := methods.AnswerPreCheckoutQueryRequest{
 		PreCheckoutQueryID: query.ID,
 		Ok:                 len(errorMessage) == 0,

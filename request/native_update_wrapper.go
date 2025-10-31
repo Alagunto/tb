@@ -296,7 +296,7 @@ func (c *Native) Send(what interface{}, opts ...communications.SendOptions) erro
 	return err
 }
 
-func (c *Native) SendAlbum(a telegram.Album, opts ...communications.SendOptions) error {
+func (c *Native) SendAlbum(a telegram.InputAlbum, opts ...communications.SendOptions) error {
 	_, err := c.API.SendAlbumTo(c.Recipient(), a, opts...)
 	return err
 }

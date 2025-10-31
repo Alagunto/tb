@@ -11,7 +11,7 @@ import (
 // React changes the chosen reactions on a message. Service messages can't be
 // reacted to. Automatically forwarded messages from a channel to its discussion group have
 // the same available reactions as messages in the channel.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) React(to bot.Recipient, msg bot.Editable, r telegram.Reactions) error {
+func (b *Bot[RequestType]) React(to bot.Recipient, msg bot.Editable, r telegram.Reactions) error {
 	if to == nil {
 		return errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", "nil")
 	}

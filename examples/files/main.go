@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -9,38 +8,10 @@ import (
 	"github.com/alagunto/tb"
 	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/files"
+	"github.com/alagunto/tb/outgoing"
 	"github.com/alagunto/tb/request"
 	"github.com/alagunto/tb/telegram"
 )
-
-// Context wraps request.Interface to provide convenient access to native context methods
-type Context struct {
-	request.Interface
-}
-
-// Send is a convenience method that uses SendTo internally
-func (c *Context) Send(what interface{}, opts ...communications.SendOptions) error {
-	opt := communications.MergeMultipleSendOptions(opts...)
-	_, err := c.SendTo(c.Recipient(), what, opt)
-	return err
-}
-
-// Reply is a convenience method that uses ReplyTo internally
-func (c *Context) Reply(what interface{}, opts ...communications.SendOptions) error {
-	msg := c.Message()
-	if msg == nil {
-		return fmt.Errorf("no message to reply to")
-	}
-	opt := communications.MergeMultipleSendOptions(opts...)
-	_, err := c.ReplyTo(msg, what, opt)
-	return err
-}
-
-// SendAlbum is a convenience method
-func (c *Context) SendAlbum(a telegram.Album, opts ...communications.SendOptions) error {
-	_, err := c.SendAlbumTo(c.Recipient(), a, opts...)
-	return err
-}
 
 func main() {
 	token := os.Getenv("BOT_TOKEN")
@@ -216,16 +187,18 @@ func main() {
 	bot.Handle("/album", func(c *request.Native) error {
 		// Create an album with multiple photos
 		// Note: You need to provide actual URLs or file paths for this to work
-		album := telegram.Album{
-			&telegram.Photo{
-				Source:  files.UseURL("https://via.placeholder.com/150?text=Photo1"),
-				Caption: "First photo in album",
-			},
-			&telegram.Photo{
-				Source: files.UseURL("https://via.placeholder.com/150?text=Photo2"),
-			},
-			&telegram.Photo{
-				Source: files.UseURL("https://via.placeholder.com/150?text=Photo3"),
+		album := telegram.InputAlbum{
+			Media: []outgoing.Content{
+				&telegram.Photo{
+					Source:  files.UseURL("https://via.placeholder.com/150?text=Photo1"),
+					Caption: "First photo in album",
+				},
+				&telegram.Photo{
+					Source: files.UseURL("https://via.placeholder.com/150?text=Photo2"),
+				},
+				&telegram.Photo{
+					Source: files.UseURL("https://via.placeholder.com/150?text=Photo3"),
+				},
 			},
 		}
 		return c.SendAlbum(album)

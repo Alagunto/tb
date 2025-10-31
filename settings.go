@@ -7,6 +7,7 @@ import (
 
 	"github.com/alagunto/tb/censorship"
 	"github.com/alagunto/tb/request"
+	"github.com/alagunto/tb/telegram"
 )
 
 // Settings represents a utility struct for passing certain
@@ -32,7 +33,7 @@ type Settings[RequestType request.Interface] struct {
 	// ParseMode used to set default parse mode of all sent messages.
 	// It attaches to every send, edit or whatever method. You also
 	// will be able to override the default mode by passing a new one.
-	ParseMode ParseMode
+	ParseMode telegram.ParseMode
 
 	// OnError is a callback function that will get called on errors
 	// resulted from the handler. It is used as post-middleware function.

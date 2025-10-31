@@ -6,6 +6,7 @@ import (
 
 	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/files"
+	"github.com/alagunto/tb/outgoing"
 	"github.com/alagunto/tb/telegram"
 )
 
@@ -26,8 +27,7 @@ type API interface {
 	Raw(method string, payload interface{}) ([]byte, error)
 	GetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]telegram.Update, error)
 	SendTo(to Recipient, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error)
-	SendPaidTo(to Recipient, stars int, a telegram.PaidAlbum, opts ...communications.SendOptions) (*telegram.Message, error)
-	SendAlbumTo(to Recipient, a telegram.Album, opts ...communications.SendOptions) ([]telegram.Message, error)
+	SendAlbumTo(to Recipient, a telegram.InputAlbum, opts ...communications.SendOptions) ([]telegram.Message, error)
 	ReplyTo(to *telegram.Message, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error)
 	ForwardTo(to Recipient, msg Editable, opts ...communications.SendOptions) (*telegram.Message, error)
 	ForwardManyTo(to Recipient, msgs []Editable, opts ...communications.SendOptions) ([]telegram.Message, error)
@@ -36,7 +36,7 @@ type API interface {
 	Edit(msg Editable, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error)
 	EditReplyMarkup(msg Editable, markup *telegram.ReplyMarkup) (*telegram.Message, error)
 	EditCaption(msg Editable, caption string, opts ...communications.SendOptions) (*telegram.Message, error)
-	EditMedia(msg Editable, media telegram.Inputtable, opts ...communications.SendOptions) (*telegram.Message, error)
+	EditMedia(msg Editable, media outgoing.Content, opts ...communications.SendOptions) (*telegram.Message, error)
 	Delete(msg Editable) error
 	DeleteMany(msgs []Editable) error
 	Notify(to Recipient, action telegram.ChatAction, opts ...communications.SendOptions) error

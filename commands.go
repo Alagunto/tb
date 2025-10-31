@@ -43,7 +43,7 @@ type CommandScope struct {
 }
 
 // Commands returns the current list of the bot's commands for the given scope and user language.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Commands(opts ...interface{}) ([]Command, error) {
+func (b *Bot[RequestType]) Commands(opts ...interface{}) ([]Command, error) {
 	params := extractCommandsParams(opts...)
 	data, err := b.Raw("getMyCommands", params)
 	if err != nil {
@@ -60,14 +60,14 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Commands(opts ...interfa
 }
 
 // SetCommands changes the list of the bot's commands.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetCommands(opts ...interface{}) error {
+func (b *Bot[RequestType]) SetCommands(opts ...interface{}) error {
 	params := extractCommandsParams(opts...)
 	_, err := b.Raw("setMyCommands", params)
 	return err
 }
 
 // DeleteCommands deletes the list of the bot's commands for the given scope and user language.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) DeleteCommands(opts ...interface{}) error {
+func (b *Bot[RequestType]) DeleteCommands(opts ...interface{}) error {
 	params := extractCommandsParams(opts...)
 	_, err := b.Raw("deleteMyCommands", params)
 	return err

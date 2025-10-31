@@ -16,7 +16,7 @@ func Forever() int64 {
 }
 
 // Ban will ban user from chat until `member.UntilDate`.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Ban(chat *telegram.Chat, member *telegram.ChatMember, revokeMessages ...bool) error {
+func (b *Bot[RequestType]) Ban(chat *telegram.Chat, member *telegram.ChatMember, revokeMessages ...bool) error {
 	params := map[string]string{
 		"chat_id":    chat.Recipient(),
 		"user_id":    member.User.Recipient(),
@@ -32,7 +32,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Ban(chat *telegram.Chat,
 
 // Unban will unban user from chat, who would have thought eh?
 // forBanned does nothing if the user is not banned.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Unban(chat *telegram.Chat, user *telegram.User, forBanned ...bool) error {
+func (b *Bot[RequestType]) Unban(chat *telegram.Chat, user *telegram.User, forBanned ...bool) error {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 		"user_id": user.Recipient(),
@@ -53,7 +53,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Unban(chat *telegram.Cha
 //   - can send media
 //   - can send other
 //   - can add web page previews
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Restrict(chat *telegram.Chat, member *telegram.ChatMember) error {
+func (b *Bot[RequestType]) Restrict(chat *telegram.Chat, member *telegram.ChatMember) error {
 	params := map[string]interface{}{
 		"chat_id":     chat.Recipient(),
 		"user_id":     member.User.Recipient(),
@@ -75,7 +75,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Restrict(chat *telegram.
 //   - can restrict members
 //   - can pin messages
 //   - can promote members
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Promote(chat *telegram.Chat, member *telegram.ChatMember) error {
+func (b *Bot[RequestType]) Promote(chat *telegram.Chat, member *telegram.ChatMember) error {
 	params := map[string]interface{}{
 		"chat_id":      chat.Recipient(),
 		"user_id":      member.User.Recipient(),
@@ -98,7 +98,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Promote(chat *telegram.C
 //
 // If the chat is a group or a supergroup and
 // no administrators were appointed, only the creator will be returned.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AdminsOf(chat *telegram.Chat) ([]telegram.ChatMember, error) {
+func (b *Bot[RequestType]) AdminsOf(chat *telegram.Chat) ([]telegram.ChatMember, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -118,7 +118,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AdminsOf(chat *telegram.
 }
 
 // Len returns the number of members in a chat.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Len(chat *telegram.Chat) (int, error) {
+func (b *Bot[RequestType]) Len(chat *telegram.Chat) (int, error) {
 	params := map[string]string{
 		"chat_id": chat.Recipient(),
 	}
@@ -139,7 +139,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Len(chat *telegram.Chat)
 
 // SetAdminTitle sets a custom title for an administrator.
 // A title should be 0-16 characters length, emoji are not allowed.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetAdminTitle(chat *telegram.Chat, user *telegram.User, title string) error {
+func (b *Bot[RequestType]) SetAdminTitle(chat *telegram.Chat, user *telegram.User, title string) error {
 	params := map[string]string{
 		"chat_id":      chat.Recipient(),
 		"user_id":      user.Recipient(),
@@ -153,7 +153,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetAdminTitle(chat *tele
 // BanSenderChat will use this method to ban a channel chat in a supergroup or a channel.
 // Until the chat is unbanned, the owner of the banned chat won't be able
 // to send messages on behalf of any of their channels.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) BanSenderChat(chat *telegram.Chat, sender bot.Recipient) error {
+func (b *Bot[RequestType]) BanSenderChat(chat *telegram.Chat, sender bot.Recipient) error {
 	params := map[string]string{
 		"chat_id":        chat.Recipient(),
 		"sender_chat_id": sender.Recipient(),
@@ -165,7 +165,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) BanSenderChat(chat *tele
 
 // UnbanSenderChat will use this method to unban a previously banned channel chat in a supergroup or channel.
 // The bot must be an administrator for this to work and must have the appropriate administrator rights.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnbanSenderChat(chat *telegram.Chat, sender bot.Recipient) error {
+func (b *Bot[RequestType]) UnbanSenderChat(chat *telegram.Chat, sender bot.Recipient) error {
 	params := map[string]string{
 		"chat_id":        chat.Recipient(),
 		"sender_chat_id": sender.Recipient(),
@@ -176,7 +176,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnbanSenderChat(chat *te
 }
 
 // // // DefaultRights returns the current default administrator rights of the bot.
-// // func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) DefaultRights(forChannels bool) (*telegram.Rights, error) {
+// // func (b *Bot[RequestType]) DefaultRights(forChannels bool) (*telegram.Rights, error) {
 // // 	params := map[string]bool{
 // // 		"for_channels": forChannels,
 // // 	}
@@ -197,7 +197,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnbanSenderChat(chat *te
 
 // // SetDefaultRights changes the default administrator rights requested by the bot
 // // when it's added as an administrator to groups or channels.
-// func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetDefaultRights(rights telegram.Rights, forChannels bool) error {
+// func (b *Bot[RequestType]) SetDefaultRights(rights telegram.Rights, forChannels bool) error {
 // 	params := map[string]interface{}{
 // 		"rights":       rights,
 // 		"for_channels": forChannels,

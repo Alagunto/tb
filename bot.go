@@ -15,11 +15,11 @@ import (
 // is a secret API key assigned to particular bot.
 func NewBot[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](
 	requestBuilder func(request.Interface) (RequestType, error),
-	settings Settings[RequestType, HandlerFunc, MiddlewareFunc],
-) (*Bot[RequestType, HandlerFunc, MiddlewareFunc], error) {
+	settings Settings[RequestType],
+) (*Bot[RequestType], error) {
 	settings.DefaultsForEmptyValues()
 
-	bot := &Bot[RequestType, HandlerFunc, MiddlewareFunc]{
+	bot := &Bot[RequestType]{
 		settings: settings,
 
 		requestBuilder: requestBuilder,
@@ -29,8 +29,8 @@ func NewBot[RequestType request.Interface, HandlerFunc func(RequestType) error, 
 		onError:        settings.OnError,
 
 		updates:          make(chan telegram.Update, settings.Updates),
-		handlers:         make(map[string]HandlerFunc),
-		originalHandlers: make(map[string]HandlerFunc),
+		handlers:         make(map[string]func(RequestType) error),
+		originalHandlers: make(map[string]func(RequestType) error),
 		stop:             make(chan chan struct{}),
 
 		client:   settings.Client,
@@ -55,7 +55,7 @@ func NewBot[RequestType request.Interface, HandlerFunc func(RequestType) error, 
 }
 
 // Bot represents a separate Telegram bot instance.
-type Bot[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
+type Bot[RequestType request.Interface] struct {
 	// Token is the bot's token, used to authenticate with the Telegram API
 	token string
 
@@ -69,18 +69,18 @@ type Bot[RequestType request.Interface, HandlerFunc func(RequestType) error, Mid
 	poller Poller
 
 	// onError is the callback function for errors
-	onError func(error, RequestType, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc])
+	onError func(error, RequestType)
 
-	settings Settings[RequestType, HandlerFunc, MiddlewareFunc]
+	settings Settings[RequestType]
 
 	// requestBuilder is the function to build request contexts that are passed to handlers
 	requestBuilder func(request.Interface) (RequestType, error)
 
 	// group is the root group of handlers tree
-	group *Group[RequestType, HandlerFunc, MiddlewareFunc]
+	group *Group[RequestType]
 	// ???
-	handlers         map[string]HandlerFunc
-	originalHandlers map[string]HandlerFunc
+	handlers         map[string]func(RequestType) error
+	originalHandlers map[string]func(RequestType) error
 
 	handlersWg sync.WaitGroup
 
@@ -96,12 +96,12 @@ type Bot[RequestType request.Interface, HandlerFunc func(RequestType) error, Mid
 }
 
 // Group returns a new group.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Group() *Group[RequestType, HandlerFunc, MiddlewareFunc] {
-	return &Group[RequestType, HandlerFunc, MiddlewareFunc]{b: b}
+func (b *Bot[RequestType]) Group() *Group[RequestType] {
+	return &Group[RequestType]{b: b}
 }
 
 // Use adds middleware to the global bot chain.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Use(middleware ...MiddlewareFunc) {
+func (b *Bot[RequestType]) Use(middleware ...func(func(RequestType) error) func(RequestType) error) {
 	b.group.Use(middleware...)
 }
 
@@ -127,14 +127,14 @@ var (
 // Middleware usage:
 //
 //	b.Handle("/ban", onBan, middleware.Whitelist(ids...))
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Handle(endpoint interface{}, h HandlerFunc, m ...MiddlewareFunc) {
+func (b *Bot[RequestType]) Handle(endpoint interface{}, h func(RequestType) error, m ...func(func(RequestType) error) func(RequestType) error) {
 	end := extractEndpoint[RequestType](endpoint)
 	if end == "" {
 		panic("telebot: unsupported endpoint")
 	}
 
 	if len(b.group.middleware) > 0 {
-		m = appendMiddleware[RequestType, HandlerFunc](b.group.middleware, m)
+		m = appendMiddleware[RequestType](b.group.middleware, m)
 	}
 
 	if _, ok := b.handlers[end]; ok {
@@ -148,7 +148,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Handle(endpoint interfac
 }
 
 // Trigger executes the registered handler by the endpoint.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Trigger(endpoint interface{}, c RequestType) error {
+func (b *Bot[RequestType]) Trigger(endpoint interface{}, c RequestType) error {
 	end := extractEndpoint[RequestType](endpoint)
 	if end == "" {
 		return fmt.Errorf("telebot: unsupported endpoint: %v", endpoint)
@@ -164,7 +164,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Trigger(endpoint interfa
 
 // Start brings bot into motion by consuming incoming
 // updates (see Bot.updates channel).
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Start() {
+func (b *Bot[RequestType]) Start() {
 	if b.poller == nil {
 		panic("telebot: can't start without a poller")
 	}
@@ -193,7 +193,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Start() {
 		case upd := <-b.updates:
 			ctx, err := b.NewContext(upd)
 			if err != nil {
-				b.onError(err, ctx, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc]{})
+				b.onError(err, ctx)
 				continue
 			}
 			b.ProcessUpdate(ctx, upd)
@@ -208,7 +208,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Start() {
 }
 
 // Stop gracefully shuts the poller down and waits for all handlers to complete.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Stop() {
+func (b *Bot[RequestType]) Stop() {
 	b.stopMu.Lock()
 	ch := b.stopClient
 	b.stopClient = nil
@@ -228,7 +228,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Stop() {
 
 // NewContext returns a new native context object,
 // field by the passed update.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) NewContext(u telegram.Update) (RequestType, error) {
+func (b *Bot[RequestType]) NewContext(u telegram.Update) (RequestType, error) {
 	return b.requestBuilder(request.NewNativeFromUpdate(b, u))
 }
 
@@ -237,7 +237,7 @@ type CallbackEndpoint interface {
 	CallbackUnique() string
 }
 
-func extractEndpoint[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc](endpoint interface{}) string {
+func extractEndpoint[RequestType request.Interface](endpoint interface{}) string {
 	switch end := endpoint.(type) {
 	case string:
 		return end

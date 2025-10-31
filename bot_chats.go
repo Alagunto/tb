@@ -13,12 +13,12 @@ import (
 //
 // Including current name of the user for one-on-one conversations,
 // current username of a user, group or channel, etc.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatByID(id int64) (*telegram.Chat, error) {
+func (b *Bot[RequestType]) ChatByID(id int64) (*telegram.Chat, error) {
 	return b.ChatByUsername(strconv.FormatInt(id, 10))
 }
 
 // ChatByUsername fetches chat info by its username.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatByUsername(name string) (*telegram.Chat, error) {
+func (b *Bot[RequestType]) ChatByUsername(name string) (*telegram.Chat, error) {
 	req := methods.GetChatRequest{
 		ChatID: name,
 	}
@@ -32,7 +32,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatByUsername(name stri
 }
 
 // ProfilePhotosOf returns list of profile pictures for a user.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ProfilePhotosOf(user *telegram.User) ([]telegram.Photo, error) {
+func (b *Bot[RequestType]) ProfilePhotosOf(user *telegram.User) ([]telegram.Photo, error) {
 	req := methods.GetUserProfilePhotosRequest{
 		UserID: user.Recipient(),
 	}
@@ -46,7 +46,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ProfilePhotosOf(user *te
 }
 
 // ChatMemberOf returns information about a member of a chat.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatMemberOf(chat, user bot.Recipient) (*telegram.ChatMember, error) {
+func (b *Bot[RequestType]) ChatMemberOf(chat, user bot.Recipient) (*telegram.ChatMember, error) {
 	req := methods.GetChatMemberRequest{
 		ChatID: chat.Recipient(),
 		UserID: user.Recipient(),
@@ -61,12 +61,12 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ChatMemberOf(chat, user 
 }
 
 // GetMe returns the bot's information.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) GetMe() (*telegram.User, error) {
+func (b *Bot[RequestType]) GetMe() (*telegram.User, error) {
 	return b.getMe()
 }
 
 // StarTransactions returns the bot's star transactions.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StarTransactions(offset, limit int) ([]telegram.StarTransaction, error) {
+func (b *Bot[RequestType]) StarTransactions(offset, limit int) ([]telegram.StarTransaction, error) {
 	req := methods.GetStarTransactionsRequest{
 		Offset: offset,
 		Limit:  limit,

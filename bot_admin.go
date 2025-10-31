@@ -13,7 +13,7 @@ import (
 //
 // It supports Silent option.
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Pin(msg bot.Editable) error {
+func (b *Bot[RequestType]) Pin(msg bot.Editable) error {
 	msgID, chatID := msg.MessageSig()
 
 	req := methods.PinChatMessageRequest{
@@ -28,7 +28,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Pin(msg bot.Editable) er
 
 // Unpin unpins a message in a supergroup or a channel.
 // It supports tb.Silent option.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Unpin(chat bot.Recipient, messageID ...int) error {
+func (b *Bot[RequestType]) Unpin(chat bot.Recipient, messageID ...int) error {
 	req := methods.UnpinChatMessageRequest{
 		ChatID: chat.Recipient(),
 	}
@@ -44,7 +44,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Unpin(chat bot.Recipient
 
 // UnpinAll unpins all messages in a supergroup or a channel.
 // It supports tb.Silent option.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnpinAll(chat bot.Recipient) error {
+func (b *Bot[RequestType]) UnpinAll(chat bot.Recipient) error {
 	req := methods.UnpinAllChatMessagesRequest{
 		ChatID: chat.Recipient(),
 	}
@@ -63,7 +63,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) UnpinAll(chat bot.Recipi
 //
 // Currently, Telegram supports only a narrow range of possible
 // actions, these are aligned as constants of this package.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Notify(to bot.Recipient, action telegram.ChatAction, opts ...communications.SendOptions) error {
+func (b *Bot[RequestType]) Notify(to bot.Recipient, action telegram.ChatAction, opts ...communications.SendOptions) error {
 	sendOpts := communications.MergeMultipleSendOptions(opts...)
 
 	req := methods.SendChatActionRequest{
@@ -84,7 +84,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Notify(to bot.Recipient,
 }
 
 // Leave makes bot leave a group, supergroup or channel.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Leave(chat bot.Recipient) error {
+func (b *Bot[RequestType]) Leave(chat bot.Recipient) error {
 	req := methods.LeaveChatRequest{
 		ChatID: chat.Recipient(),
 	}
@@ -96,7 +96,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Leave(chat bot.Recipient
 
 // MenuButton returns the current value of the bot's menu button in a private chat,
 // or the default menu button.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MenuButton(chat *telegram.User) (*MenuButton, error) {
+func (b *Bot[RequestType]) MenuButton(chat *telegram.User) (*MenuButton, error) {
 	req := methods.GetChatMenuButtonRequest{
 		ChatID: chat.Recipient(),
 	}
@@ -116,7 +116,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MenuButton(chat *telegra
 //
 //   - MenuButtonType for simple menu buttons (default, commands)
 //   - MenuButton complete structure for web_app menu button type
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMenuButton(chat *telegram.User, mb interface{}) error {
+func (b *Bot[RequestType]) SetMenuButton(chat *telegram.User, mb interface{}) error {
 	req := methods.SetChatMenuButtonRequest{}
 
 	// chat_id is optional
@@ -137,7 +137,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMenuButton(chat *tele
 }
 
 // Logout logs out from the cloud Bot API server before launching the bot locally.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Logout() (bool, error) {
+func (b *Bot[RequestType]) Logout() (bool, error) {
 	r := NewApiRequester[methods.LogOutRequest, methods.LogOutResponse](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "logOut", methods.LogOutRequest{})
 	if err != nil {
@@ -147,7 +147,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Logout() (bool, error) {
 }
 
 // Close closes the bot instance before moving it from one local server to another.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Close() (bool, error) {
+func (b *Bot[RequestType]) Close() (bool, error) {
 	r := NewApiRequester[methods.CloseRequest, methods.CloseResponse](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "close", methods.CloseRequest{})
 	if err != nil {
@@ -157,7 +157,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Close() (bool, error) {
 }
 
 // SetMyName change's the bot name.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMyName(name, language string) error {
+func (b *Bot[RequestType]) SetMyName(name, language string) error {
 	req := methods.SetMyNameRequest{
 		Name:         name,
 		LanguageCode: language,
@@ -169,7 +169,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMyName(name, language
 }
 
 // MyName returns the current bot name for the given user language.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MyName(language string) (*BotInfo, error) {
+func (b *Bot[RequestType]) MyName(language string) (*BotInfo, error) {
 	req := methods.GetMyNameRequest{
 		LanguageCode: language,
 	}
@@ -189,7 +189,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MyName(language string) 
 
 // SetMyDescription change's the bot description, which is shown in the chat
 // with the bot if the chat is empty.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMyDescription(desc, language string) error {
+func (b *Bot[RequestType]) SetMyDescription(desc, language string) error {
 	req := methods.SetMyDescriptionRequest{
 		Description:  desc,
 		LanguageCode: language,
@@ -201,7 +201,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMyDescription(desc, l
 }
 
 // MyDescription the current bot description for the given user language.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MyDescription(language string) (*BotInfo, error) {
+func (b *Bot[RequestType]) MyDescription(language string) (*BotInfo, error) {
 	req := methods.GetMyDescriptionRequest{
 		LanguageCode: language,
 	}
@@ -221,7 +221,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MyDescription(language s
 
 // SetMyShortDescription change's the bot short description, which is shown on
 // the bot's profile page and is sent together with the link when users share the bot.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMyShortDescription(desc, language string) error {
+func (b *Bot[RequestType]) SetMyShortDescription(desc, language string) error {
 	req := methods.SetMyShortDescriptionRequest{
 		ShortDescription: desc,
 		LanguageCode:     language,
@@ -233,7 +233,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SetMyShortDescription(de
 }
 
 // MyShortDescription the current bot short description for the given user language.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) MyShortDescription(language string) (*BotInfo, error) {
+func (b *Bot[RequestType]) MyShortDescription(language string) (*BotInfo, error) {
 	req := methods.GetMyShortDescriptionRequest{
 		LanguageCode: language,
 	}

@@ -2,10 +2,8 @@ package tb
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/alagunto/tb/bot"
 	"github.com/alagunto/tb/communications"
@@ -32,7 +30,7 @@ import (
 //   - *ReplyMarkup (a component of SendOptions)
 //   - Option (a shortcut flag for popular options)
 //   - ParseMode (HTML, Markdown, etc)
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendTo(to bot.Recipient, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) SendTo(to bot.Recipient, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
@@ -58,7 +56,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendTo(to bot.Recipient,
 
 // sendContent handles sending content that implements the outgoing.Content interface.
 // This is the new file upload system that makes upload timing explicit.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendContent(to bot.Recipient, content outgoing.Content, opts *communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) sendContent(to bot.Recipient, content outgoing.Content, opts *communications.SendOptions) (*telegram.Message, error) {
 	method := content.ToTelegramSendMethod()
 
 	// Start with base params from method.Params (already map[string]any)
@@ -89,7 +87,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendContent(to bot.Recip
 }
 
 // sendPrepared sends a prepared sendable to Telegram
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendPrepared(to bot.Recipient, prepared *sendables.Prepared, opts *communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) sendPrepared(to bot.Recipient, prepared *sendables.Prepared, opts *communications.SendOptions) (*telegram.Message, error) {
 	// Build params
 	paramsMap := make(map[string]any)
 	paramsMap["chat_id"] = to.Recipient()
@@ -105,103 +103,37 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) sendPrepared(to bot.Reci
 	return b.sendFiles(prepared.SendMethod.String(), prepared.Files, paramsMap)
 }
 
-// SendPaidTo sends multiple instances of paid media as a single message.
-// To include the caption, make sure the first PaidInputtable of an album has it.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendPaidTo(to bot.Recipient, stars int, a PaidAlbum, opts ...communications.SendOptions) (*telegram.Message, error) {
-	if to == nil {
-		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
-	}
-
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
-
-	media := make([]string, len(a))
-	filesToSend := make(map[string]files.FileSource)
-
-	for i, x := range a {
-		im := x.InputMedia()
-
-		// Handle media file
-		mediaFile := x.MediaFile()
-		if mediaFile != nil {
-			// Create a file source from the media file
-			// For now, assume media is a string (file_id or URL)
-			im.Media = fmt.Sprintf("attach://file%d", i)
-			if source, ok := mediaFile.(files.FileSource); ok {
-				filesToSend[fmt.Sprintf("file%d", i)] = source
-			}
-		}
-
-		data, _ := json.Marshal(im)
-		media[i] = string(data)
-	}
-
-	p := params.New().
-		Add("chat_id", to.Recipient()).
-		AddInt("star_count", stars).
-		Add("media", "["+strings.Join(media, ",")+"]").
-		Build()
-
-	if len(a) > 0 {
-		im := a[0].InputMedia()
-		if im.Caption != "" {
-			p["caption"] = im.Caption
-		}
-		if im.CaptionAbove {
-			p["show_caption_above_media"] = true
-		}
-	}
-
-	paramsMap := sendOpts.Inject(p)
-
-	return b.sendFiles("sendPaidMedia", filesToSend, paramsMap)
-}
-
 // SendAlbumTo sends multiple instances of media as a single message.
 // To include the caption, make sure the first Inputtable of an album has it.
 // From all existing options, it only supports tele.Silent.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendAlbumTo(to bot.Recipient, a Album, opts ...communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a telegram.InputAlbum, opts ...communications.SendOptions) ([]telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
 
 	sendOpts := communications.MergeMultipleSendOptions(opts...)
-	media := make([]string, len(a))
-	filesToSend := make(map[string]files.FileSource)
-
-	for i, x := range a {
-		im := x.InputMedia()
-
-		// Handle media file
-		mediaFile := x.MediaFile()
-		if mediaFile != nil {
-			// Create a file source from the media file
-			fileKey := fmt.Sprintf("file%d", i)
-			im.Media = fmt.Sprintf("attach://%s", fileKey)
-			if source, ok := mediaFile.(files.FileSource); ok {
-				filesToSend[fileKey] = source
-			}
-		}
-
-		if len(sendOpts.Entities) > 0 {
-			im.Entities = sendOpts.Entities
-		} else {
-			im.ParseMode = sendOpts.ParseMode
-		}
-
-		data, _ := json.Marshal(im)
-		media[i] = string(data)
-	}
 
 	p := params.New().
 		Add("chat_id", to.Recipient()).
-		Add("media", "["+strings.Join(media, ",")+"]").
 		Build()
 
 	paramsMap := sendOpts.Inject(p)
+
+	filesToSend := make(map[string]files.FileSource)
+	for _, x := range a.Media {
+		for name, source := range x.ToTelegramSendMethod().Files {
+			filesToSend[name] = source
+		}
+	}
 
 	// Use ApiRequester for sendMediaGroup which returns []Message
 
 	r := NewApiRequester[map[string]any, []telegram.Message](b.token, b.apiURL, b.client)
+	for _, x := range a.Media {
+		for name, source := range x.ToTelegramSendMethod().Files {
+			r = r.WithFileToUpload(name, source)
+		}
+	}
 	for name, source := range filesToSend {
 		r = r.WithFileToUpload(name, source)
 	}
@@ -216,14 +148,14 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) SendAlbumTo(to bot.Recip
 
 // ReplyTo behaves just like Send() with an exception of "reply-to" indicator.
 // This function will panic upon nil Message.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ReplyTo(to *telegram.Message, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) ReplyTo(to *telegram.Message, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
 	sendOpts := communications.MergeMultipleSendOptions(opts...).WithReplyParams(&telegram.ReplyParams{MessageID: to.ID})
 	return b.SendTo(to.Chat, what, sendOpts)
 }
 
 // ForwardTo behaves just like SendTo() but of all options it only supports Silent (see Bots API).
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ForwardTo(to bot.Recipient, msg bot.Editable, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) ForwardTo(to bot.Recipient, msg bot.Editable, opts ...communications.SendOptions) (*telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
@@ -260,7 +192,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ForwardTo(to bot.Recipie
 // If some of the specified messages can't be found or forwarded, they are skipped.
 // Service messages and messages with protected content can't be forwarded.
 // Album grouping is kept for forwarded messages.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ForwardManyTo(to bot.Recipient, msgs []bot.Editable, opts ...communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType]) ForwardManyTo(to bot.Recipient, msgs []bot.Editable, opts ...communications.SendOptions) ([]telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
@@ -314,7 +246,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) ForwardManyTo(to bot.Rec
 // CopyTo behaves just like ForwardTo() but the copied message doesn't have a link to the original message (see Bots API).
 //
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) CopyTo(to bot.Recipient, msg bot.Editable, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) CopyTo(to bot.Recipient, msg bot.Editable, opts ...communications.SendOptions) (*telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
@@ -360,7 +292,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) CopyTo(to bot.Recipient,
 // correct_option_id is known to the bot. The method is analogous
 // to the method forwardMessages, but the copied messages don't have a link to the original message.
 // Album grouping is kept for copied messages.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) CopyManyTo(to bot.Recipient, msgs []bot.Editable, opts ...communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType]) CopyManyTo(to bot.Recipient, msgs []bot.Editable, opts ...communications.SendOptions) ([]telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
@@ -426,14 +358,14 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) CopyManyTo(to bot.Recipi
 //	b.Edit(m, tele.Location{42.1337, 69.4242})
 //	b.Edit(c, "edit inline message from the callback")
 //	b.Edit(r, "edit message from chosen inline result")
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Edit(msg bot.Editable, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) Edit(msg bot.Editable, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
 	sendOpts := communications.MergeMultipleSendOptions(opts...)
 	msgID, chatID := msg.MessageSig()
 
 	switch v := what.(type) {
 	case *telegram.ReplyMarkup:
 		return b.EditReplyMarkup(msg, v)
-	case Inputtable:
+	case outgoing.Content:
 		return b.EditMedia(msg, v, opts...)
 	case string:
 		req := methods.EditMessageTextRequest{
@@ -523,7 +455,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Edit(msg bot.Editable, w
 //
 // If edited message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditReplyMarkup(msg bot.Editable, markup *telegram.ReplyMarkup) (*telegram.Message, error) {
+func (b *Bot[RequestType]) EditReplyMarkup(msg bot.Editable, markup *telegram.ReplyMarkup) (*telegram.Message, error) {
 	msgID, chatID := msg.MessageSig()
 
 	req := methods.EditMessageReplyMarkupRequest{}
@@ -562,7 +494,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditReplyMarkup(msg bot.
 //
 // If edited message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditCaption(msg bot.Editable, caption string, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) EditCaption(msg bot.Editable, caption string, opts ...communications.SendOptions) (*telegram.Message, error) {
 	msgID, chatID := msg.MessageSig()
 
 	sendOpts := communications.MergeMultipleSendOptions(opts...)
@@ -601,41 +533,18 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditCaption(msg bot.Edit
 //
 //	b.EditMedia(m, &tele.Photo{File: tele.FromDisk("chicken.jpg")})
 //	b.EditMedia(m, &tele.Video{File: tele.FromURL("http://video.mp4")})
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditMedia(msg bot.Editable, media Inputtable, opts ...communications.SendOptions) (*telegram.Message, error) {
-	filesToSend := make(map[string]files.FileSource)
-
+func (b *Bot[RequestType]) EditMedia(msg bot.Editable, media outgoing.Content, opts ...communications.SendOptions) (*telegram.Message, error) {
 	// Handle media file
-	mediaFile := media.MediaFile()
-	var repr string
+	mediaFile := media.ToTelegramSendMethod().Files["media"]
 
-	if mediaFile != nil {
-		if source, ok := mediaFile.(files.FileSource); ok {
-			repr = "attach://media"
-			filesToSend["media"] = source
-		} else {
-			repr = fmt.Sprintf("%v", mediaFile)
-		}
-	} else {
-		return nil, fmt.Errorf("telebot: cannot edit media, it does not exist")
-	}
+	repr := "attach://media"
 
 	msgID, chatID := msg.MessageSig()
 
 	sendOpts := communications.MergeMultipleSendOptions(opts...)
 
-	im := media.InputMedia()
-	im.Media = repr
-
-	if len(sendOpts.Entities) > 0 {
-		im.Entities = sendOpts.Entities
-	} else {
-		im.ParseMode = sendOpts.ParseMode
-	}
-
-	mediaJSON, _ := json.Marshal(im)
-
 	req := methods.EditMessageMediaRequest{
-		Media: string(mediaJSON),
+		Media: repr,
 	}
 
 	if chatID == 0 { // if inline message
@@ -649,11 +558,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditMedia(msg bot.Editab
 
 	// Create the requester
 	r := NewApiRequester[methods.EditMessageMediaRequest, methods.EditMessageMediaResponse](b.token, b.apiURL, b.client)
-
-	// Add files to upload
-	for name, source := range filesToSend {
-		r = r.WithFileToUpload(name, source)
-	}
+	r = r.WithFileToUpload("media", mediaFile)
 
 	result, err := r.Request(context.Background(), "editMessageMedia", req)
 	if err != nil {
@@ -674,7 +579,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) EditMedia(msg bot.Editab
 //   - If the bot is an administrator of a group, it can delete any message there.
 //   - If the bot has can_delete_messages permission in a supergroup or a
 //     channel, it can delete any message there.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Delete(msg bot.Editable) error {
+func (b *Bot[RequestType]) Delete(msg bot.Editable) error {
 	msgID, chatID := msg.MessageSig()
 
 	req := methods.DeleteMessageRequest{
@@ -689,7 +594,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Delete(msg bot.Editable)
 
 // DeleteMany deletes multiple messages simultaneously.
 // If some of the specified messages can't be found, they are skipped.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) DeleteMany(msgs []bot.Editable) error {
+func (b *Bot[RequestType]) DeleteMany(msgs []bot.Editable) error {
 	if len(msgs) == 0 {
 		return nil
 	}
@@ -728,7 +633,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) DeleteMany(msgs []bot.Ed
 //
 // If the message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg bot.Editable, opts ...communications.SendOptions) (*Message, error) {
+func (b *Bot[RequestType]) StopLiveLocation(msg bot.Editable, opts ...communications.SendOptions) (*Message, error) {
 	msgID, chatID := msg.MessageSig()
 
 	sendOpts := communications.MergeMultipleSendOptions(opts...)
@@ -758,7 +663,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopLiveLocation(msg bot
 //
 // It supports ReplyMarkup.
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) StopPoll(msg bot.Editable, opts ...communications.SendOptions) (*Poll, error) {
+func (b *Bot[RequestType]) StopPoll(msg bot.Editable, opts ...communications.SendOptions) (*Poll, error) {
 	msgID, chatID := msg.MessageSig()
 
 	sendOpts := communications.MergeMultipleSendOptions(opts...)
