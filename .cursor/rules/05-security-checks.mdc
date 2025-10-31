@@ -1,0 +1,439 @@
+---
+description: Security Validation - Comprehensive security review for all code changes
+alwaysApply: true
+---
+
+# Security Validation Workflow
+
+Security MUST be validated for ALL code changes. This rule enforces comprehensive security analysis using specialized prompts and security-focused review agents. Given that 45% of AI-generated code contains security vulnerabilities, this validation is critical.
+
+## When to Trigger Security Review
+
+Security review is MANDATORY when:
+
+1. **Authentication/Authorization**: Any changes to login, access control, permissions
+2. **Data Handling**: User input processing, data storage, data transmission
+3. **Cryptography**: Encryption, hashing, key management, token generation
+4. **External Communication**: API calls, webhooks, third-party integrations
+5. **Database Operations**: SQL queries, ORM usage, data migrations
+6. **File Operations**: File uploads, file serving, path operations
+7. **Configuration**: Environment variables, secrets management, security settings
+8. **High-Risk Changes**: Any code flagged by review agent as security-sensitive
+
+## Security Review Agent Invocation
+
+After code changes, execute comprehensive security analysis:
+
+```bash
+cursor-agent -p "Perform a comprehensive security analysis of the recent changes.
+
+Analyze for the following vulnerability categories:
+
+## 1. Injection Vulnerabilities
+
+### SQL Injection
+- Unparameterized SQL queries
+- String concatenation in queries
+- ORM usage without proper escaping
+- Dynamic query construction
+
+### Command Injection
+- Shell command execution with user input
+- Unsafe use of exec/system calls
+- Unvalidated arguments to external programs
+
+### NoSQL Injection
+- Unvalidated MongoDB/Redis queries
+- JSON injection in NoSQL queries
+
+### LDAP/XPath Injection
+- Unvalidated LDAP filters
+- Unsafe XPath expressions
+
+## 2. Authentication & Authorization
+
+### Broken Authentication
+- Weak password requirements
+- Missing rate limiting on login
+- Predictable session tokens
+- Missing session expiration
+- Insecure password storage (plain text, weak hashing)
+
+### Broken Access Control
+- Missing authorization checks
+- Insecure direct object references (IDOR)
+- Privilege escalation possibilities
+- Missing resource-level permissions
+- Horizontal/vertical access control bypass
+
+### Session Management
+- Session fixation vulnerabilities
+- Missing session invalidation on logout
+- Session tokens in URLs
+- Missing secure/httponly flags on cookies
+
+## 3. Sensitive Data Exposure
+
+### Hardcoded Secrets
+- API keys in code
+- Database credentials in config files
+- Private keys committed to repository
+- OAuth secrets in source code
+- JWT signing keys hardcoded
+
+### Insecure Data Storage
+- Sensitive data in logs
+- Unencrypted data at rest
+- Sensitive data in error messages
+- PII without encryption
+
+### Insecure Transmission
+- HTTP instead of HTTPS
+- Missing TLS/SSL
+- Weak TLS versions (TLS 1.0, 1.1)
+- Missing certificate validation
+
+## 4. Cross-Site Scripting (XSS)
+
+### Reflected XSS
+- Unescaped user input in responses
+- Unsafe template rendering
+
+### Stored XSS
+- Unescaped user input stored in database
+- Unsafe rendering of stored data
+
+### DOM-Based XSS
+- Unsafe JavaScript DOM manipulation
+- innerHTML with user content
+
+## 5. Cross-Site Request Forgery (CSRF)
+
+- Missing CSRF tokens
+- State-changing GET requests
+- Missing SameSite cookie attributes
+- Unsafe CORS configuration
+
+## 6. Cryptographic Issues
+
+### Weak Cryptography
+- Use of MD5 or SHA1 for passwords
+- Use of ECB mode
+- Weak key sizes (RSA < 2048, AES < 128)
+- Insecure random number generation
+
+### Poor Key Management
+- Keys in code or config
+- Missing key rotation
+- Weak key derivation
+
+## 7. Input Validation
+
+### Missing Validation
+- No input length checks
+- No type validation
+- No format validation
+- Missing allowlist validation
+
+### Path Traversal
+- File path operations with user input
+- Missing path sanitization
+- Directory traversal (../ sequences)
+
+### File Upload Issues
+- No file type validation
+- No file size limits
+- Executable uploads allowed
+- No virus scanning
+
+## 8. Dependency Vulnerabilities
+
+- Known vulnerable dependencies
+- Outdated packages with CVEs
+- Malicious packages
+- Typosquatting risks
+
+## 9. API Security
+
+### Rate Limiting
+- Missing rate limits on expensive operations
+- No brute force protection
+- No DDoS mitigation
+
+### API Authentication
+- Missing API authentication
+- Weak API keys
+- No API key rotation
+
+### Data Validation
+- Missing input validation
+- No output encoding
+- Mass assignment vulnerabilities
+
+## 10. Business Logic Flaws
+
+- Race conditions
+- Insufficient anti-automation
+- Inadequate logging/monitoring
+- Missing security headers
+
+For EACH vulnerability found, provide:
+
+- **Severity**: CRITICAL | HIGH | MEDIUM | LOW
+- **CVE/CWE Reference**: If applicable (e.g., CWE-89 for SQL Injection)
+- **Location**: Exact file and line number
+- **Vulnerability Type**: Category from above
+- **Proof of Concept**: How it could be exploited
+- **Impact**: What an attacker could achieve
+- **Remediation**: Specific code fix with examples
+- **OWASP Reference**: Link to OWASP guidelines if applicable
+
+Prioritize findings by severity and exploitability." --model ${CURSOR_SECURITY_MODEL:-sonnet-4.5} --print
+```
+
+## Processing Security Review Results
+
+After receiving security analysis:
+
+1. **Parse Findings**: Extract all vulnerabilities with metadata
+2. **Triage by Severity**:
+   - CRITICAL: Immediate data loss, RCE, authentication bypass
+   - HIGH: Significant security impact, privilege escalation
+   - MEDIUM: Requires additional factors to exploit
+   - LOW: Minimal security impact
+
+3. **Auto-Fix Critical and High**:
+   ```
+   For CRITICAL and HIGH vulnerabilities:
+   - ALWAYS fix immediately without asking
+   - Apply security best practices
+   - Use defense-in-depth approach
+   - Verify fix doesn't break functionality
+   ```
+
+4. **Present Results**:
+   ```markdown
+   # 🔒 Security Analysis Results
+   
+   ## 🚨 Critical Vulnerabilities (Auto-fixing immediately)
+   
+   ### 1. Hardcoded Database Credential
+   - **File**: `config/db.go:15`
+   - **CWE**: CWE-798 (Use of Hard-coded Credentials)
+   - **Impact**: Full database access if code is leaked
+   - **Fix**: Moving to environment variable with validation
+   
+   ## ⚠️ High Severity Issues (Auto-fixing immediately)
+   
+   ### 2. SQL Injection Vulnerability
+   - **File**: `handlers/user.go:45`
+   - **CWE**: CWE-89 (SQL Injection)
+   - **Proof of Concept**: `userID = "1 OR 1=1"`
+   - **Impact**: Unauthorized data access, data deletion
+   - **Fix**: Converting to parameterized query
+   
+   ## Medium/Low Issues (Requesting approval)
+   [...]
+   ```
+
+## Security Fix Patterns
+
+### Pattern 1: Hardcoded Secrets
+
+**Before**:
+```go
+apiKey := "sk_live_123456789abcdef"
+```
+
+**After**:
+```go
+apiKey := os.Getenv("API_KEY")
+if apiKey == "" {
+    return errors.New("API_KEY environment variable not set")
+}
+```
+
+### Pattern 2: SQL Injection
+
+**Before**:
+```go
+query := "SELECT * FROM users WHERE id = " + userID
+```
+
+**After**:
+```go
+query := "SELECT * FROM users WHERE id = $1"
+rows, err := db.Query(query, userID)
+```
+
+### Pattern 3: Missing Input Validation
+
+**Before**:
+```go
+func CreateUser(username string) error {
+    // Direct use without validation
+    return db.Insert(username)
+}
+```
+
+**After**:
+```go
+func CreateUser(username string) error {
+    // Validate length
+    if len(username) < 3 || len(username) > 50 {
+        return errors.New("username must be 3-50 characters")
+    }
+    
+    // Validate characters (alphanumeric + underscore only)
+    matched, _ := regexp.MatchString("^[a-zA-Z0-9_]+$", username)
+    if !matched {
+        return errors.New("username contains invalid characters")
+    }
+    
+    return db.Insert(username)
+}
+```
+
+### Pattern 4: Weak Password Hashing
+
+**Before**:
+```go
+hashedPassword := md5.Sum([]byte(password))
+```
+
+**After**:
+```go
+import "golang.org/x/crypto/bcrypt"
+
+hashedPassword, err := bcrypt.GenerateFromPassword(
+    []byte(password), 
+    bcrypt.DefaultCost,
+)
+```
+
+### Pattern 5: Path Traversal
+
+**Before**:
+```go
+filePath := filepath.Join(baseDir, userInput)
+content, _ := ioutil.ReadFile(filePath)
+```
+
+**After**:
+```go
+// Clean and validate path
+cleanPath := filepath.Clean(userInput)
+if strings.Contains(cleanPath, "..") {
+    return errors.New("invalid path")
+}
+
+filePath := filepath.Join(baseDir, cleanPath)
+
+// Verify path is within base directory
+if !strings.HasPrefix(filePath, baseDir) {
+    return errors.New("path outside allowed directory")
+}
+
+content, err := ioutil.ReadFile(filePath)
+```
+
+### Pattern 6: Missing Authorization
+
+**Before**:
+```go
+func GetUserData(userID string) (*User, error) {
+    return db.GetUser(userID)
+}
+```
+
+**After**:
+```go
+func GetUserData(requestingUserID, targetUserID string) (*User, error) {
+    // Check authorization
+    if requestingUserID != targetUserID {
+        // Check if requesting user is admin
+        isAdmin, err := checkAdminPrivileges(requestingUserID)
+        if err != nil || !isAdmin {
+            return nil, errors.New("unauthorized access")
+        }
+    }
+    
+    return db.GetUser(targetUserID)
+}
+```
+
+## Security-Specific Research
+
+If uncertain about security best practices, invoke Perplexity research:
+
+```bash
+cursor-agent -p "Research current security best practices for [specific topic].
+
+Questions:
+- What is the current recommended approach for [security issue]?
+- Are there known vulnerabilities in [library/approach]?
+- What do OWASP guidelines recommend?
+- What are common pitfalls to avoid?
+- What are defense-in-depth strategies?
+
+Provide specific code examples and references to security standards." --model perplexity --print
+```
+
+## Verification After Security Fixes
+
+After applying security fixes, verify:
+
+1. **Functionality**: Does the code still work correctly?
+2. **Security**: Is the vulnerability actually fixed?
+3. **Coverage**: Are there similar issues elsewhere in the codebase?
+4. **Testing**: Add security tests to prevent regression
+
+Example security test:
+```go
+func TestSQLInjectionPrevention(t *testing.T) {
+    // Attempt SQL injection
+    maliciousInput := "1 OR 1=1"
+    user, err := GetUser(maliciousInput)
+    
+    // Should fail safely, not return all users
+    assert.Error(t, err)
+    assert.Nil(t, user)
+}
+```
+
+## Integration with Other Rules
+
+- **Triggered by**: 02-review-workflow.mdc (as part of comprehensive review)
+- **Can be triggered standalone**: For security-sensitive changes
+- **Fixes applied by**: 03-self-correction.mdc
+- **May trigger**: Additional perplexity research for security guidance
+
+## Security Checklist
+
+Before marking security review complete:
+
+✅ All CRITICAL vulnerabilities fixed
+✅ All HIGH vulnerabilities fixed
+✅ Medium vulnerabilities fixed or documented
+✅ Security tests added for fixed issues
+✅ Similar issues searched for across codebase
+✅ Security best practices applied
+✅ Documentation updated with security notes
+✅ No secrets in code or version control
+
+## References
+
+- OWASP Top 10: https://owasp.org/www-project-top-ten/
+- CWE Top 25: https://cwe.mitre.org/top25/
+- SANS Top 25: https://www.sans.org/top25-software-errors/
+
+## Notes
+
+- Security is not optional - all code MUST pass security review
+- Defense-in-depth: multiple layers of security controls
+- Fail securely: errors should not expose sensitive information
+- Least privilege: grant minimum necessary permissions
+- Input validation: validate all user input at boundaries
+- Output encoding: encode all output to prevent injection
+- Security != obscurity: don't rely on hiding implementation
+- Keep dependencies updated: regularly scan for vulnerabilities

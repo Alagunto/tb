@@ -1,0 +1,422 @@
+---
+description: Error Recovery - Intelligent failure handling and recovery strategies
+alwaysApply: true
+---
+
+# Error Recovery Workflow
+
+Failures are inevitable in agentic code generation. This rule defines how to detect failures early, diagnose root causes, and implement intelligent recovery strategies rather than repeatedly attempting the same failing approach.
+
+## Failure Detection
+
+### Early Stop Conditions
+
+**Stop and Analyze** when any of these occur:
+
+1. **Repeated Errors**: Same error message 3+ times
+2. **Build Failures**: Code won't compile after 2 fix attempts
+3. **Test Failures**: Tests fail repeatedly with same error
+4. **Infinite Loops**: Detecting circular dependencies or logic loops
+5. **Diverging Solutions**: Each attempt is significantly different (no convergence)
+6. **Timeout Patterns**: Operations consistently timeout
+7. **Resource Exhaustion**: Memory/disk/connection pool errors
+
+### Failure Pattern Recognition
+
+Track attempts in temporary state:
+
+```markdown
+## Attempt Log
+
+### Attempt 1
+- **Action**: Implemented user authentication
+- **Result**: Build error - undefined reference to AuthService
+- **Error Type**: Missing dependency
+
+### Attempt 2
+- **Action**: Added AuthService import
+- **Result**: Build error - circular import
+- **Error Type**: Architecture problem
+
+### Attempt 3  
+- **Action**: Refactored to break circular import
+- **Result**: Build error - still circular via different path
+- **Error Type**: Deep architecture problem
+
+**Analysis**: Circular dependency issue requires architectural rethinking, not tactical fixes
+```
+
+## Root Cause Analysis
+
+When failure detected, invoke diagnostic agent:
+
+```bash
+cursor-agent -p "Analyze the repeated failures and identify the root cause.
+
+**Failure History**:
+[Paste attempt log from above]
+
+**Current Code State**:
+[Relevant code snippets]
+
+**Error Messages**:
+[Full error messages]
+
+Analyze:
+
+1. **Error Classification**:
+   - Is this a PLANNING error (wrong approach) or IMPLEMENTATION error (bugs in correct approach)?
+   - Is this TACTICAL (fix specific code) or STRATEGIC (rethink architecture)?
+   - Is this a KNOWLEDGE gap (need to research) or EXECUTION gap (need better implementation)?
+
+2. **Root Cause**:
+   - What is the fundamental problem?
+   - Why have previous attempts failed?
+   - What assumptions were incorrect?
+
+3. **Why This Keeps Failing**:
+   - Are we trying to fix symptoms instead of root cause?
+   - Is the approach fundamentally flawed?
+   - Are there hidden dependencies or constraints?
+   - Is the error message misleading us?
+
+4. **Recovery Strategy**:
+   - Should we RE-PLAN (different approach entirely)?
+   - Should we RESEARCH (learn proper way to do this)?
+   - Should we SIMPLIFY (reduce scope to working subset)?
+   - Should we SEEK HELP (ask user for guidance)?
+
+Be specific and actionable in recommendations." --model ${CURSOR_REVIEW_MODEL:-gpt-5-codex-high} --print
+```
+
+## Error Classification
+
+### Planning Errors
+
+**Characteristics**:
+- Each fix attempt requires significant changes
+- No convergence toward solution
+- Fundamental misunderstanding of requirements
+- Approach conflicts with existing architecture
+
+**Recovery**: Re-invoke planning agent with corrected understanding
+
+```bash
+cursor-agent -p "Based on these failures: [summary]
+
+Create a NEW implementation plan that addresses the root cause: [root cause]
+
+Avoid the flawed approach: [what didn't work]
+
+Consider alternative approaches: [list alternatives]" --model ${CURSOR_PLANNING_MODEL:-sonnet-4.5-thinking} --print
+```
+
+### Implementation Errors
+
+**Characteristics**:
+- Errors are tactical (syntax, logic, edge cases)
+- Each attempt gets closer to working
+- Approach is sound, execution is flawed
+- Errors are in specific functions/lines
+
+**Recovery**: Continue with targeted fixes, but with diagnostic insights
+
+```
+Fix specific identified issues:
+1. [Issue 1 with precise fix]
+2. [Issue 2 with precise fix]
+
+Verify each fix addresses root cause, not symptoms.
+```
+
+### Knowledge Gaps
+
+**Characteristics**:
+- Uncertainty about proper API usage
+- Unclear about framework conventions
+- Unsure about best practices
+- Guessing at configuration
+
+**Recovery**: Research before continuing
+
+```bash
+# Use Perplexity or web search
+cursor-agent -p "Research the correct way to [specific task] using [library/framework].
+
+Find:
+- Official documentation and examples
+- Best practices and common pitfalls
+- Working code examples
+- Current API (not deprecated methods)
+
+Focus on: [specific problem area]" --model perplexity --print
+```
+
+### Environmental Errors
+
+**Characteristics**:
+- Code works locally but fails in CI
+- Errors about missing dependencies
+- Permission or access errors
+- Configuration or environment variable issues
+
+**Recovery**: Diagnose environment differences
+
+```markdown
+Compare environments:
+- Local: [versions, config, env vars]
+- Target: [versions, config, env vars]
+- Differences: [list]
+
+Fix approach:
+- Align environments, or
+- Make code environment-agnostic, or
+- Document environment requirements
+```
+
+## Recovery Strategies
+
+### Strategy 1: Simplify and Verify
+
+When complex changes fail repeatedly:
+
+1. **Rollback**: Revert to last working state
+2. **Simplify**: Break into smaller pieces
+3. **Verify**: Implement minimal version that works
+4. **Expand**: Gradually add complexity, testing at each step
+
+**Example**:
+```
+Original goal: Add OAuth authentication with 3 providers
+Failures: Complex provider abstraction keeps breaking
+
+Simplified approach:
+1. First: Add authentication with just email/password (verify this works)
+2. Then: Add one OAuth provider (verify this works)
+3. Then: Extract common pattern (verify this works)
+4. Finally: Add remaining providers (verify each works)
+```
+
+### Strategy 2: Alternative Approach
+
+When fundamental approach is flawed:
+
+1. **Enumerate Alternatives**: List other ways to solve this
+2. **Evaluate**: Pros/cons of each alternative
+3. **Select**: Choose most promising alternative
+4. **Implement**: Start fresh with new approach
+
+**Example**:
+```
+Original approach: Custom connection pooling
+Failures: Race conditions, deadlocks, leaks
+
+Alternative 1: Use established library (e.g., pgx pool)
+- Pros: Battle-tested, maintained, documented
+- Cons: External dependency
+- Decision: Use this ✓
+
+Alternative 2: Simple connection-per-request
+- Pros: No pooling complexity
+- Cons: Performance issues
+- Decision: Not suitable for our scale
+
+Alternative 3: Database's built-in pooling
+- Pros: Offload complexity to database
+- Cons: Less control
+- Decision: Could work but less flexible
+```
+
+### Strategy 3: Incremental Building
+
+For complex features:
+
+1. **Build Infrastructure**: Create supporting code first
+2. **Build Core**: Implement main logic
+3. **Build Extensions**: Add advanced features
+4. **Build Hardening**: Add error handling, validation
+
+**Example**:
+```
+Feature: Real-time notifications
+
+Infrastructure Phase:
+- Set up WebSocket server (verify works)
+- Set up message queue (verify works)
+
+Core Phase:
+- Implement notification sending (verify works)
+- Implement notification receiving (verify works)
+
+Extension Phase:
+- Add notification types (verify works)
+- Add notification preferences (verify works)
+
+Hardening Phase:
+- Add reconnection logic (verify works)
+- Add message persistence (verify works)
+```
+
+### Strategy 4: Seek User Guidance
+
+When autonomous resolution isn't working:
+
+```markdown
+# Need Guidance
+
+I've attempted to [task] but encountered repeated failures.
+
+## What I've Tried
+1. [Attempt 1]: Failed because [reason]
+2. [Attempt 2]: Failed because [reason]
+3. [Attempt 3]: Failed because [reason]
+
+## Root Cause
+[Diagnosed root cause]
+
+## Dilemma
+[What's unclear or blocking progress]
+
+## Possible Paths Forward
+A. [Option A with tradeoffs]
+B. [Option B with tradeoffs]
+C. [Option C with tradeoffs]
+
+Which approach would you prefer, or is there something I'm missing about the requirements?
+```
+
+## Failure Documentation
+
+Document failures in `.cursor/improvement-log.md`:
+
+```markdown
+## Failure: [TIMESTAMP] - [Task]
+
+### What Failed
+[Description of what was attempted]
+
+### Attempts
+1. [Attempt 1 and why it failed]
+2. [Attempt 2 and why it failed]
+...
+
+### Root Cause
+[Fundamental reason for failure]
+
+### How It Was Resolved
+[What finally worked]
+
+### Lesson Learned
+[What to do differently next time]
+
+### Prevention
+[How to avoid this failure in future]
+```
+
+## Circuit Breaker Pattern
+
+Implement circuit breaker to prevent wasting resources:
+
+```
+State: CLOSED (normal operation)
+On 3 consecutive failures → OPEN (stop trying)
+
+In OPEN state:
+- Don't attempt more fixes
+- Run diagnostic analysis
+- Present situation to user
+- Wait for user input or new strategy
+
+After successful fix → HALF_OPEN
+After 3 successful attempts in HALF_OPEN → CLOSED
+```
+
+## Diagnostic Commands
+
+### Check Build Status
+```bash
+# Go
+go build ./...
+
+# Node
+npm run build
+
+# Python
+python -m compileall .
+```
+
+### Check Test Status
+```bash
+# Run specific failing test
+go test -v ./path/to/package -run TestName
+
+# Run with verbose output
+go test -v ./...
+```
+
+### Check Dependencies
+```bash
+# Go
+go mod verify
+go mod tidy
+
+# Node
+npm audit
+npm install
+
+# Python
+pip check
+```
+
+### Check Linting
+```bash
+# Go
+golangci-lint run
+
+# Node
+npm run lint
+
+# Python
+flake8 .
+```
+
+## Recovery Checklist
+
+Before declaring an error "unrecoverable":
+
+✅ Attempted at least 3 different fixes
+✅ Performed root cause analysis
+✅ Classified error type (planning vs implementation vs knowledge vs environment)
+✅ Tried simplification strategy
+✅ Considered alternative approaches
+✅ Researched proper solution if knowledge gap
+✅ Checked for environment differences
+✅ Documented failure and attempts
+✅ Presented clear options to user
+
+## Integration with Other Rules
+
+- **Triggered after**: Multiple failures in 03-self-correction.mdc
+- **May trigger**: 01-planning-workflow.mdc (for re-planning)
+- **May trigger**: Research via Perplexity (for knowledge gaps)
+- **Updates**: 09-feedback-loop.mdc (document learnings)
+
+## Success Criteria
+
+Error recovery is successful when:
+
+✅ Root cause identified accurately
+✅ Appropriate recovery strategy selected
+✅ Strategy successfully resolves the issue
+✅ Failure documented for future learning
+✅ Similar failures prevented through pattern recognition
+
+## Notes
+
+- Failing fast is better than failing slowly
+- Three failures of the same type indicate systemic issue
+- Re-planning is not failure - it's intelligent adaptation
+- Some problems require human judgment - that's okay
+- Document failures as thoroughly as successes
+- Failure patterns reveal areas for agent improvement
+- Good error recovery distinguishes expert systems from brittle ones

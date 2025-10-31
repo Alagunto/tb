@@ -1,0 +1,234 @@
+---
+description: Post-Task Review Workflow - Automatic code review after task completion
+alwaysApply: true
+---
+
+# Post-Task Review Workflow
+
+After completing ANY code modification task, you MUST automatically invoke a review agent to analyze the changes for bugs, security issues, performance problems, and quality concerns. This is NON-NEGOTIABLE.
+
+## When to Trigger Review
+
+You MUST invoke the review agent IMMEDIATELY after:
+
+1. **Completing any code modification** (even single-line changes)
+2. **Creating new files**
+3. **Modifying multiple files**
+4. **Implementing a planned feature**
+5. **Fixing a bug**
+6. **Refactoring code**
+7. **Adding dependencies or configuration changes**
+
+## Review Agent Invocation
+
+After completing any task, execute this command:
+
+```bash
+cursor-agent -p "Review the recent changes in this codebase.
+
+Perform a comprehensive analysis covering:
+
+1. **Bugs and Logic Errors**:
+   - Incorrect logic or algorithms
+   - Off-by-one errors
+   - Incorrect conditionals
+   - Type mismatches
+   - Null/undefined handling issues
+   - Resource leaks
+   - Provide specific line numbers and incorrect code snippets
+
+2. **Security Vulnerabilities**:
+   - Hardcoded secrets or credentials
+   - SQL injection vulnerabilities
+   - XSS vulnerabilities
+   - CSRF vulnerabilities
+   - Insecure cryptographic usage
+   - Missing input validation
+   - Authentication/authorization issues
+   - Insecure dependencies
+   - Path traversal vulnerabilities
+   - Provide CVE references if applicable
+
+3. **Performance Issues**:
+   - O(n²) or worse algorithms where O(n) is possible
+   - Unnecessary loops or iterations
+   - Missing database indexes
+   - N+1 query problems
+   - Memory leaks
+   - Unnecessary allocations
+   - Blocking operations in async code
+
+4. **Code Quality and Maintainability**:
+   - Code duplication
+   - Overly complex functions (high cyclomatic complexity)
+   - Poor naming conventions
+   - Missing documentation for complex logic
+   - Inconsistent style with existing codebase
+   - God objects or functions
+   - Tight coupling
+   - Low cohesion
+
+5. **Testing Gaps**:
+   - Missing unit tests for new functions
+   - Untested edge cases
+   - Missing error case tests
+   - Insufficient integration tests
+   - Missing property-based test opportunities
+
+6. **Edge Cases Not Handled**:
+   - Empty input handling
+   - Boundary conditions (max/min values)
+   - Concurrent access scenarios
+   - Network failure scenarios
+   - Invalid input handling
+   - Resource exhaustion scenarios
+
+For EACH issue found, provide:
+- **Severity**: CRITICAL | HIGH | MEDIUM | LOW | INFORMATIONAL
+- **Category**: Bug | Security | Performance | Quality | Testing | EdgeCase
+- **Location**: Exact file path and line number(s)
+- **Description**: Clear explanation of the issue
+- **Impact**: What could go wrong
+- **Recommendation**: Specific code fix or approach
+
+Format your response as structured findings that can be parsed." --model ${CURSOR_REVIEW_MODEL:-gpt-5-codex-high} --print
+```
+
+## Processing Review Results
+
+After receiving the review agent's output:
+
+1. **Parse the Response**: Extract all findings systematically
+2. **Categorize by Severity**: Group into CRITICAL, HIGH, MEDIUM, LOW, INFORMATIONAL
+3. **Present to User**: Show a summary of findings
+4. **Automatic Action**: Proceed based on severity (see Auto-Fix Rules below)
+
+## Auto-Fix Rules (Based on Severity)
+
+### CRITICAL Severity Issues
+- **Action**: ALWAYS auto-fix immediately without asking
+- **Examples**: Hardcoded credentials, SQL injection, critical security vulnerabilities
+- **Process**: Fix → Re-review → Verify fix worked
+
+### HIGH Severity Issues  
+- **Action**: ALWAYS auto-fix immediately without asking
+- **Examples**: Logic bugs, memory leaks, authentication flaws, significant performance issues
+- **Process**: Fix → Re-review → Verify fix worked
+
+### MEDIUM Severity Issues
+- **Action**: Propose fix and ask for user approval
+- **Message**: "I found [N] medium-severity issues. Should I fix them automatically? [List issues]"
+- **Wait**: for user response before fixing
+
+### LOW Severity Issues
+- **Action**: Propose fix and ask for user approval
+- **Message**: "I found [N] low-severity issues that could be improved. Should I address them? [List issues]"
+- **Wait**: for user response before fixing
+
+### INFORMATIONAL
+- **Action**: Document but don't fix
+- **Message**: "FYI: [List informational findings]"
+
+## Presenting Review Results to User
+
+Present results in this format:
+
+```markdown
+# 🔍 Code Review Results
+
+## Summary
+- ✅ **No Critical Issues** (or ❌ **[N] Critical Issues Found**)
+- ✅ **No High Severity Issues** (or ❌ **[N] High Severity Issues Found**)
+- ⚠️ **[N] Medium Severity Issues**
+- 💡 **[N] Low Severity Issues**
+- ℹ️ **[N] Informational Notes**
+
+---
+
+## 🚨 Critical Issues (Auto-fixing immediately)
+
+### 1. [Issue Title]
+- **File**: `path/to/file.ext:123`
+- **Category**: Security
+- **Description**: [What's wrong]
+- **Impact**: [What could happen]
+- **Fix**: [What I'll do to fix it]
+
+---
+
+## ⚠️ High Severity Issues (Auto-fixing immediately)
+
+[Same format as critical]
+
+---
+
+## 📋 Medium Severity Issues (Requesting approval)
+
+[Same format, but with "Should I fix these?"]
+
+---
+
+## 💭 Low Severity Issues (Requesting approval)
+
+[Same format]
+
+---
+
+## ℹ️ Informational Notes
+
+[Quick list of observations]
+```
+
+## After Presenting Results
+
+1. **If CRITICAL or HIGH issues found**: Automatically proceed to fix them (see 03-self-correction.mdc)
+2. **If MEDIUM/LOW issues found**: Wait for user decision
+3. **If user approves fixes**: Proceed to fix them (see 03-self-correction.mdc)
+4. **If no issues found**: Celebrate! 🎉 "Review complete: No issues found. Great work!"
+
+## Review Verification
+
+After fixing issues, ALWAYS re-run the review agent to verify:
+- The fixes actually resolved the issues
+- No new issues were introduced
+- The code is now clean
+
+## Integration with Other Workflows
+
+- **Before Review**: Check if task was planned (01-planning-workflow.mdc)
+- **After Review**: If fixes needed, trigger self-correction (03-self-correction.mdc)
+- **Security Issues Found**: May trigger additional security review (05-security-checks.mdc)
+- **Testing Issues Found**: May trigger testing validation (06-testing-validation.mdc)
+
+## Skipping Review (Emergency Override)
+
+Users can temporarily disable auto-review:
+
+```bash
+export CURSOR_SKIP_REVIEW="true"
+```
+
+You should check this variable before triggering review:
+
+```bash
+if [ "${CURSOR_SKIP_REVIEW}" != "true" ]; then
+  # Trigger review
+fi
+```
+
+## Logging
+
+Every review invocation should be logged to `.cursor/agent-log.txt`:
+
+```
+[TIMESTAMP] REVIEW: [Task description] | Model: [model] | Findings: [count by severity]
+```
+
+## Notes
+
+- Review should take 30-60 seconds typically
+- Complex changes may require longer review time
+- Multiple perspectives improve review quality (gpt-5-codex-high for specialized review, sonnet-4.5-thinking for deep reasoning, grok for alternative perspective)
+- Review agent has full codebase context, not just changed files
+- Review is complementary to linting/testing, not a replacement
+- gpt-5-codex-high specifically trained on code review tasks with 70% fewer false positives

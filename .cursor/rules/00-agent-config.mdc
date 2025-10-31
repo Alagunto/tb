@@ -1,0 +1,153 @@
+---
+description: Agent Configuration - Model Selection and Behavior Settings
+alwaysApply: true
+---
+
+# Agent Configuration
+
+This file defines the core configuration for the agentic review system. All agents spawned by cursor-agent will follow these model selections and behavioral guidelines.
+
+## Model Selection
+
+You MUST use the following models for different types of agent invocations:
+
+### Main Development Agent (Current Agent)
+- **Default Model**: sonnet-4.5
+- **Purpose**: General code generation, editing, and conversation
+- **Performance**: 77.2% SWE-bench Verified, 30+ hour autonomy, 0% error rate on code editing
+- **Override**: Can be changed per-session via Cursor settings
+
+### Review Agent
+- **Primary Model**: gpt-5-codex-high
+- **Secondary Model**: sonnet-4.5-thinking
+- **Purpose**: Code review, bug detection, quality analysis
+- **Command Flag**: `--model gpt-5-codex-high` (or `--model sonnet-4.5-thinking` if GPT unavailable)
+- **Selection Criteria**: 
+  - Use gpt-5-codex-high for specialized code review (70% fewer false positives, understands dependencies, runs tests)
+  - Use sonnet-4.5-thinking for complex bug analysis requiring extended reasoning
+  - Use grok for alternative perspective or when others are unavailable
+- **Performance**: GPT-5-Codex catches issues 70% more accurately than standard models
+
+### Planning Agent
+- **Primary Model**: sonnet-4.5-thinking
+- **Secondary Model**: opus-4.1
+- **Purpose**: Complex architectural planning, multi-step reasoning, trade-off analysis
+- **Command Flag**: `--model sonnet-4.5-thinking` (or `--model opus-4.1` for proven reliability)
+- **Selection Criteria**: 
+  - Use sonnet-4.5-thinking for most architectural planning (83.4% GPQA, 30+ hour focus, visible reasoning)
+  - Use opus-4.1 for multi-file refactoring requiring architectural consistency (74.5% SWE-bench)
+  - Use gpt-5 for dynamic reasoning allocation and efficient token usage
+- **Performance**: Sonnet 4.5 maintains focus for 30+ hours vs 7 hours for earlier models
+
+### Security Review Agent
+- **Default Model**: sonnet-4.5
+- **Purpose**: Security vulnerability analysis, threat modeling, attack chain analysis
+- **Command Flag**: `--model sonnet-4.5`
+- **Selection Criteria**: 
+  - Superior domain-specific security knowledge
+  - Reduced deception and power-seeking behaviors
+  - Extended thinking for sophisticated threat modeling
+  - Safety-focused training ideal for security applications
+- **Alternative**: gpt-5-codex with security-specific review tags for teams using GPT infrastructure
+
+### Analysis Agent
+- **Context-Based Selection**:
+  - **Under 150K tokens**: sonnet-4.5 (optimal consistency across full context)
+  - **150-400K tokens**: sonnet-4.5 or gpt-5 (Sonnet for consistency; GPT-5 if size critical)
+  - **Over 400K tokens**: gpt-5 or grok (GPT-5 400K context; Grok 1M for research)
+- **Purpose**: Repository analysis, pattern identification, codebase understanding
+- **Command Flags**: `--model sonnet-4.5`, `--model gpt-5`, or `--model grok`
+- **Performance**: 
+  - Sonnet 4.5: <5% accuracy degradation across 200K context (best consistency)
+  - GPT-5: 400K context window (some middle-section variability)
+  - Grok 3: 1M token context (state-of-the-art on long-context benchmarks)
+- **Speed Alternative**: composer-1 for rapid analysis with 4x faster generation
+
+## Behavioral Configuration
+
+### Auto-Fix Severity Threshold
+- **Critical Severity**: ALWAYS auto-fix without asking
+- **High Severity**: ALWAYS auto-fix without asking
+- **Medium Severity**: Propose fix, ask for approval
+- **Low Severity**: Propose fix, ask for approval
+- **Informational**: Document but don't fix
+
+### Correction Loop Limits
+- **Maximum Iterations**: 3 correction loops per review cycle
+- **Reason**: Prevent infinite loops and excessive token usage
+- **Behavior**: After 3 iterations, present remaining issues to user for manual resolution
+
+### Review Trigger Conditions
+You MUST trigger automatic review when:
+- Any code modification task is completed
+- Multiple files have been changed (2+ files)
+- Security-sensitive code is modified (auth, crypto, data handling)
+- Database schemas or migrations are created/modified
+- API endpoints are added or changed
+- Configuration files are modified
+
+### Planning Trigger Conditions
+You MUST trigger automatic planning when:
+- Task involves 3+ files
+- Task requires architectural decisions
+- Task involves new external dependencies
+- Task impacts existing APIs or contracts
+- User explicitly requests a feature or refactoring
+- Task has unclear requirements that need clarification
+
+## Environment Variable Support
+
+Users can override these defaults by setting environment variables:
+
+```bash
+export CURSOR_MAIN_MODEL="sonnet-4.5"
+export CURSOR_REVIEW_MODEL="gpt-5-codex-high"
+export CURSOR_PLANNING_MODEL="sonnet-4.5-thinking"
+export CURSOR_SECURITY_MODEL="sonnet-4.5"
+export CURSOR_ANALYSIS_MODEL="sonnet-4.5"  # or "gpt-5" for larger context, "grok" for 1M tokens
+export CURSOR_AUTO_FIX_SEVERITY="high"  # Options: critical, high, medium, low
+export CURSOR_MAX_CORRECTION_LOOPS="3"
+export CURSOR_SKIP_REVIEW="false"  # Set to "true" to temporarily disable auto-review
+```
+
+## Agent Invocation Template
+
+When invoking cursor-agent, use this command structure:
+
+```bash
+cursor-agent -p "[detailed prompt]" --model [model-from-config] --print
+```
+
+The `--print` flag ensures output is returned for parsing rather than interactive mode.
+
+## Configuration Priority
+
+1. Environment variables (highest priority)
+2. This configuration file
+3. Cursor default settings (lowest priority)
+
+## Model Performance Summary
+
+### Benchmarks (for reference)
+- **SWE-bench Verified**: sonnet-4.5 (77.2%), opus-4.1 (74.5%), gpt-5 (65-74.9%)
+- **Code Review Accuracy**: gpt-5-codex-high (70% fewer false positives than standard)
+- **Extended Thinking**: sonnet-4.5-thinking (up to 64K thinking tokens)
+- **Security Analysis**: sonnet-4.5 (superior domain knowledge, reduced deception)
+- **Context Windows**: sonnet-4.5 (200K), gpt-5 (400K), grok (1M)
+- **Speed**: composer-1 (4x faster than similar models)
+
+### Key Differentiators
+- **sonnet-4.5**: Best general-purpose, 30+ hour autonomy, excellent instruction following
+- **gpt-5-codex-high**: Specialized for code review, understands dependencies, runs tests
+- **opus-4.1**: Proven reliability for multi-file refactoring, production-tested
+- **grok**: Alternative reasoning perspective, massive context window
+- **composer-1**: Optimal for interactive development requiring speed
+
+## Notes for Agent
+
+- Always check if CURSOR_SKIP_REVIEW environment variable is set before triggering reviews
+- Log all agent invocations to `.cursor/agent-log.txt` for debugging
+- **Primary recommendation**: Use gpt-5-codex-high for review, sonnet-4.5-thinking for planning, sonnet-4.5 for security
+- Consider token costs: gpt-5 ($1.25 input / $10 output per 1M tokens) vs opus-4.1 ($15 / $75)
+- For interactive speed, consider composer-1 despite slightly lower capability ceiling
+- Context consistency matters: sonnet-4.5 has <5% degradation across full context vs middle-section issues in some models

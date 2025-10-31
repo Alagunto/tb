@@ -1,0 +1,313 @@
+---
+description: Repository Analysis - Deep codebase understanding before major changes
+alwaysApply: true
+---
+
+# Repository Analysis Workflow
+
+Before implementing features that span multiple files or make architectural changes, you MUST invoke a repository analysis agent to understand the codebase structure, existing patterns, and integration points. This prevents breaking changes and ensures consistency.
+
+## When to Trigger Analysis
+
+Invoke repository analysis when:
+
+1. **Multi-Module Changes**: Task affects 3+ distinct modules or packages
+2. **Pattern Discovery**: Need to understand existing implementation patterns
+3. **Refactoring**: Large-scale code restructuring across multiple files
+4. **New to Codebase**: First time working with a particular part of the system
+5. **Integration Planning**: Need to understand how components interact
+6. **Breaking Change Risk**: Changes that might affect many call sites
+7. **Consistency Check**: Ensure new code follows established patterns
+
+## Analysis Agent Invocation
+
+Execute this command to analyze the repository:
+
+```bash
+cursor-agent -p "Analyze this repository structure and provide insights for: [TASK_DESCRIPTION]
+
+Provide detailed analysis in these areas:
+
+1. **Repository Structure**:
+   - Main directories and their purposes
+   - Module/package organization
+   - Dependency relationships
+   - Entry points and main execution flows
+
+2. **Relevant Files for This Task**:
+   - Files that will need modification
+   - Files that reference or depend on target areas
+   - Configuration files that may be affected
+   - Test files that need updating
+
+3. **Existing Patterns and Conventions**:
+   - Naming conventions (files, functions, variables)
+   - Error handling patterns
+   - Logging patterns
+   - Testing patterns
+   - Documentation style
+   - Code organization within files
+
+4. **Similar Implementations**:
+   - Existing code that does something similar
+   - Reference implementations to follow
+   - Patterns that should be reused
+   - Anti-patterns to avoid
+
+5. **Potential Conflicts and Breaking Changes**:
+   - API contracts that might break
+   - Backward compatibility concerns
+   - Database migration impacts
+   - Configuration changes needed
+   - Dependency version conflicts
+
+6. **Integration Points**:
+   - Where this code will be called from
+   - What dependencies it will have
+   - Side effects on other components
+   - Communication boundaries (HTTP, RPC, DB, etc.)
+
+7. **Recommendations**:
+   - Suggested approach for this task
+   - Files to start with
+   - Potential pitfalls to avoid
+   - Testing strategy
+
+Focus on information relevant to: [TASK_DESCRIPTION]
+
+Be specific with file paths and function/struct names." --model ${CURSOR_ANALYSIS_MODEL:-sonnet-4.5} --print
+```
+
+**Note**: Use sonnet-4.5 for codebases under 150K tokens (best consistency). Use gpt-5 for 150-400K tokens. Use grok for massive codebases (1M token context).
+
+## Processing Analysis Results
+
+After receiving analysis:
+
+1. **Parse Key Insights**:
+   - Extract relevant files list
+   - Note existing patterns to follow
+   - Identify potential conflicts
+   - List integration points
+
+2. **Present Summary to User** (if complex):
+   ```markdown
+   # 📊 Repository Analysis: [Task]
+   
+   ## 🗂️ Relevant Files
+   - `path/to/file1.ext`: [purpose]
+   - `path/to/file2.ext`: [purpose]
+   
+   ## 🎯 Existing Patterns to Follow
+   - [Pattern 1]: [description]
+   - [Pattern 2]: [description]
+   
+   ## ⚠️ Potential Conflicts
+   - [Conflict 1]: [description and mitigation]
+   
+   ## 🔗 Integration Points
+   - [Point 1]: [description]
+   
+   ## 💡 Recommended Approach
+   [Summary of recommendations]
+   ```
+
+3. **Use Insights During Implementation**:
+   - Reference similar implementations
+   - Follow established patterns
+   - Avoid identified pitfalls
+   - Test at integration points
+
+## Example Use Cases
+
+### Use Case 1: Adding New Feature
+
+**Task**: "Add rate limiting to API endpoints"
+
+**Analysis Query**:
+```
+Analyze this repository for adding rate limiting to API endpoints.
+
+Focus on:
+- Where are current API endpoints defined?
+- How is middleware currently implemented?
+- Are there existing rate limiting or throttling mechanisms?
+- What logging/monitoring patterns should be followed?
+- Where should rate limit configuration be stored?
+- How are HTTP errors currently handled?
+```
+
+**Expected Insights**:
+- API endpoints are in `/api/handlers/*.go`
+- Middleware chain is in `/middleware/chain.go`
+- No existing rate limiting (green field)
+- Errors use custom error types in `/errors/types.go`
+- Configuration uses Viper in `/config/config.go`
+
+**Implementation Direction**:
+- Create `/middleware/ratelimit.go` following existing middleware pattern
+- Use in-memory store with `golang.org/x/time/rate`
+- Add config in `/config/config.go`
+- Add custom error type in `/errors/types.go`
+- Register in middleware chain
+
+### Use Case 2: Refactoring Duplicate Code
+
+**Task**: "Extract duplicate user validation logic"
+
+**Analysis Query**:
+```
+Analyze this repository to find duplicate user validation logic.
+
+Focus on:
+- Where is user validation currently performed?
+- What are the common validation patterns?
+- Where should shared validation logic live?
+- What are the different validation requirements across the codebase?
+- Are there existing utility packages for shared logic?
+```
+
+**Expected Insights**:
+- User validation in 5 different handlers
+- Common checks: email format, password strength, username availability
+- Different requirements: signup vs profile update vs admin creation
+- Existing utility package at `/internal/utils/`
+- Some validation uses third-party library, some is custom
+
+**Implementation Direction**:
+- Create `/internal/validation/user.go`
+- Extract common validation functions
+- Keep context-specific validation in handlers
+- Use builder pattern for flexibility
+- Update all 5 call sites to use new validation
+
+### Use Case 3: Understanding Integration
+
+**Task**: "Add webhook notifications for events"
+
+**Analysis Query**:
+```
+Analyze this repository to understand the event system and how to add webhook notifications.
+
+Focus on:
+- How are events currently triggered and handled?
+- Is there an event bus or pub/sub system?
+- How are external HTTP requests made?
+- How is retry logic implemented?
+- Where is background job processing done?
+- How are failures logged and monitored?
+```
+
+**Expected Insights**:
+- Events use custom event bus in `/pkg/events/`
+- HTTP client in `/pkg/http/client.go` with retry logic
+- Background jobs use goroutines with worker pools
+- No existing webhook system (green field)
+- Monitoring uses Prometheus metrics in `/pkg/metrics/`
+
+**Implementation Direction**:
+- Subscribe to events in `/pkg/events/`
+- Create `/pkg/webhooks/` package
+- Use existing HTTP client for delivery
+- Implement queue for reliable delivery
+- Add metrics for webhook delivery success/failure
+
+## Integration with Planning
+
+Repository analysis often precedes or enhances planning:
+
+**Workflow**:
+1. User requests feature
+2. Trigger **Repository Analysis** (this rule) to understand codebase
+3. Use analysis insights to inform **Planning** (01-planning-workflow.mdc)
+4. Planning agent creates detailed plan using analysis context
+5. Proceed to implementation
+
+**Combined Invocation**:
+
+If task requires both analysis and planning:
+
+```bash
+# Step 1: Analyze
+cursor-agent -p "[analysis prompt]" --model sonnet-4.5 --print
+
+# Step 2: Use analysis to inform planning
+cursor-agent -p "Based on this repository analysis: [paste analysis]
+
+Create an implementation plan for: [task]
+[... rest of planning prompt ...]" --model sonnet-4.5-thinking --print
+```
+
+## Caching Analysis Results
+
+For performance, cache analysis results in `.cursor/analysis-cache/`:
+
+```bash
+# Create cache directory
+mkdir -p .cursor/analysis-cache
+
+# Save analysis to cache (keyed by repository hash + query hash)
+echo "[analysis-output]" > .cursor/analysis-cache/[hash].txt
+
+# Check cache before re-analyzing
+if [ -f .cursor/analysis-cache/[hash].txt ]; then
+  # Use cached analysis
+else
+  # Run fresh analysis
+fi
+```
+
+Cache invalidation:
+- Expire after 24 hours
+- Invalidate on significant codebase changes (>100 files modified)
+- User can force refresh with explicit request
+
+## Handling Large Codebases
+
+For very large codebases (>500k LOC):
+
+1. **Scope Analysis**: Focus on specific modules/packages only
+   ```bash
+   cursor-agent -p "Analyze only the /api and /middleware directories for [task]"
+   ```
+
+2. **Use Grok**: Its 1M token context can handle massive codebases
+   ```bash
+   --model grok
+   ```
+
+3. **Alternative - GPT-5**: 400K context with dynamic reasoning
+   ```bash
+   --model gpt-5
+   ```
+
+3. **Incremental Analysis**: Analyze in phases
+   - Phase 1: High-level structure
+   - Phase 2: Relevant module deep-dive
+   - Phase 3: Integration point analysis
+
+4. **Leverage Existing Documentation**: Include AGENTS.md or README context
+   ```bash
+   cursor-agent -p "First read AGENTS.md, then analyze [specific area] for [task]"
+   ```
+
+## Success Criteria
+
+Repository analysis is successful when:
+
+✅ Identified all relevant files for the task
+✅ Understood existing patterns and conventions
+✅ Found reference implementations to follow
+✅ Identified potential conflicts or breaking changes
+✅ Mapped integration points
+✅ Have clear direction for implementation
+
+## Notes
+
+- Analysis is cheaper than fixing breaking changes later
+- Sonnet 4.5 has best consistency across context (<5% degradation)
+- GPT-5 provides 400K context; Grok provides 1M context for massive repositories
+- Analysis results can be reused across similar tasks
+- Good analysis prevents architectural inconsistencies
+- Understanding existing patterns improves code consistency
+- Analysis should be task-focused, not exhaustive documentation
