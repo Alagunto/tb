@@ -18,12 +18,16 @@ type Chat struct {
 }
 
 // Recipient returns chat id as string for sending messages.
-// If chat has a username, returns @username instead.
+// Prefers numeric chat ID for reliability with bot operations.
+// Falls back to @username only when numeric ID is unavailable.
 func (c *Chat) Recipient() string {
+	if c.ID != 0 {
+		return strconv.FormatInt(c.ID, 10)
+	}
 	if c.Username != "" {
 		return "@" + c.Username
 	}
-	return strconv.FormatInt(c.ID, 10)
+	return "0"
 }
 
 // ChatType represents one of the possible chat types.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/alagunto/tb/bot"
 	"github.com/alagunto/tb/errors"
@@ -73,12 +74,31 @@ func (b *Bot[RequestType]) sendMedia(to bot.Recipient, media telegram.InputMedia
 		return nil, err
 	}
 
-	sendOpts := params.Merge(*opts)
+	// Get and validate media type for the API method
+	mediaType, ok := mediaParams["type"].(string)
+	if !ok || mediaType == "" {
+		return nil, errors.WithInvalidParam(errors.ErrUnsupportedWhat, "type", "media type is missing or invalid")
+	}
+
+	// Prepare send options
+	var sendOpts params.SendOptions
+	if opts != nil {
+		sendOpts = params.Merge(*opts)
+	} else {
+		sendOpts = params.NewSendOptions()
+	}
 	paramsMap := sendOpts.ToMap()
 
 	// Merge media parameters into the request
 	for k, v := range mediaParams {
-		paramsMap[k] = v
+		// For single media sends, rename "media" to match the type (photo, video, etc.)
+		// because sendPhoto expects "photo" parameter, sendVideo expects "video", etc.
+		if k == "media" {
+			paramsMap[mediaType] = v
+		} else if k != "type" {
+			// Skip "type" field as it's not part of the send API parameters
+			paramsMap[k] = v
+		}
 	}
 
 	r := NewApiRequester[map[string]any, telegram.Message](b.token, b.apiURL, b.client)
@@ -92,7 +112,9 @@ func (b *Bot[RequestType]) sendMedia(to bot.Recipient, media telegram.InputMedia
 		opts.InjectIntoMap(paramsMap)
 	}
 
-	result, err := r.Request(context.Background(), "send"+mediaParams["type"].(string), paramsMap)
+	// Capitalize first letter for proper Telegram API method name (sendPhoto, sendVideo, etc.)
+	methodName := "send" + strings.ToUpper(string(mediaType[0])) + mediaType[1:]
+	result, err := r.Request(context.Background(), methodName, paramsMap)
 	if err != nil {
 		return nil, err
 	}

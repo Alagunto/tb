@@ -113,7 +113,7 @@ type Message struct {
 
 	// Media (photo, video, music, etc.) - see
 	// https://core.telegram.org/bots/api#message
-	Photo           *PhotoSize      `json:"photo,omitempty"`
+	Photo           []PhotoSize     `json:"photo,omitempty"`
 	Caption         string          `json:"caption,omitempty"`
 	CaptionEntities []MessageEntity `json:"caption_entities,omitempty"`
 

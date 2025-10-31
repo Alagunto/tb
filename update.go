@@ -169,11 +169,11 @@ func (b *Bot[RequestType]) ProcessUpdate(c RequestType, u telegram.Update) {
 			return
 		}
 
-		// Media
-		if m.Photo != nil {
-			b.runHandler(c, OnPhoto)
-			return
-		}
+	// Media
+	if len(m.Photo) > 0 {
+		b.runHandler(c, OnPhoto)
+		return
+	}
 		if m.Voice != nil {
 			b.runHandler(c, OnVoice)
 			return
