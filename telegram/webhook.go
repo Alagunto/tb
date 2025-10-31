@@ -1,6 +1,7 @@
 package telegram
 
 // WebhookInfo contains information about the current webhook status.
+// https://core.telegram.org/bots/api#webhookinfo
 type WebhookInfo struct {
 	URL                          string   `json:"url"`
 	HasCustomCertificate         bool     `json:"has_custom_certificate"`

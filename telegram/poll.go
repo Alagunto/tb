@@ -1,6 +1,7 @@
 package telegram
 
 // Poll contains information about a poll.
+// https://core.telegram.org/bots/api#poll
 type Poll struct {
 	ID                string          `json:"id"`
 	Type              PollType        `json:"type"`
@@ -13,14 +14,13 @@ type Poll struct {
 	Explanation       string          `json:"explanation,omitempty"`
 	ExplanationParseMode ParseMode    `json:"explanation_parse_mode,omitempty"`
 	ExplanationEntities []MessageEntity `json:"explanation_entities,omitempty"`
-	QuestionParseMode string          `json:"question_parse_mode,omitempty"`
-	QuestionEntities  []MessageEntity `json:"question_entities,omitempty"`
 	IsAnonymous       bool            `json:"is_anonymous"`
 	OpenPeriod        int             `json:"open_period,omitempty"`
 	CloseDate         int64           `json:"close_date,omitempty"`
 }
 
-// SendPollParams represents the payload required to send a poll.
+// SendPollParams represents the payload accepted by the sendPoll method.
+// https://core.telegram.org/bots/api#sendpoll
 type SendPollParams struct {
 	Question             string           `json:"question"`
 	Options              []string         `json:"options"`
@@ -31,8 +31,6 @@ type SendPollParams struct {
 	Explanation          string           `json:"explanation,omitempty"`
 	ExplanationParseMode ParseMode        `json:"explanation_parse_mode,omitempty"`
 	ExplanationEntities  []MessageEntity  `json:"explanation_entities,omitempty"`
-	QuestionParseMode    ParseMode        `json:"question_parse_mode,omitempty"`
-	QuestionEntities     []MessageEntity  `json:"question_entities,omitempty"`
 	OpenPeriod           *int             `json:"open_period,omitempty"`
 	CloseDate            *int64           `json:"close_date,omitempty"`
 	IsClosed             bool             `json:"is_closed,omitempty"`

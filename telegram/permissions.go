@@ -36,7 +36,10 @@ type ChatPermissions struct {
 	CanManageTopics       bool `json:"can_manage_topics"`
 }
 
-// Rights represents a set of chat permissions and administrator rights.
+// Rights represents a combined set of chat permissions and administrator rights.
+// It can be used with restrictChatMember, setMyDefaultAdministratorRights and promoteChatMember.
+// https://core.telegram.org/bots/api#chatpermissions
+// https://core.telegram.org/bots/api#promotechatmember
 type Rights struct {
 	CanSendMessages         bool `json:"can_send_messages,omitempty"`
 	CanSendMedia            bool `json:"can_send_media_messages,omitempty"`

@@ -25,3 +25,29 @@ type Invoice struct {
 	IsFlexible              bool            `json:"is_flexible,omitempty"`
 	TotalAmount             int             `json:"total_amount,omitempty"`
 }
+
+// SendInvoiceParams contains parameters accepted by the sendInvoice method.
+// https://core.telegram.org/bots/api#sendinvoice
+type SendInvoiceParams struct {
+	Title                   string          `json:"title"`
+	Description             string          `json:"description"`
+	Payload                 string          `json:"payload"`
+	ProviderToken           string          `json:"provider_token"`
+	Currency                string          `json:"currency"`
+	Prices                  []LabeledPrice  `json:"prices"`
+	MaxTipAmount            int             `json:"max_tip_amount,omitempty"`
+	SuggestedTipAmounts     []int           `json:"suggested_tip_amounts,omitempty"`
+	StartParameter          string          `json:"start_parameter,omitempty"`
+	ProviderData            string          `json:"provider_data,omitempty"`
+	PhotoURL                string          `json:"photo_url,omitempty"`
+	PhotoSize               int             `json:"photo_size,omitempty"`
+	PhotoWidth              int             `json:"photo_width,omitempty"`
+	PhotoHeight             int             `json:"photo_height,omitempty"`
+	NeedName                bool            `json:"need_name,omitempty"`
+	NeedPhoneNumber         bool            `json:"need_phone_number,omitempty"`
+	NeedEmail               bool            `json:"need_email,omitempty"`
+	NeedShippingAddress     bool            `json:"need_shipping_address,omitempty"`
+	SendPhoneNumberToProvider bool          `json:"send_phone_number_to_provider,omitempty"`
+	SendEmailToProvider     bool            `json:"send_email_to_provider,omitempty"`
+	IsFlexible              bool            `json:"is_flexible,omitempty"`
+}

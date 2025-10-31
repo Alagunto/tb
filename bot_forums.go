@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alagunto/tb/bot"
+	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/telegram"
 )
 
@@ -11,19 +12,15 @@ import (
 // The bot must be an administrator in the chat for this to work and must have the
 // can_manage_topics administrator rights.
 func (b *Bot[RequestType]) CreateForumTopic(chat bot.Recipient, name string, iconColor string, iconCustomEmojiID string) (*telegram.ForumTopic, error) {
-	params := make(map[string]any)
-	params["chat_id"] = chat.Recipient()
-	params["name"] = name
-
-	if iconColor != "" {
-		params["icon_color"] = iconColor
-	}
-	if iconCustomEmojiID != "" {
-		params["icon_custom_emoji_id"] = iconCustomEmojiID
-	}
+	p := params.New().
+		Add("chat_id", chat.Recipient()).
+		Add("name", name).
+		Add("icon_color", iconColor).
+		Add("icon_custom_emoji_id", iconCustomEmojiID).
+		Build()
 
 	r := NewApiRequester[map[string]any, telegram.ForumTopic](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "createForumTopic", params)
+	result, err := r.Request(context.Background(), "createForumTopic", p)
 	if err != nil {
 		return nil, err
 	}
@@ -34,19 +31,15 @@ func (b *Bot[RequestType]) CreateForumTopic(chat bot.Recipient, name string, ico
 // The bot must be an administrator in the chat for this to work and must have the
 // can_manage_topics administrator rights, unless it is the creator of the topic.
 func (b *Bot[RequestType]) EditForumTopic(chat bot.Recipient, threadID int, name string, iconCustomEmojiID string) error {
-	params := make(map[string]any)
-	params["chat_id"] = chat.Recipient()
-	params["message_thread_id"] = threadID
-
-	if name != "" {
-		params["name"] = name
-	}
-	if iconCustomEmojiID != "" {
-		params["icon_custom_emoji_id"] = iconCustomEmojiID
-	}
+	p := params.New().
+		Add("chat_id", chat.Recipient()).
+		AddInt("message_thread_id", threadID).
+		Add("name", name).
+		Add("icon_custom_emoji_id", iconCustomEmojiID).
+		Build()
 
 	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
-	_, err := r.Request(context.Background(), "editForumTopic", params)
+	_, err := r.Request(context.Background(), "editForumTopic", p)
 	return err
 }
 
@@ -54,12 +47,13 @@ func (b *Bot[RequestType]) EditForumTopic(chat bot.Recipient, threadID int, name
 // The bot must be an administrator in the chat for this to work and must have the
 // can_manage_topics administrator rights, unless it is the creator of the topic.
 func (b *Bot[RequestType]) CloseForumTopic(chat bot.Recipient, threadID int) error {
-	params := make(map[string]any)
-	params["chat_id"] = chat.Recipient()
-	params["message_thread_id"] = threadID
+	p := params.New().
+		Add("chat_id", chat.Recipient()).
+		AddInt("message_thread_id", threadID).
+		Build()
 
 	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
-	_, err := r.Request(context.Background(), "closeForumTopic", params)
+	_, err := r.Request(context.Background(), "closeForumTopic", p)
 	return err
 }
 
@@ -67,12 +61,13 @@ func (b *Bot[RequestType]) CloseForumTopic(chat bot.Recipient, threadID int) err
 // The bot must be an administrator in the chat for this to work and must have the
 // can_manage_topics administrator rights, unless it is the creator of the topic.
 func (b *Bot[RequestType]) ReopenForumTopic(chat bot.Recipient, threadID int) error {
-	params := make(map[string]any)
-	params["chat_id"] = chat.Recipient()
-	params["message_thread_id"] = threadID
+	p := params.New().
+		Add("chat_id", chat.Recipient()).
+		AddInt("message_thread_id", threadID).
+		Build()
 
 	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
-	_, err := r.Request(context.Background(), "reopenForumTopic", params)
+	_, err := r.Request(context.Background(), "reopenForumTopic", p)
 	return err
 }
 
@@ -80,12 +75,13 @@ func (b *Bot[RequestType]) ReopenForumTopic(chat bot.Recipient, threadID int) er
 // The bot must be an administrator in the chat for this to work and must have the
 // can_delete_messages administrator rights.
 func (b *Bot[RequestType]) DeleteForumTopic(chat bot.Recipient, threadID int) error {
-	params := make(map[string]any)
-	params["chat_id"] = chat.Recipient()
-	params["message_thread_id"] = threadID
+	p := params.New().
+		Add("chat_id", chat.Recipient()).
+		AddInt("message_thread_id", threadID).
+		Build()
 
 	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
-	_, err := r.Request(context.Background(), "deleteForumTopic", params)
+	_, err := r.Request(context.Background(), "deleteForumTopic", p)
 	return err
 }
 
@@ -93,11 +89,12 @@ func (b *Bot[RequestType]) DeleteForumTopic(chat bot.Recipient, threadID int) er
 // The bot must be an administrator in the chat for this to work and must have the
 // can_pin_messages administrator right in the supergroup.
 func (b *Bot[RequestType]) UnpinAllForumTopicMessages(chat bot.Recipient, threadID int) error {
-	params := make(map[string]any)
-	params["chat_id"] = chat.Recipient()
-	params["message_thread_id"] = threadID
+	p := params.New().
+		Add("chat_id", chat.Recipient()).
+		AddInt("message_thread_id", threadID).
+		Build()
 
 	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
-	_, err := r.Request(context.Background(), "unpinAllForumTopicMessages", params)
+	_, err := r.Request(context.Background(), "unpinAllForumTopicMessages", p)
 	return err
 }

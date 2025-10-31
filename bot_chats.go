@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/telegram"
 )
 
@@ -15,18 +16,21 @@ func (b *Bot[RequestType]) Me() *telegram.User {
 
 // ChatByID fetches a chat by its ID or username.
 func (b *Bot[RequestType]) ChatByID(chatID string) (*telegram.Chat, error) {
-	params := make(map[string]any)
-	
 	// Try to parse as int64 first
+	var chatIDValue any
 	if id, err := strconv.ParseInt(chatID, 10, 64); err == nil {
-		params["chat_id"] = id
+		chatIDValue = id
 	} else {
 		// Treat as username
-		params["chat_id"] = chatID
+		chatIDValue = chatID
 	}
 
+	p := params.New().
+		Add("chat_id", chatIDValue).
+		Build()
+
 	r := NewApiRequester[map[string]any, telegram.Chat](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "getChat", params)
+	result, err := r.Request(context.Background(), "getChat", p)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chat: %w", err)
 	}
@@ -50,10 +54,11 @@ func (b *Bot[RequestType]) GetWebhookInfo() (*telegram.WebhookInfo, error) {
 
 // DeleteWebhook removes webhook integration.
 func (b *Bot[RequestType]) DeleteWebhook(dropPendingUpdates bool) error {
-	params := make(map[string]any)
-	params["drop_pending_updates"] = dropPendingUpdates
+	p := params.New().
+		AddBool("drop_pending_updates", dropPendingUpdates).
+		Build()
 
 	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
-	_, err := r.Request(context.Background(), "deleteWebhook", params)
+	_, err := r.Request(context.Background(), "deleteWebhook", p)
 	return err
 }

@@ -1,6 +1,7 @@
 package telegram
 
 // ForumTopic describes a forum topic in a supergroup.
+// https://core.telegram.org/bots/api#forumtopic
 type ForumTopic struct {
 	MessageThreadID   int    `json:"message_thread_id"`
 	Name              string `json:"name"`

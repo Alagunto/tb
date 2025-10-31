@@ -9,53 +9,37 @@ import (
 )
 
 // SendInvoice sends an invoice.
-func (b *Bot[RequestType]) SendInvoice(to bot.Recipient, invoice *telegram.Invoice, opts ...params.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) SendInvoice(to bot.Recipient, invoice *telegram.SendInvoiceParams, opts ...params.SendOptions) (*telegram.Message, error) {
 	sendOpts := params.Merge(opts...)
-	paramsMap := sendOpts.ToMap()
-	paramsMap["chat_id"] = to.Recipient()
 
-	// Copy invoice parameters
-	paramsMap["title"] = invoice.Title
-	paramsMap["description"] = invoice.Description
-	paramsMap["payload"] = invoice.Payload
-	paramsMap["provider_token"] = invoice.ProviderToken
-	paramsMap["currency"] = invoice.Currency
-	paramsMap["prices"] = invoice.Prices
-
-	if invoice.MaxTipAmount > 0 {
-		paramsMap["max_tip_amount"] = invoice.MaxTipAmount
-	}
-	if len(invoice.SuggestedTipAmounts) > 0 {
-		paramsMap["suggested_tip_amounts"] = invoice.SuggestedTipAmounts
-	}
-	if invoice.StartParameter != "" {
-		paramsMap["start_parameter"] = invoice.StartParameter
-	}
-	if invoice.ProviderData != "" {
-		paramsMap["provider_data"] = invoice.ProviderData
-	}
-	if invoice.PhotoURL != "" {
-		paramsMap["photo_url"] = invoice.PhotoURL
-	}
-	if invoice.PhotoSize > 0 {
-		paramsMap["photo_size"] = invoice.PhotoSize
-	}
-	if invoice.PhotoWidth > 0 {
-		paramsMap["photo_width"] = invoice.PhotoWidth
-	}
-	if invoice.PhotoHeight > 0 {
-		paramsMap["photo_height"] = invoice.PhotoHeight
-	}
-	paramsMap["need_name"] = invoice.NeedName
-	paramsMap["need_phone_number"] = invoice.NeedPhoneNumber
-	paramsMap["need_email"] = invoice.NeedEmail
-	paramsMap["need_shipping_address"] = invoice.NeedShippingAddress
-	paramsMap["send_phone_number_to_provider"] = invoice.SendPhoneNumberToProvider
-	paramsMap["send_email_to_provider"] = invoice.SendEmailToProvider
-	paramsMap["is_flexible"] = invoice.IsFlexible
+	p := params.New().
+		Add("chat_id", to.Recipient()).
+		Add("title", invoice.Title).
+		Add("description", invoice.Description).
+		Add("payload", invoice.Payload).
+		Add("provider_token", invoice.ProviderToken).
+		Add("currency", invoice.Currency).
+		Add("prices", invoice.Prices).
+		AddInt("max_tip_amount", invoice.MaxTipAmount).
+		Add("suggested_tip_amounts", invoice.SuggestedTipAmounts).
+		Add("start_parameter", invoice.StartParameter).
+		Add("provider_data", invoice.ProviderData).
+		Add("photo_url", invoice.PhotoURL).
+		AddInt("photo_size", invoice.PhotoSize).
+		AddInt("photo_width", invoice.PhotoWidth).
+		AddInt("photo_height", invoice.PhotoHeight).
+		AddBool("need_name", invoice.NeedName).
+		AddBool("need_phone_number", invoice.NeedPhoneNumber).
+		AddBool("need_email", invoice.NeedEmail).
+		AddBool("need_shipping_address", invoice.NeedShippingAddress).
+		AddBool("send_phone_number_to_provider", invoice.SendPhoneNumberToProvider).
+		AddBool("send_email_to_provider", invoice.SendEmailToProvider).
+		AddBool("is_flexible", invoice.IsFlexible).
+		With(sendOpts).
+		Build()
 
 	r := NewApiRequester[map[string]any, telegram.Message](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "sendInvoice", paramsMap)
+	result, err := r.Request(context.Background(), "sendInvoice", p)
 	if err != nil {
 		return nil, err
 	}
@@ -65,33 +49,33 @@ func (b *Bot[RequestType]) SendInvoice(to bot.Recipient, invoice *telegram.Invoi
 // AnswerShippingQuery replies to shipping queries.
 // On success, True is returned.
 func (b *Bot[RequestType]) AnswerShippingQuery(query *telegram.ShippingQuery, options []telegram.ShippingOption, ok bool, errorMessage string) error {
-	params := make(map[string]any)
-	params["shipping_query_id"] = query.ID
-	params["ok"] = ok
+	p := params.New().
+		Add("shipping_query_id", query.ID).
+		AddBool("ok", ok)
 
 	if ok {
-		params["shipping_options"] = options
+		p.Add("shipping_options", options)
 	} else {
-		params["error_message"] = errorMessage
+		p.Add("error_message", errorMessage)
 	}
 
 	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
-	_, err := r.Request(context.Background(), "answerShippingQuery", params)
+	_, err := r.Request(context.Background(), "answerShippingQuery", p.Build())
 	return err
 }
 
 // AnswerPreCheckoutQuery responds to pre-checkout queries.
 // On success, True is returned.
 func (b *Bot[RequestType]) AnswerPreCheckoutQuery(query *telegram.PreCheckoutQuery, ok bool, errorMessage string) error {
-	params := make(map[string]any)
-	params["pre_checkout_query_id"] = query.ID
-	params["ok"] = ok
+	p := params.New().
+		Add("pre_checkout_query_id", query.ID).
+		AddBool("ok", ok)
 
 	if !ok {
-		params["error_message"] = errorMessage
+		p.Add("error_message", errorMessage)
 	}
 
 	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
-	_, err := r.Request(context.Background(), "answerPreCheckoutQuery", params)
+	_, err := r.Request(context.Background(), "answerPreCheckoutQuery", p.Build())
 	return err
 }

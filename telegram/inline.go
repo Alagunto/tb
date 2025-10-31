@@ -26,6 +26,7 @@ func (r *ChosenInlineResult) MessageSig() (string, int64) {
 }
 
 // InlineQueryResponse builds a response to an inline query.
+// https://core.telegram.org/bots/api#answerinlinequery
 type InlineQueryResponse struct {
 	Results           []InlineQueryResult     `json:"results"`
 	CacheTime         int                     `json:"cache_time,omitempty"`
