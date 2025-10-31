@@ -1,4 +1,4 @@
-package communications
+package params
 
 import "github.com/alagunto/tb/telegram"
 

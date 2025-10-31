@@ -54,14 +54,12 @@ func main() {
 
 	bot.Handle("/markdown", func(c *request.Native) error {
 		text := "*Bold text*\n_Italic text_\n`Code inline`\n[Link](https://telegram.org)"
-		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeMarkdown)
-		return c.Reply(text, opts)
+		return c.Reply(text, tb.SendOptions().WithParseMode(telegram.ParseModeMarkdown))
 	})
 
 	bot.Handle("/markdownv2", func(c *request.Native) error {
 		text := "*Bold\\* text*\n_Italic\\_ text_\n`Code\\` inline`\n[Link](https://telegram\\.org)"
-		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeMarkdownV2)
-		return c.Reply(text, opts)
+		return c.Reply(text, tb.SendOptions().WithParseMode(telegram.ParseModeMarkdownV2))
 	})
 
 	bot.Handle("/html", func(c *request.Native) error {

@@ -13,6 +13,7 @@ import (
 	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/sendables"
 	"github.com/alagunto/tb/telegram"
+	"github.com/alagunto/tb/telegram/messages"
 	"github.com/alagunto/tb/telegram/methods"
 )
 
@@ -40,14 +41,7 @@ func (b *Bot[RequestType]) SendTo(to bot.Recipient, what interface{}, opts ...co
 	switch object := what.(type) {
 	case string:
 		return b.sendText(to, object, &sendOpts)
-	case sendables.Sendable[telegram.Message]:
-		prepared := object.PrepareForTelegram()
-		msg, err := b.sendPrepared(to, prepared, &sendOpts)
-		if err != nil {
-			return nil, err
-		}
-		return msg, object.ProcessTelegramResponse(*msg)
-	case outgoing.Content:
+	case outgoing.Media[any]:
 		return b.sendContent(to, object, &sendOpts)
 	default:
 		return nil, errors.WithInvalidParam(errors.ErrUnsupportedWhat, "what", fmt.Sprintf("%v", what))
@@ -56,7 +50,7 @@ func (b *Bot[RequestType]) SendTo(to bot.Recipient, what interface{}, opts ...co
 
 // sendContent handles sending content that implements the outgoing.Content interface.
 // This is the new file upload system that makes upload timing explicit.
-func (b *Bot[RequestType]) sendContent(to bot.Recipient, content outgoing.Content, opts *communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) sendMedia(to bot.Recipient, content outgoing.Media[any], opts *communications.SendOptions) (*messages.Message, error) {
 	method := content.ToTelegramSendMethod()
 
 	// Start with base params from method.Params (already map[string]any)
@@ -68,8 +62,6 @@ func (b *Bot[RequestType]) sendContent(to bot.Recipient, content outgoing.Conten
 		paramsMap[k] = v
 	}
 
-	opts.InjectInto(paramsMap)
-
 	// Send the request using the new FileSource format
 	result, err := b.sendFiles(method.Name, method.Files, paramsMap)
 	if err != nil {
@@ -77,8 +69,8 @@ func (b *Bot[RequestType]) sendContent(to bot.Recipient, content outgoing.Conten
 	}
 
 	// Let content update itself with the response (if it implements ResponseHandler)
-	if handler, ok := content.(outgoing.ResponseHandler); ok {
-		if err := handler.UpdateFromResponse(result); err != nil {
+	if handler, ok := content.(outgoing.Media[any]); ok {
+		if err := handler.UpdateFrom(result); err != nil {
 			return nil, err
 		}
 	}
@@ -106,7 +98,7 @@ func (b *Bot[RequestType]) sendPrepared(to bot.Recipient, prepared *sendables.Pr
 // SendAlbumTo sends multiple instances of media as a single message.
 // To include the caption, make sure the first Inputtable of an album has it.
 // From all existing options, it only supports tele.Silent.
-func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a telegram.InputAlbum, opts ...communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a sendables.InputAlbum, opts ...communications.SendOptions) ([]messages.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
@@ -117,7 +109,7 @@ func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a telegram.InputAlbum, 
 		Add("chat_id", to.Recipient()).
 		Build()
 
-	paramsMap := sendOpts.Inject(p)
+	paramsMap := sendOpts.ToMap()
 
 	filesToSend := make(map[string]files.FileSource)
 	for _, x := range a.Media {
@@ -128,7 +120,7 @@ func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a telegram.InputAlbum, 
 
 	// Use ApiRequester for sendMediaGroup which returns []Message
 
-	r := NewApiRequester[map[string]any, []telegram.Message](b.token, b.apiURL, b.client)
+	r := NewApiRequester[map[string]any, []messages.Message](b.token, b.apiURL, b.client)
 	for _, x := range a.Media {
 		for name, source := range x.ToTelegramSendMethod().Files {
 			r = r.WithFileToUpload(name, source)
@@ -150,7 +142,22 @@ func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a telegram.InputAlbum, 
 // This function will panic upon nil Message.
 func (b *Bot[RequestType]) ReplyTo(to *telegram.Message, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
 	sendOpts := communications.MergeMultipleSendOptions(opts...).WithReplyParams(&telegram.ReplyParams{MessageID: to.ID})
-	return b.SendTo(to.Chat, what, sendOpts)
+
+	var recipient bot.Recipient
+	if to.Chat.Type == telegram.ChatPrivate {
+		recipient = &telegram.User{
+			ID: to.Sender.ID,
+		}
+	} else {
+		recipient = &telegram.Chat{
+			ID: to.Chat.ID,
+		}
+		if to.ThreadID != 0 {
+			sendOpts = sendOpts.WithThreadID(to.ThreadID)
+		}
+	}
+
+	return b.SendTo(recipient, what, sendOpts)
 }
 
 // ForwardTo behaves just like SendTo() but of all options it only supports Silent (see Bots API).

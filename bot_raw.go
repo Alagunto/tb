@@ -9,6 +9,7 @@ import (
 	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/errors"
 	"github.com/alagunto/tb/files"
+	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/telegram"
 )
 
@@ -50,12 +51,10 @@ func (b *Bot[RequestType]) Raw(method string, payload any) ([]byte, error) {
 // Internal helper methods that use ApiRequester with proper types
 
 func (b *Bot[RequestType]) sendText(to bot.Recipient, text string, opt *communications.SendOptions) (*telegram.Message, error) {
-	params := map[string]any{
-		"chat_id": to.Recipient(),
-		"text":    text,
-	}
-
-	opt.InjectInto(params)
+	p := params.New().
+		Add("chat_id", to.Recipient()).
+		Add("text", text)
+	// opt.Inje(p.Build())
 
 	r := NewApiRequester[map[string]any, telegram.Message](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "sendMessage", params)

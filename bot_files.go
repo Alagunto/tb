@@ -17,7 +17,7 @@ import (
 //
 // Usually, Telegram-provided File objects miss FilePath so you might need to
 // perform an additional request to fetch them.
-func (b *Bot[RequestType]) FileByID(fileID string) (files.FileRef, error) {
+func (b *Bot[RequestType]) FileByID(fileID string) (files.FileReference, error) {
 	req := methods.GetFileRequest{
 		FileID: fileID,
 	}
@@ -25,7 +25,7 @@ func (b *Bot[RequestType]) FileByID(fileID string) (files.FileRef, error) {
 	r := NewApiRequester[methods.GetFileRequest, methods.GetFileResponse](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "getFile", req)
 	if err != nil {
-		return files.FileRef{}, err
+		return files.FileReference{}, err
 	}
 	return *result, nil
 }

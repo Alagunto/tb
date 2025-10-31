@@ -4,10 +4,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/files"
 	"github.com/alagunto/tb/outgoing"
+	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/telegram"
+	"github.com/alagunto/tb/telegram/messages"
 )
 
 // type Instance interface {
@@ -26,20 +27,20 @@ type Editable interface {
 type API interface {
 	Raw(method string, payload interface{}) ([]byte, error)
 	GetUpdates(offset, limit int, timeout time.Duration, allowed []string) ([]telegram.Update, error)
-	SendTo(to Recipient, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error)
-	SendAlbumTo(to Recipient, a telegram.InputAlbum, opts ...communications.SendOptions) ([]telegram.Message, error)
-	ReplyTo(to *telegram.Message, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error)
-	ForwardTo(to Recipient, msg Editable, opts ...communications.SendOptions) (*telegram.Message, error)
-	ForwardManyTo(to Recipient, msgs []Editable, opts ...communications.SendOptions) ([]telegram.Message, error)
-	CopyTo(to Recipient, msg Editable, opts ...communications.SendOptions) (*telegram.Message, error)
-	CopyManyTo(to Recipient, msgs []Editable, opts ...communications.SendOptions) ([]telegram.Message, error)
-	Edit(msg Editable, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error)
+	SendTo(to Recipient, what interface{}, opts ...params.SendOptions) (*telegram.Message, error)
+	SendAlbumTo(to Recipient, a media.Album, opts ...params.SendOptions) ([]telegram.Message, error)
+	ReplyTo(to *messages.Message, what interface{}, opts ...params.SendOptions) (*messages.Message, error)
+	ForwardTo(to Recipient, msg Editable, opts ...params.SendOptions) (*telegram.Message, error)
+	ForwardManyTo(to Recipient, msgs []Editable, opts ...params.SendOptions) ([]telegram.Message, error)
+	CopyTo(to Recipient, msg Editable, opts ...params.SendOptions) (*telegram.Message, error)
+	CopyManyTo(to Recipient, msgs []Editable, opts ...params.SendOptions) ([]telegram.Message, error)
+	Edit(msg Editable, what interface{}, opts ...params.SendOptions) (*telegram.Message, error)
 	EditReplyMarkup(msg Editable, markup *telegram.ReplyMarkup) (*telegram.Message, error)
-	EditCaption(msg Editable, caption string, opts ...communications.SendOptions) (*telegram.Message, error)
-	EditMedia(msg Editable, media outgoing.Content, opts ...communications.SendOptions) (*telegram.Message, error)
+	EditCaption(msg Editable, caption string, opts ...params.SendOptions) (*telegram.Message, error)
+	EditMedia(msg Editable, media outgoing.Media, opts ...params.SendOptions) (*telegram.Message, error)
 	Delete(msg Editable) error
 	DeleteMany(msgs []Editable) error
-	Notify(to Recipient, action telegram.ChatAction, opts ...communications.SendOptions) error
+	Notify(to Recipient, action telegram.ChatAction, opts ...params.SendOptions) error
 	Ship(query *telegram.ShippingQuery, what ...interface{}) error
 	Accept(query *telegram.PreCheckoutQuery, errorMessage ...string) error
 	RespondToCallback(c *telegram.CallbackQuery, resp ...*telegram.CallbackResponse) error
@@ -48,7 +49,7 @@ type API interface {
 	FileByID(fileID string) (files.FileRef, error)
 	Download(file *files.FileRef, localFilename string) error
 	File(file *files.FileRef) (io.ReadCloser, error)
-	StopLiveLocation(msg Editable, opts ...communications.SendOptions) (*telegram.Message, error)
+	StopLiveLocation(msg Editable, opts ...params.SendOptions) (*telegram.Message, error)
 	StopPoll(msg Editable, opts ...communications.SendOptions) (*telegram.Poll, error)
 	Leave(chat Recipient) error
 	Pin(msg Editable) error

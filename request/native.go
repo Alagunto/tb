@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/alagunto/tb/bot"
-	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/errors"
+	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/telegram"
 )
 
@@ -43,12 +43,6 @@ func (c *Native) Update() *telegram.Update {
 
 func (c *Native) Bot() bot.API {
 	return c.API
-}
-
-func (c *Native) contextualSendOptions() communications.SendOptions {
-	// Add thread ID to the send options if we are responding to a thread
-	return communications.NewSendOptions().
-		WithThreadID(c.ThreadID())
 }
 
 func (c *Native) Message() *telegram.Message {
@@ -290,34 +284,35 @@ func (c *Native) ThreadID() int {
 	}
 }
 
-func (c *Native) Send(what interface{}, opts ...communications.SendOptions) error {
-	opt := c.contextualSendOptions().MergeWithMany(opts...)
+func (c *Native) Send(what interface{}, opts ...params.SendOptions) error {
+	opt := params.Merge(opts...).WithThreadID(c.ThreadID())
 	_, err := c.API.SendTo(c.Recipient(), what, opt)
 	return err
 }
 
-func (c *Native) SendAlbum(a telegram.InputAlbum, opts ...communications.SendOptions) error {
+func (c *Native) SendAlbum(a telegram.InputAlbum, opts ...params.SendOptions) error {
 	_, err := c.API.SendAlbumTo(c.Recipient(), a, opts...)
 	return err
 }
 
-func (c *Native) Reply(what interface{}, opts ...communications.SendOptions) error {
+func (c *Native) Reply(what interface{}, opts ...params.SendOptions) error {
 	msg := c.Message()
 	if msg == nil {
 		return errors.WithMissingEntity(errors.ErrContextInsufficient, errors.MissingEntityMessage)
 	}
-	opt := c.contextualSendOptions().MergeWithMany(opts...)
+	opt := params.Merge(opts...).
+		WithReplyParams(&telegram.ReplyParams{MessageID: msg.ID})
 	_, err := c.API.ReplyTo(msg, what, opt)
 	return err
 }
 
-func (c *Native) Forward(msg bot.Editable, opts ...communications.SendOptions) error {
-	opt := c.contextualSendOptions().MergeWithMany(opts...)
+func (c *Native) Forward(msg bot.Editable, opts ...params.SendOptions) error {
+	opt := params.Merge(opts...).WithThreadID(c.ThreadID())
 	_, err := c.API.ForwardTo(c.Recipient(), msg, opt)
 	return err
 }
 
-func (c *Native) EditLast(what interface{}, opts ...communications.SendOptions) error {
+func (c *Native) EditLast(what interface{}, opts ...params.SendOptions) error {
 	if c.u.ChosenInlineResult != nil {
 		_, err := c.Edit(c.u.ChosenInlineResult, what, opts...)
 		return err
@@ -329,13 +324,13 @@ func (c *Native) EditLast(what interface{}, opts ...communications.SendOptions) 
 	return errors.WithMissingEntity(errors.ErrContextInsufficient, errors.MissingEntityMessage)
 }
 
-func (c *Native) EditLastCaption(caption string, opts ...communications.SendOptions) error {
+func (c *Native) EditLastCaption(caption string, opts ...params.SendOptions) error {
 	if c.u.ChosenInlineResult != nil {
-		_, err := c.API.EditCaption(c.u.ChosenInlineResult, caption, opts...)
+		_, err := c.EditCaption(c.u.ChosenInlineResult, caption, opts...)
 		return err
 	}
 	if c.u.CallbackQuery != nil {
-		_, err := c.API.EditCaption(c.u.CallbackQuery, caption, opts...)
+		_, err := c.EditCaption(c.u.CallbackQuery, caption, opts...)
 		return err
 	}
 	return errors.ErrNothingToEdit

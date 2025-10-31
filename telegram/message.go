@@ -4,6 +4,9 @@ import (
 	"strconv"
 	"time"
 	"unicode/utf16"
+
+	"github.com/alagunto/tb/telegram"
+	"github.com/alagunto/tb/telegram/media"
 )
 
 // Message object represents a message.
@@ -113,9 +116,9 @@ type Message struct {
 
 	// Media (photo, video, music, etc.) - see
 	// https://core.telegram.org/bots/api#message
-	Photo           *Photo          `json:"photo,omitempty"`
-	Caption         string          `json:"caption,omitempty"`
-	CaptionEntities []MessageEntity `json:"caption_entities,omitempty"`
+	Photo           *media.PhotoSize `json:"photo,omitempty"`
+	Caption         string           `json:"caption,omitempty"`
+	CaptionEntities []MessageEntity  `json:"caption_entities,omitempty"`
 
 	// Entities in caption
 	HasMediaSpoiler bool `json:"has_media_spoiler,omitempty"`
@@ -153,7 +156,7 @@ type Message struct {
 	NewChatTitle string `json:"new_chat_title,omitempty"`
 
 	// For a service message, represents all available thumbnails of the new chat photo.
-	NewGroupPhoto *Photo `json:"new_chat_photo,omitempty"`
+	NewChatPhoto []media.PhotoSize `json:"new_chat_photo,omitempty"`
 
 	// For a service message, true if chat photo just got removed.
 	GroupPhotoDeleted bool `json:"delete_chat_photo,omitempty"`
@@ -240,25 +243,25 @@ type Message struct {
 	WebAppData *WebAppData `json:"web_app_data,omitempty"`
 
 	// VideoNote is a video note
-	VideoNote *VideoNote `json:"video_note,omitempty"`
+	VideoNote *media.VideoNote `json:"video_note,omitempty"`
 
 	// Voice is a voice message
-	Voice *Voice `json:"voice,omitempty"`
+	Voice *media.Voice `json:"voice,omitempty"`
 
 	// Audio is an audio file
-	Audio *Audio `json:"audio,omitempty"`
+	Audio *media.Audio `json:"audio,omitempty"`
 
 	// Document is a general file
-	Document *Document `json:"document,omitempty"`
+	Document *media.Document `json:"document,omitempty"`
 
 	// Animation is an animation file
-	Animation *Animation `json:"animation,omitempty"`
+	Animation *media.Animation `json:"animation,omitempty"`
 
 	// Sticker is a sticker
-	Sticker *Sticker `json:"sticker,omitempty"`
+	Sticker *media.Sticker `json:"sticker,omitempty"`
 
 	// Video is a video file
-	Video *Video `json:"video,omitempty"`
+	Video *media.Video `json:"video,omitempty"`
 
 	// BoostAdded is user boosted the chat
 	BoostAdded *BoostAdded `json:"boost_added,omitempty"`
@@ -312,7 +315,7 @@ func (m *Message) IsService() bool {
 		len(m.UsersJoined) > 0 ||
 		m.UserLeft != nil ||
 		m.NewChatTitle != "" ||
-		m.NewGroupPhoto != nil ||
+		len(m.NewChatPhoto) > 0 ||
 		m.GroupPhotoDeleted ||
 		m.GroupCreated ||
 		m.SuperGroupCreated ||
@@ -336,21 +339,6 @@ func (m *Message) EntityText(e MessageEntity) string {
 	}
 
 	return string(utf16.Decode(a[off:end]))
-}
-
-// Private returns true, if it's a personal message.
-func (m *Message) Private() bool {
-	return m.Chat.Type == ChatPrivate
-}
-
-// FromGroup returns true, if message came from a group OR a supergroup.
-func (m *Message) FromGroup() bool {
-	return m.Chat.Type == ChatGroup || m.Chat.Type == ChatSuperGroup
-}
-
-// FromChannel returns true, if message came from a channel.
-func (m *Message) FromChannel() bool {
-	return m.Chat.Type == ChatChannel
 }
 
 // Placeholder types that will be defined later
@@ -388,7 +376,7 @@ type MessageReaction struct {
 // MessageReactionCount object represents reactions added to a message.
 type MessageReactionCount struct {
 	// The chat containing the message.
-	Chat *Chat `json:"chat"`
+	Chat *telegram.Chat `json:"chat"`
 
 	// Unique message identifier inside the chat.
 	MessageID int `json:"message_id"`

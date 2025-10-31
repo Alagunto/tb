@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/alagunto/tb"
-	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/files"
 	"github.com/alagunto/tb/outgoing"
+	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/request"
 	"github.com/alagunto/tb/telegram"
 )
@@ -83,7 +83,7 @@ func main() {
 			Source:  files.UseLocalFile(path),
 			Caption: "This is a local photo file!",
 		}
-		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeHTML)
+		opts := params.NewSendOptions().WithParseMode(telegram.ParseModeHTML)
 		return c.Send(photo, opts)
 	})
 

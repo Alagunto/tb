@@ -5,6 +5,7 @@ import (
 
 	"github.com/alagunto/tb/bot"
 	"github.com/alagunto/tb/communications"
+	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/telegram"
 	"github.com/alagunto/tb/telegram/methods"
 )
@@ -64,7 +65,7 @@ func (b *Bot[RequestType]) UnpinAll(chat bot.Recipient) error {
 // Currently, Telegram supports only a narrow range of possible
 // actions, these are aligned as constants of this package.
 func (b *Bot[RequestType]) Notify(to bot.Recipient, action telegram.ChatAction, opts ...communications.SendOptions) error {
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
 	req := methods.SendChatActionRequest{
 		ChatID: to.Recipient(),

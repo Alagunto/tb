@@ -11,8 +11,3 @@ type Prepared struct {
 	// Files that will be sent to the send<Type> method, if any
 	Files map[string]files.FileSource
 }
-
-type Sendable[TelegramResponseType any] interface {
-	PrepareForTelegram() *Prepared
-	ProcessTelegramResponse(response TelegramResponseType) error
-}

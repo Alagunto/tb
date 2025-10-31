@@ -1,7 +1,7 @@
-package communications
+package params
 
 import (
-	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/alagunto/tb/telegram"
@@ -49,31 +49,49 @@ type SendOptions struct {
 	EffectID telegram.EffectID
 }
 
-func (o SendOptions) Merge(other SendOptions) SendOptions {
-	result := SendOptions{}
-	srcVal := reflect.ValueOf(o)
-	dstVal := reflect.ValueOf(result)
-
-	for i := 0; i < srcVal.NumField(); i++ {
-		dstVal.Field(i).Set(srcVal.Field(i))
+func (o SendOptions) Merge(others ...SendOptions) SendOptions {
+	result := o
+	for _, other := range others {
+		result = result.merge(other)
 	}
-
 	return result
 }
 
-// InjectInto adds SendOptions parameters directly into the provided params map.
-func (o *SendOptions) InjectInto(params map[string]any) error {
-	if o == nil {
-		return nil
+func (o SendOptions) merge(other SendOptions) SendOptions {
+	srcVal := reflect.ValueOf(&other)
+	dstVal := reflect.ValueOf(&o)
+
+	for i := 0; i < srcVal.Type().Elem().NumField(); i++ {
+		sFld := srcVal.Elem().Field(i)
+		dFld := dstVal.Elem().Field(i)
+
+		if dFld.Kind() == reflect.Ptr {
+			if dFld.IsNil() {
+				// dFld is a nil pointer, we need to allocate a new value for it
+				newVal := reflect.New(dFld.Type().Elem())
+				dFld.Set(newVal)
+			}
+		}
+
+		if !dFld.CanSet() {
+			if dFld.CanAddr() {
+				dFld = dFld.Addr()
+			} else {
+				panic(fmt.Errorf("field is not settable: %s", dFld.String()))
+			}
+		}
+
+		dFld.Set(sFld)
 	}
 
+	return o
+}
+
+// InjectInto adds SendOptions parameters directly into the provided params map.
+func (o SendOptions) InjectIntoMap(params map[string]any) error {
 	// Handle ReplyParams (takes precedence over ReplyTo)
 	if o.ReplyParams != nil {
-		replyParams, err := json.Marshal(o.ReplyParams)
-		if err != nil {
-			return err
-		}
-		params["reply_parameters"] = replyParams
+		params["reply_parameters"] = o.ReplyParams
 	}
 
 	if o.DisableWebPagePreview {
@@ -125,22 +143,9 @@ func (o *SendOptions) InjectInto(params map[string]any) error {
 	return nil
 }
 
-func (o SendOptions) Inject(originalParams map[string]any) map[string]any {
-	injectedParams := make(map[string]any)
-	// Copy all original params to injectedParams — those were before us and should be preserved (or overridden)
-	for key, value := range originalParams {
-		injectedParams[key] = value
-	}
-
-	// Use InjectInto for the actual injection logic
-	_ = o.InjectInto(injectedParams)
-
-	return injectedParams
-}
-
 func (o SendOptions) ToMap() map[string]any {
 	params := make(map[string]any)
-	o.InjectInto(params)
+	o.InjectIntoMap(params)
 	return params
 }
 
@@ -169,8 +174,8 @@ func (o SendOptions) PrepareButtons(keys [][]telegram.InlineButton) [][]telegram
 
 // InjectIntoMethodRequest injects SendOptions fields into a method request
 // using type assertions and setter interfaces.
-func (o *SendOptions) InjectIntoMethodRequest(request interface{}) {
-	if o == nil || request == nil {
+func (o SendOptions) InjectIntoMethodRequest(request interface{}) {
+	if request == nil {
 		return
 	}
 
@@ -204,18 +209,10 @@ func (o *SendOptions) InjectIntoMethodRequest(request interface{}) {
 	}
 }
 
-func (o SendOptions) MergeWithMany(others ...SendOptions) SendOptions {
-	result := o
-	for _, other := range others {
-		result = result.Merge(other)
-	}
-	return result
-}
-
-func MergeMultipleSendOptions(others ...SendOptions) SendOptions {
+func Merge(opts ...SendOptions) SendOptions {
 	result := NewSendOptions()
-	for _, other := range others {
-		result = result.Merge(other)
+	for _, opt := range opts {
+		result = result.Merge(opt)
 	}
 	return result
 }

@@ -1,7 +1,6 @@
 package tb
 
 import (
-	"runtime/debug"
 	"strings"
 
 	"github.com/alagunto/tb/telegram"
@@ -350,29 +349,10 @@ func (b *Bot[RequestType]) runHandler(c RequestType, endpoint string) bool {
 		return false
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			if b.onError != nil {
-				b.onError(r.(error), c)
-			} else {
-				debug.PrintStack()
-			}
-		}
-	}()
-
 	// Execute handler directly (middleware is handled by Group)
 	if err := handler(c); err != nil && b.onError != nil {
 		b.onError(err, c)
 	}
 
 	return true
-}
-
-func isUserInList(user *telegram.User, list []telegram.User) bool {
-	for _, user2 := range list {
-		if user.ID == user2.ID {
-			return true
-		}
-	}
-	return false
 }
