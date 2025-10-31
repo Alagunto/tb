@@ -10,7 +10,7 @@ type Interface interface {
 	bot.API
 
 	// Bot returns the bot instance.
-	Bot() interface{}
+	Bot() bot.API
 
 	// Update returns the original update object.
 	Update() *telegram.Update

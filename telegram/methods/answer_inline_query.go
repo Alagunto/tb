@@ -8,7 +8,7 @@ type AnswerInlineQueryRequest struct {
 	InlineQueryID string `json:"inline_query_id"`
 
 	// Array of results for the inline query
-	Results []telegram.Result `json:"results,omitempty"`
+	Results []telegram.InlineQueryResult `json:"results,omitempty"`
 
 	// The maximum amount of time in seconds that the result of the inline query may be cached on the server
 	CacheTime int `json:"cache_time,omitempty"`

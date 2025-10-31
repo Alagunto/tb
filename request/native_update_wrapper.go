@@ -12,39 +12,46 @@ import (
 
 // NewContext returns a new native context object,
 // field by the passed update.
-func NewNativeContext(b bot.API, u telegram.Update) *nativeContext {
-	return &nativeContext{
-		API: b,
+func NewNativeFromRequest(req Interface) *Native {
+	return &Native{
+		API: req.Bot(),
+		u:   *req.Update(),
+	}
+}
+
+func NewNativeFromUpdate(bot bot.API, u telegram.Update) *Native {
+	return &Native{
+		API: bot,
 		u:   u,
 	}
 }
 
-// nativeContext is a native implementation of the Context interface.
+// Native is a native implementation of the Context interface.
 // "context" is taken by context package, maybe there is a better name.
-type nativeContext struct {
+type Native struct {
 	bot.API
 	u     telegram.Update
 	lock  sync.RWMutex
 	store map[string]interface{}
 }
 
-var _ Interface = (*nativeContext)(nil)
+var _ Interface = (*Native)(nil)
 
-func (c *nativeContext) Update() *telegram.Update {
+func (c *Native) Update() *telegram.Update {
 	return &c.u
 }
 
-func (c *nativeContext) Bot() interface{} {
+func (c *Native) Bot() bot.API {
 	return c.API
 }
 
-func (c *nativeContext) contextualSendOptions() communications.SendOptions {
+func (c *Native) contextualSendOptions() communications.SendOptions {
 	// Add thread ID to the send options if we are responding to a thread
 	return communications.NewSendOptions().
 		WithThreadID(c.ThreadID())
 }
 
-func (c *nativeContext) Message() *telegram.Message {
+func (c *Native) Message() *telegram.Message {
 	switch {
 	case c.u.Message != nil:
 		return c.u.Message
@@ -62,41 +69,41 @@ func (c *nativeContext) Message() *telegram.Message {
 	}
 }
 
-func (c *nativeContext) CallbackMessage() *telegram.Message {
+func (c *Native) CallbackMessage() *telegram.Message {
 	if c.u.CallbackQuery == nil {
 		return nil
 	}
 	return c.u.CallbackQuery.Message
 }
 
-func (c *nativeContext) CallbackQuery() *telegram.CallbackQuery {
+func (c *Native) CallbackQuery() *telegram.CallbackQuery {
 	return c.u.CallbackQuery
 }
 
-func (c *nativeContext) InlineQuery() *telegram.InlineQuery {
+func (c *Native) InlineQuery() *telegram.InlineQuery {
 	return c.u.InlineQuery
 }
 
-func (c *nativeContext) InlineResult() *telegram.InlineResult {
+func (c *Native) InlineResult() *telegram.InlineResult {
 	return c.u.ChosenInlineResult
 }
 
-func (c *nativeContext) ShippingQuery() *telegram.ShippingQuery {
+func (c *Native) ShippingQuery() *telegram.ShippingQuery {
 	return c.u.ShippingQuery
 }
 
-func (c *nativeContext) PreCheckoutQuery() *telegram.PreCheckoutQuery {
+func (c *Native) PreCheckoutQuery() *telegram.PreCheckoutQuery {
 	return c.u.PreCheckoutQuery
 }
 
-func (c *nativeContext) Payment() *telegram.Payment {
+func (c *Native) Payment() *telegram.Payment {
 	if c.u.Message == nil {
 		return nil
 	}
 	return c.u.Message.Payment
 }
 
-func (c *nativeContext) ChatMember() *telegram.ChatMember {
+func (c *Native) ChatMember() *telegram.ChatMember {
 	switch {
 	case c.u.ChatMember != nil:
 		return c.u.ChatMember
@@ -107,19 +114,19 @@ func (c *nativeContext) ChatMember() *telegram.ChatMember {
 	}
 }
 
-func (c *nativeContext) ChatJoinRequest() *telegram.ChatJoinRequest {
+func (c *Native) ChatJoinRequest() *telegram.ChatJoinRequest {
 	return c.u.ChatJoinRequest
 }
 
-func (c *nativeContext) Poll() *telegram.Poll {
+func (c *Native) Poll() *telegram.Poll {
 	return c.u.Poll
 }
 
-func (c *nativeContext) PollAnswer() *telegram.PollAnswer {
+func (c *Native) PollAnswer() *telegram.PollAnswer {
 	return c.u.PollAnswer
 }
 
-func (c *nativeContext) Migration() (int64, int64) {
+func (c *Native) Migration() (int64, int64) {
 	m := c.u.Message
 	if m == nil {
 		return 0, 0
@@ -127,7 +134,7 @@ func (c *nativeContext) Migration() (int64, int64) {
 	return m.MigrateFrom, m.MigrateTo
 }
 
-func (c *nativeContext) Thread() *telegram.Thread {
+func (c *Native) Thread() *telegram.Thread {
 	m := c.u.Message
 	if m == nil {
 		return nil
@@ -143,15 +150,15 @@ func (c *nativeContext) Thread() *telegram.Thread {
 	return nil
 }
 
-func (c *nativeContext) Boost() *telegram.BoostUpdated {
+func (c *Native) Boost() *telegram.BoostUpdated {
 	return c.u.ChatBoost
 }
 
-func (c *nativeContext) BoostRemoved() *telegram.BoostRemoved {
+func (c *Native) BoostRemoved() *telegram.BoostRemoved {
 	return c.u.RemovedChatBoost
 }
 
-func (c *nativeContext) Sender() *telegram.User {
+func (c *Native) Sender() *telegram.User {
 	switch {
 	case c.u.CallbackQuery != nil:
 		return c.u.CallbackQuery.Sender
@@ -185,7 +192,7 @@ func (c *nativeContext) Sender() *telegram.User {
 	return nil
 }
 
-func (c *nativeContext) Chat() *telegram.Chat {
+func (c *Native) Chat() *telegram.Chat {
 	switch {
 	case c.Message() != nil:
 		return c.Message().Chat
@@ -201,7 +208,7 @@ func (c *nativeContext) Chat() *telegram.Chat {
 	}
 }
 
-func (c *nativeContext) Recipient() bot.Recipient {
+func (c *Native) Recipient() bot.Recipient {
 	chat := c.Chat()
 	if chat != nil {
 		return chat
@@ -209,7 +216,7 @@ func (c *nativeContext) Recipient() bot.Recipient {
 	return c.Sender()
 }
 
-func (c *nativeContext) Text() string {
+func (c *Native) Text() string {
 	m := c.Message()
 	if m == nil {
 		return ""
@@ -220,7 +227,7 @@ func (c *nativeContext) Text() string {
 	return m.Text
 }
 
-func (c *nativeContext) Entities() telegram.Entities {
+func (c *Native) Entities() telegram.Entities {
 	m := c.Message()
 	if m == nil {
 		return nil
@@ -231,7 +238,7 @@ func (c *nativeContext) Entities() telegram.Entities {
 	return m.Entities
 }
 
-func (c *nativeContext) Data() string {
+func (c *Native) Data() string {
 	switch {
 	case c.u.Message != nil:
 		m := c.u.Message
@@ -254,7 +261,7 @@ func (c *nativeContext) Data() string {
 	}
 }
 
-func (c *nativeContext) Args() []string {
+func (c *Native) Args() []string {
 	m := c.u.Message
 	switch {
 	case m != nil && m.Payment != nil:
@@ -274,7 +281,7 @@ func (c *nativeContext) Args() []string {
 	return nil
 }
 
-func (c *nativeContext) ThreadID() int {
+func (c *Native) ThreadID() int {
 	switch {
 	case c.Message() != nil:
 		return c.Message().ThreadID
@@ -283,18 +290,18 @@ func (c *nativeContext) ThreadID() int {
 	}
 }
 
-func (c *nativeContext) Send(what interface{}, opts ...communications.SendOptions) error {
+func (c *Native) Send(what interface{}, opts ...communications.SendOptions) error {
 	opt := c.contextualSendOptions().MergeWithMany(opts...)
 	_, err := c.API.SendTo(c.Recipient(), what, opt)
 	return err
 }
 
-func (c *nativeContext) SendAlbum(a telegram.Album, opts ...communications.SendOptions) error {
+func (c *Native) SendAlbum(a telegram.Album, opts ...communications.SendOptions) error {
 	_, err := c.API.SendAlbumTo(c.Recipient(), a, opts...)
 	return err
 }
 
-func (c *nativeContext) Reply(what interface{}, opts ...communications.SendOptions) error {
+func (c *Native) Reply(what interface{}, opts ...communications.SendOptions) error {
 	msg := c.Message()
 	if msg == nil {
 		return errors.WithMissingEntity(errors.ErrContextInsufficient, errors.MissingEntityMessage)
@@ -304,13 +311,13 @@ func (c *nativeContext) Reply(what interface{}, opts ...communications.SendOptio
 	return err
 }
 
-func (c *nativeContext) Forward(msg bot.Editable, opts ...communications.SendOptions) error {
+func (c *Native) Forward(msg bot.Editable, opts ...communications.SendOptions) error {
 	opt := c.contextualSendOptions().MergeWithMany(opts...)
 	_, err := c.API.ForwardTo(c.Recipient(), msg, opt)
 	return err
 }
 
-func (c *nativeContext) EditLast(what interface{}, opts ...communications.SendOptions) error {
+func (c *Native) EditLast(what interface{}, opts ...communications.SendOptions) error {
 	if c.u.ChosenInlineResult != nil {
 		_, err := c.Edit(c.u.ChosenInlineResult, what, opts...)
 		return err
@@ -322,7 +329,7 @@ func (c *nativeContext) EditLast(what interface{}, opts ...communications.SendOp
 	return errors.WithMissingEntity(errors.ErrContextInsufficient, errors.MissingEntityMessage)
 }
 
-func (c *nativeContext) EditLastCaption(caption string, opts ...communications.SendOptions) error {
+func (c *Native) EditLastCaption(caption string, opts ...communications.SendOptions) error {
 	if c.u.ChosenInlineResult != nil {
 		_, err := c.API.EditCaption(c.u.ChosenInlineResult, caption, opts...)
 		return err
@@ -334,7 +341,7 @@ func (c *nativeContext) EditLastCaption(caption string, opts ...communications.S
 	return errors.ErrNothingToEdit
 }
 
-func (c *nativeContext) DeleteLast() error {
+func (c *Native) DeleteLast() error {
 	msg := c.Message()
 	if msg == nil {
 		return errors.WithInvalidParam(errors.ErrTelebot, "message", nil)
@@ -342,7 +349,7 @@ func (c *nativeContext) DeleteLast() error {
 	return c.API.Delete(msg)
 }
 
-func (c *nativeContext) AnswerInlineQuery(query *telegram.InlineQuery, resp *telegram.QueryResponse) error {
+func (c *Native) AnswerInlineQuery(query *telegram.InlineQuery, resp *telegram.InlineQueryResponse) error {
 	// If query is not provided, use the one from the update
 	if query == nil {
 		if c.u.InlineQuery == nil {
@@ -353,7 +360,7 @@ func (c *nativeContext) AnswerInlineQuery(query *telegram.InlineQuery, resp *tel
 	return c.AnswerInlineQuery(query, resp)
 }
 
-func (c *nativeContext) Set(key string, value interface{}) {
+func (c *Native) Set(key string, value interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -364,7 +371,7 @@ func (c *nativeContext) Set(key string, value interface{}) {
 	c.store[key] = value
 }
 
-func (c *nativeContext) Get(key string) interface{} {
+func (c *Native) Get(key string) interface{} {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	return c.store[key]

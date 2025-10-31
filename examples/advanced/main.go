@@ -13,99 +13,6 @@ import (
 	"github.com/alagunto/tb/telegram"
 )
 
-// Context wraps request.Interface to provide convenient access to native context methods
-type Context struct {
-	request.Interface
-}
-
-// Send is a convenience method that uses SendTo internally
-func (c *Context) Send(what interface{}, opts ...communications.SendOptions) error {
-	opt := communications.MergeMultipleSendOptions(opts...)
-	_, err := c.SendTo(c.Recipient(), what, opt)
-	return err
-}
-
-// Reply is a convenience method that uses ReplyTo internally
-func (c *Context) Reply(what interface{}, opts ...communications.SendOptions) error {
-	msg := c.Message()
-	if msg == nil {
-		return fmt.Errorf("no message to reply to")
-	}
-	opt := communications.MergeMultipleSendOptions(opts...)
-	_, err := c.ReplyTo(msg, what, opt)
-	return err
-}
-
-// SendAlbum is a convenience method
-func (c *Context) SendAlbum(a telegram.Album, opts ...communications.SendOptions) error {
-	_, err := c.SendAlbumTo(c.Recipient(), a, opts...)
-	return err
-}
-
-// EditLast edits the last message from callback or inline query
-func (c *Context) EditLast(what interface{}, opts ...communications.SendOptions) error {
-	update := c.Update()
-	if update.ChosenInlineResult != nil {
-		_, err := c.Edit(update.ChosenInlineResult, what, opts...)
-		return err
-	}
-	if update.CallbackQuery != nil {
-		_, err := c.Edit(update.CallbackQuery, what, opts...)
-		return err
-	}
-	return fmt.Errorf("nothing to edit")
-}
-
-// EditLastCaption edits the caption of the last message
-func (c *Context) EditLastCaption(caption string, opts ...communications.SendOptions) error {
-	update := c.Update()
-	if update.ChosenInlineResult != nil {
-		_, err := c.EditCaption(update.ChosenInlineResult, caption, opts...)
-		return err
-	}
-	if update.CallbackQuery != nil {
-		_, err := c.EditCaption(update.CallbackQuery, caption, opts...)
-		return err
-	}
-	return fmt.Errorf("nothing to edit")
-}
-
-// DeleteLast deletes the current message
-func (c *Context) DeleteLast() error {
-	msg := c.Message()
-	if msg == nil {
-		return fmt.Errorf("no message to delete")
-	}
-	return c.Delete(msg)
-}
-
-// InputPhoto wraps telegram.Photo to implement Inputtable interface
-type InputPhoto struct {
-	*telegram.Photo
-}
-
-// InputMedia implements Inputtable interface
-func (p *InputPhoto) InputMedia() *telegram.InputMedia {
-	im := &telegram.InputMedia{
-		Type: "photo",
-		// Media will be set by SendAlbumTo to "attach://fileN"
-	}
-	if p.Photo != nil {
-		im.Caption = p.Caption
-		im.CaptionAbove = p.CaptionAbove
-		im.HasSpoiler = p.HasSpoiler
-	}
-	return im
-}
-
-// MediaFile implements Inputtable interface
-func (p *InputPhoto) MediaFile() interface{} {
-	if p.Photo != nil {
-		return p.Source
-	}
-	return nil
-}
-
 func main() {
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
@@ -113,22 +20,21 @@ func main() {
 	}
 
 	// Create a request builder function
-	requestBuilder := func(req request.Interface) (*Context, error) {
-		return &Context{Interface: req}, nil
+	requestBuilder := func(req request.Interface) (*request.Native, error) {
+		return request.NewNativeFromRequest(req), nil
 	}
 
 	// Create bot settings
-	settings := tb.Settings[*Context, func(*Context) error, func(func(*Context) error) func(*Context) error]{
+	settings := tb.Settings[*request.Native]{
 		Token: token,
 		Poller: &tb.LongPoller{
 			Timeout:        10 * time.Second,
 			AllowedUpdates: []string{"message", "callback_query", "inline_query"},
 		},
-		OnError: func(err error, ctx *Context, info tb.DebugInfo[*Context, func(*Context) error, func(func(*Context) error) func(*Context) error]) {
+		OnError: func(err error, ctx *request.Native) {
 			log.Printf("Error: %v", err)
 		},
 	}
-
 	// Create the bot
 	bot, err := tb.NewBot(requestBuilder, settings)
 	if err != nil {
@@ -136,7 +42,7 @@ func main() {
 	}
 
 	// Start command with inline keyboard
-	bot.Handle("/start", func(c *Context) error {
+	bot.Handle("/start", func(c *request.Native) error {
 		keyboard := &telegram.ReplyMarkup{
 			InlineKeyboard: [][]telegram.InlineButton{
 				{
@@ -165,7 +71,7 @@ func main() {
 	})
 
 	// Inline keyboard example
-	bot.Handle("/keyboard", func(c *Context) error {
+	bot.Handle("/keyboard", func(c *request.Native) error {
 		keyboard := &telegram.ReplyMarkup{
 			InlineKeyboard: [][]telegram.InlineButton{
 				{
@@ -182,7 +88,7 @@ func main() {
 	})
 
 	// Handle callback queries from inline buttons
-	bot.Handle("\fbtn1", func(c *Context) error {
+	bot.Handle("\fbtn1", func(c *request.Native) error {
 		// Answer the callback query
 		callback := c.CallbackQuery()
 		if callback != nil {
@@ -195,7 +101,7 @@ func main() {
 		return c.EditLastCaption("You selected Button 1!")
 	})
 
-	bot.Handle("\fbtn2", func(c *Context) error {
+	bot.Handle("\fbtn2", func(c *request.Native) error {
 		callback := c.CallbackQuery()
 		if callback != nil {
 			resp := &telegram.CallbackResponse{
@@ -207,7 +113,7 @@ func main() {
 		return c.EditLastCaption("You selected Button 2!")
 	})
 
-	bot.Handle("\foption_a", func(c *Context) error {
+	bot.Handle("\foption_a", func(c *request.Native) error {
 		callback := c.CallbackQuery()
 		if callback != nil {
 			resp := &telegram.CallbackResponse{
@@ -218,7 +124,7 @@ func main() {
 		return c.EditLast("You selected Option A!")
 	})
 
-	bot.Handle("\foption_b", func(c *Context) error {
+	bot.Handle("\foption_b", func(c *request.Native) error {
 		callback := c.CallbackQuery()
 		if callback != nil {
 			resp := &telegram.CallbackResponse{
@@ -229,7 +135,7 @@ func main() {
 		return c.EditLast("You selected Option B!")
 	})
 
-	bot.Handle("\foption_c", func(c *Context) error {
+	bot.Handle("\foption_c", func(c *request.Native) error {
 		callback := c.CallbackQuery()
 		if callback != nil {
 			resp := &telegram.CallbackResponse{
@@ -242,7 +148,7 @@ func main() {
 	})
 
 	// Reply keyboard example
-	bot.Handle("/reply_keyboard", func(c *Context) error {
+	bot.Handle("/reply_keyboard", func(c *request.Native) error {
 		keyboard := &telegram.ReplyMarkup{
 			ReplyKeyboard: [][]telegram.ReplyButton{
 				{
@@ -262,16 +168,16 @@ func main() {
 	})
 
 	// Media album example
-	bot.Handle("/album", func(c *Context) error {
+	bot.Handle("/album", func(c *request.Native) error {
 		album := telegram.Album{
-			&InputPhoto{Photo: &telegram.Photo{
+			&telegram.InputMediaPhoto{Photo: &telegram.Photo{
 				Source:  files.UseURL("https://via.placeholder.com/300x200?text=Photo+1"),
 				Caption: "First photo in the album",
 			}},
-			&InputPhoto{Photo: &telegram.Photo{
+			&telegram.InputMediaPhoto{Photo: &telegram.Photo{
 				Source: files.UseURL("https://via.placeholder.com/300x200?text=Photo+2"),
 			}},
-			&InputPhoto{Photo: &telegram.Photo{
+			&telegram.InputMediaPhoto{Photo: &telegram.Photo{
 				Source: files.UseURL("https://via.placeholder.com/300x200?text=Photo+3"),
 			}},
 		}
@@ -279,7 +185,7 @@ func main() {
 	})
 
 	// Message editing example
-	bot.Handle("/edit", func(c *Context) error {
+	bot.Handle("/edit", func(c *request.Native) error {
 		// Send initial message
 		msg, err := c.SendTo(c.Recipient(), "This message will be edited in 2 seconds...")
 		if err != nil {
@@ -294,7 +200,7 @@ func main() {
 	})
 
 	// Message deletion example
-	bot.Handle("/delete", func(c *Context) error {
+	bot.Handle("/delete", func(c *request.Native) error {
 		msg, err := c.SendTo(c.Recipient(), "This message will be deleted in 3 seconds...")
 		if err != nil {
 			return err
@@ -305,7 +211,7 @@ func main() {
 	})
 
 	// Forward message example
-	bot.Handle("/forward", func(c *Context) error {
+	bot.Handle("/forward", func(c *request.Native) error {
 		// Forward the user's message back to them
 		msg := c.Message()
 		if msg == nil {
@@ -316,7 +222,7 @@ func main() {
 	})
 
 	// Copy message example
-	bot.Handle("/copy", func(c *Context) error {
+	bot.Handle("/copy", func(c *request.Native) error {
 		// Copy the user's message
 		msg := c.Message()
 		if msg == nil {
@@ -328,7 +234,7 @@ func main() {
 	})
 
 	// Location example
-	bot.Handle("/location", func(c *Context) error {
+	bot.Handle("/location", func(c *request.Native) error {
 		location := &telegram.Location{
 			Lat: 37.7749,
 			Lng: -122.4194,
@@ -337,14 +243,14 @@ func main() {
 	})
 
 	// Poll example
-	bot.Handle("/poll", func(c *Context) error {
+	bot.Handle("/poll", func(c *request.Native) error {
 		// Note: Poll creation requires specific Telegram API methods
 		// This is a placeholder showing the concept
 		return c.Reply("Poll creation would go here. Check Telegram API documentation for poll creation.")
 	})
 
 	// Reaction example
-	bot.Handle("/reaction", func(c *Context) error {
+	bot.Handle("/reaction", func(c *request.Native) error {
 		// Send a message first
 		msg, err := c.SendTo(c.Recipient(), "React to this message!")
 		if err != nil {
@@ -357,34 +263,34 @@ func main() {
 	})
 
 	// Handle inline queries
-	bot.Handle(tb.OnQuery, func(c *Context) error {
+	bot.Handle(tb.OnQuery, func(c *request.Native) error {
 		query := c.InlineQuery()
 		if query == nil {
 			return nil
 		}
 
+		article1 := &telegram.InlineQueryArticleResult{
+			InlineQueryResultBase: telegram.InlineQueryResultBase{
+				ID: "1",
+			},
+			Title:       "Result 1",
+			Text:        "You selected Result 1",
+			Description: "This is the first result",
+		}
+		article2 := &telegram.InlineQueryArticleResult{
+			InlineQueryResultBase: telegram.InlineQueryResultBase{
+				ID: "2",
+			},
+			Title:       "Result 2",
+			Text:        "You selected Result 2",
+			Description: "This is the second result",
+		}
 		results := []telegram.InlineQueryResult{
-			{
-				Type:  "article",
-				ID:    "1",
-				Title: "Result 1",
-				InputMessageContent: &telegram.InputText{
-					Text:      "You selected Result 1",
-					ParseMode: telegram.ParseModeHTML,
-				},
-			},
-			{
-				Type:  "article",
-				ID:    "2",
-				Title: "Result 2",
-				InputMessageContent: &telegram.InputText{
-					Text:      "You selected Result 2",
-					ParseMode: telegram.ParseModeHTML,
-				},
-			},
+			article1,
+			article2,
 		}
 
-		response := &telegram.QueryResponse{
+		response := &telegram.InlineQueryResponse{
 			Results: results,
 		}
 
@@ -392,7 +298,7 @@ func main() {
 	})
 
 	// Handle callback queries (generic handler)
-	bot.Handle(tb.OnCallback, func(c *Context) error {
+	bot.Handle(tb.OnCallback, func(c *request.Native) error {
 		callback := c.CallbackQuery()
 		if callback != nil {
 			resp := &telegram.CallbackResponse{

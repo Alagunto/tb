@@ -5,8 +5,17 @@ import (
 	"fmt"
 )
 
+// Result represents one result of an inline query.
+type InlineQueryResult interface {
+	ResultID() string
+	SetResultID(string)
+	SetParseMode(ParseMode)
+	SetContent(InputMessageContent)
+	SetReplyMarkup(*ReplyMarkup)
+}
+
 // ResultBase must be embedded into all IQRs.
-type ResultBase struct {
+type InlineQueryResultBase struct {
 	// Unique identifier for this result, 1-64 Bytes.
 	// If left unspecified, a 64-bit FNV-1 hash will be calculated
 	ID string `json:"id"`
@@ -25,45 +34,36 @@ type ResultBase struct {
 	ReplyMarkup *ReplyMarkup `json:"reply_markup,omitempty"`
 }
 
-// Result represents one result of an inline query.
-type Result interface {
-	ResultID() string
-	SetResultID(string)
-	SetParseMode(ParseMode)
-	SetContent(InputMessageContent)
-	SetReplyMarkup(*ReplyMarkup)
-}
-
 // Results is a slice wrapper for convenient marshalling.
-type Results []Result
+type InlineQueryResults []InlineQueryResult
 
 // ResultID returns ResultBase.ID.
-func (r *ResultBase) ResultID() string {
+func (r *InlineQueryResultBase) ResultID() string {
 	return r.ID
 }
 
 // SetResultID sets ResultBase.ID.
-func (r *ResultBase) SetResultID(id string) {
+func (r *InlineQueryResultBase) SetResultID(id string) {
 	r.ID = id
 }
 
 // SetParseMode sets ResultBase.ParseMode.
-func (r *ResultBase) SetParseMode(mode ParseMode) {
+func (r *InlineQueryResultBase) SetParseMode(mode ParseMode) {
 	r.ParseMode = mode
 }
 
 // SetContent sets ResultBase.Content.
-func (r *ResultBase) SetContent(content InputMessageContent) {
+func (r *InlineQueryResultBase) SetContent(content InputMessageContent) {
 	r.Content = content
 }
 
 // SetReplyMarkup sets ResultBase.ReplyMarkup.
-func (r *ResultBase) SetReplyMarkup(markup *ReplyMarkup) {
+func (r *InlineQueryResultBase) SetReplyMarkup(markup *ReplyMarkup) {
 	r.ReplyMarkup = markup
 }
 
 // MarshalJSON makes sure IQRs have proper IDs and Type variables set.
-func (results Results) MarshalJSON() ([]byte, error) {
+func (results InlineQueryResults) MarshalJSON() ([]byte, error) {
 	for i, result := range results {
 		if result.ResultID() == "" {
 			result.SetResultID(fmt.Sprintf("%d", &results[i]))
@@ -73,36 +73,36 @@ func (results Results) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	return json.Marshal([]Result(results))
+	return json.Marshal([]InlineQueryResult(results))
 }
 
-func inferIQR(result Result) error {
+func inferIQR(result InlineQueryResult) error {
 	switch r := result.(type) {
-	case *ArticleResult:
+	case *InlineQueryArticleResult:
 		r.Type = "article"
-	case *AudioResult:
+	case *InlineQueryAudioResult:
 		r.Type = "audio"
-	case *ContactResult:
+	case *InlineQueryContactResult:
 		r.Type = "contact"
-	case *DocumentResult:
+	case *InlineQueryDocumentResult:
 		r.Type = "document"
-	case *GifResult:
+	case *InlineQueryGifResult:
 		r.Type = "gif"
-	case *LocationResult:
+	case *InlineQueryLocationResult:
 		r.Type = "location"
-	case *Mpeg4GifResult:
+	case *InlineQueryMpeg4GifResult:
 		r.Type = "mpeg4_gif"
-	case *PhotoResult:
+	case *InlineQueryPhotoResult:
 		r.Type = "photo"
-	case *VenueResult:
+	case *InlineQueryVenueResult:
 		r.Type = "venue"
-	case *VideoResult:
+	case *InlineQueryVideoResult:
 		r.Type = "video"
-	case *VoiceResult:
+	case *InlineQueryVoiceResult:
 		r.Type = "voice"
-	case *StickerResult:
+	case *InlineQueryStickerResult:
 		r.Type = "sticker"
-	case *GameResult:
+	case *InlineQueryGameResult:
 		r.Type = "game"
 	default:
 		return fmt.Errorf("telebot: result %v is not supported", result)
@@ -114,16 +114,16 @@ func inferIQR(result Result) error {
 // GameResult represents a game. Game is a content type
 // supported by Telegram, which can be sent back to the
 // user as a result for an inline query.
-type GameResult struct {
-	ResultBase
+type InlineQueryGameResult struct {
+	InlineQueryResultBase
 
 	// ShortName is a unique identifier of the game.
 	ShortName string `json:"game_short_name"`
 }
 
 // ArticleResult represents a link to an article or web page.
-type ArticleResult struct {
-	ResultBase
+type InlineQueryArticleResult struct {
+	InlineQueryResultBase
 
 	// Title of the result.
 	Title string `json:"title"`
@@ -152,8 +152,8 @@ type ArticleResult struct {
 }
 
 // AudioResult represents a link to an mp3 audio file.
-type AudioResult struct {
-	ResultBase
+type InlineQueryAudioResult struct {
+	InlineQueryResultBase
 
 	// Title.
 	Title string `json:"title"`
@@ -175,8 +175,8 @@ type AudioResult struct {
 }
 
 // ContactResult represents a contact with a phone number.
-type ContactResult struct {
-	ResultBase
+type InlineQueryContactResult struct {
+	InlineQueryResultBase
 
 	// Contact's phone number.
 	PhoneNumber string `json:"phone_number"`
@@ -201,8 +201,8 @@ type ContactResult struct {
 }
 
 // DocumentResult represents a link to a file.
-type DocumentResult struct {
-	ResultBase
+type InlineQueryDocumentResult struct {
+	InlineQueryResultBase
 
 	// Title for the result.
 	Title string `json:"title"`
@@ -234,8 +234,8 @@ type DocumentResult struct {
 }
 
 // GifResult represents a link to an animated GIF file.
-type GifResult struct {
-	ResultBase
+type InlineQueryGifResult struct {
+	InlineQueryResultBase
 
 	// A valid URL for the GIF file. File size must not exceed 1MB.
 	URL string `json:"gif_url"`
@@ -270,8 +270,8 @@ type GifResult struct {
 }
 
 // LocationResult represents a location on a map.
-type LocationResult struct {
-	ResultBase
+type InlineQueryLocationResult struct {
+	InlineQueryResultBase
 
 	Location
 
@@ -284,8 +284,8 @@ type LocationResult struct {
 
 // Mpeg4GifResult represents a link to a video animation
 // (H.264/MPEG-4 AVC video without sound).
-type Mpeg4GifResult struct {
-	ResultBase
+type InlineQueryMpeg4GifResult struct {
+	InlineQueryResultBase
 
 	// A valid URL for the MP4 file.
 	URL string `json:"mpeg4_url"`
@@ -320,8 +320,8 @@ type Mpeg4GifResult struct {
 }
 
 // PhotoResult represents a link to a photo.
-type PhotoResult struct {
-	ResultBase
+type InlineQueryPhotoResult struct {
+	InlineQueryResultBase
 
 	// A valid URL of the photo. Photo must be in jpeg format.
 	// Photo size must not exceed 5MB.
@@ -353,8 +353,8 @@ type PhotoResult struct {
 }
 
 // VenueResult represents a venue.
-type VenueResult struct {
-	ResultBase
+type InlineQueryVenueResult struct {
+	InlineQueryResultBase
 
 	Location
 
@@ -379,8 +379,8 @@ type VenueResult struct {
 
 // VideoResult represents a link to a page containing an embedded
 // video player or a video file.
-type VideoResult struct {
-	ResultBase
+type InlineQueryVideoResult struct {
+	InlineQueryResultBase
 
 	// A valid URL for the embedded video player or video file.
 	URL string `json:"video_url"`
@@ -418,8 +418,8 @@ type VideoResult struct {
 
 // VoiceResult represents a link to a voice recording in an .ogg
 // container encoded with OPUS.
-type VoiceResult struct {
-	ResultBase
+type InlineQueryVoiceResult struct {
+	InlineQueryResultBase
 
 	// A valid URL for the voice recording.
 	URL string `json:"voice_url"`
@@ -438,8 +438,8 @@ type VoiceResult struct {
 }
 
 // StickerResult represents an inline cached sticker response.
-type StickerResult struct {
-	ResultBase
+type InlineQueryStickerResult struct {
+	InlineQueryResultBase
 
 	// If Cache != "", it'll be used instead
 	Cache string `json:"sticker_file_id,omitempty"`

@@ -49,18 +49,18 @@ func main() {
 	}
 
 	// Create a request builder function
-	requestBuilder := func(req request.Interface) (*Context, error) {
-		return &Context{Interface: req}, nil
+	requestBuilder := func(req request.Interface) (*request.Native, error) {
+		return request.NewNativeFromRequest(req), nil
 	}
 
 	// Create bot settings
-	settings := tb.Settings[*Context, func(*Context) error, func(func(*Context) error) func(*Context) error]{
+	settings := tb.Settings[*request.Native]{
 		Token: token,
 		Poller: &tb.LongPoller{
-			Timeout:       10 * time.Second,
+			Timeout:        10 * time.Second,
 			AllowedUpdates: []string{"message"},
 		},
-		OnError: func(err error, ctx *Context, info tb.DebugInfo[*Context, func(*Context) error, func(func(*Context) error) func(*Context) error]) {
+		OnError: func(err error, ctx *request.Native) {
 			log.Printf("Error: %v", err)
 		},
 	}
@@ -72,7 +72,7 @@ func main() {
 	}
 
 	// Start command
-	bot.Handle("/start", func(c *Context) error {
+	bot.Handle("/start", func(c *request.Native) error {
 		return c.Reply("Welcome! This bot demonstrates file sending.\n\n" +
 			"Commands:\n" +
 			"/photo <url> - Send a photo from URL\n" +
@@ -88,7 +88,7 @@ func main() {
 	})
 
 	// Send photo from URL
-	bot.Handle("/photo", func(c *Context) error {
+	bot.Handle("/photo", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
 			return c.Reply("Please provide a photo URL. Usage: /photo <url>")
@@ -102,7 +102,7 @@ func main() {
 	})
 
 	// Send local photo
-	bot.Handle("/photo_local", func(c *Context) error {
+	bot.Handle("/photo_local", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
 			return c.Reply("Please provide a file path. Usage: /photo_local <path>")
@@ -117,7 +117,7 @@ func main() {
 	})
 
 	// Send document from URL
-	bot.Handle("/document", func(c *Context) error {
+	bot.Handle("/document", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
 			return c.Reply("Please provide a document URL. Usage: /document <url>")
@@ -131,7 +131,7 @@ func main() {
 	})
 
 	// Send local document
-	bot.Handle("/document_local", func(c *Context) error {
+	bot.Handle("/document_local", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
 			return c.Reply("Please provide a file path. Usage: /document_local <path>")
@@ -145,7 +145,7 @@ func main() {
 	})
 
 	// Send video from URL
-	bot.Handle("/video", func(c *Context) error {
+	bot.Handle("/video", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
 			return c.Reply("Please provide a video URL. Usage: /video <url>")
@@ -159,7 +159,7 @@ func main() {
 	})
 
 	// Send local video
-	bot.Handle("/video_local", func(c *Context) error {
+	bot.Handle("/video_local", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
 			return c.Reply("Please provide a file path. Usage: /video_local <path>")
@@ -173,7 +173,7 @@ func main() {
 	})
 
 	// Send audio from URL
-	bot.Handle("/audio", func(c *Context) error {
+	bot.Handle("/audio", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
 			return c.Reply("Please provide an audio URL. Usage: /audio <url>")
@@ -187,7 +187,7 @@ func main() {
 	})
 
 	// Send voice message from URL
-	bot.Handle("/voice", func(c *Context) error {
+	bot.Handle("/voice", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
 			return c.Reply("Please provide a voice URL. Usage: /voice <url>")
@@ -200,7 +200,7 @@ func main() {
 	})
 
 	// Send sticker by file_id
-	bot.Handle("/sticker", func(c *Context) error {
+	bot.Handle("/sticker", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
 			return c.Reply("Please provide a sticker file_id. Usage: /sticker <file_id>")
@@ -213,7 +213,7 @@ func main() {
 	})
 
 	// Send media album
-	bot.Handle("/album", func(c *Context) error {
+	bot.Handle("/album", func(c *request.Native) error {
 		// Create an album with multiple photos
 		// Note: You need to provide actual URLs or file paths for this to work
 		album := telegram.Album{
@@ -234,4 +234,3 @@ func main() {
 	log.Println("Bot started! Press Ctrl+C to stop.")
 	bot.Start()
 }
-

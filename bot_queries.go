@@ -9,7 +9,7 @@ import (
 )
 
 // AnswerInlineQuery sends a response to an inline query.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AnswerInlineQuery(query *telegram.InlineQuery, resp *telegram.QueryResponse) error {
+func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AnswerInlineQuery(query *telegram.InlineQuery, resp *telegram.InlineQueryResponse) error {
 	if query == nil {
 		return errors.WithInvalidParam(errors.ErrTelebot, "query", nil)
 	}
@@ -53,30 +53,6 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) RespondToCallback(c *tel
 	requester := NewApiRequester[methods.AnswerCallbackQueryRequest, methods.AnswerCallbackQueryResponse](b.token, b.apiURL, b.client)
 	_, err := requester.Request(context.Background(), "answerCallbackQuery", req)
 	return err
-}
-
-// Answer sends a response for a given inline query. A query can only
-// be responded to once, subsequent attempts to respond to the same query
-// will result in an error.
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Answer(query *telegram.InlineQuery, resp *telegram.QueryResponse) error {
-	return b.AnswerInlineQuery(query, resp)
-}
-
-// AnswerWebApp sends a response for a query from Web App and returns
-// information about an inline message sent by a Web App on behalf of a user
-func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) AnswerWebApp(query *telegram.InlineQuery, r telegram.Result) (*telegram.WebAppMessage, error) {
-	req := methods.AnswerWebAppQueryRequest{
-		WebAppQueryID: query.ID,
-		Result:        r,
-	}
-
-	requester := NewApiRequester[methods.AnswerWebAppQueryRequest, methods.AnswerWebAppQueryResponse](b.token, b.apiURL, b.client)
-	result, err := requester.Request(context.Background(), "answerWebAppQuery", req)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }
 
 // Ship replies to the shipping query, if you sent an invoice

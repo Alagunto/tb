@@ -40,13 +40,13 @@ func main() {
 	}
 
 	// Create bot settings
-	settings := tb.Settings[*Context, func(*Context) error, func(func(*Context) error) func(*Context) error]{
+	settings := tb.Settings[*request.Native]{
 		Token: token,
 		Poller: &tb.LongPoller{
-			Timeout:       10 * time.Second,
+			Timeout:        10 * time.Second,
 			AllowedUpdates: []string{"message"},
 		},
-		OnError: func(err error, ctx *Context, info tb.DebugInfo[*Context, func(*Context) error, func(func(*Context) error) func(*Context) error]) {
+		OnError: func(err error, ctx *request.Native) {
 			log.Printf("Error: %v", err)
 		},
 	}
@@ -158,4 +158,3 @@ func main() {
 	log.Println("⚠️  Remember: Message effects only work in private chats!")
 	bot.Start()
 }
-

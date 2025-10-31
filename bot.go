@@ -229,7 +229,7 @@ func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) Stop() {
 // NewContext returns a new native context object,
 // field by the passed update.
 func (b *Bot[RequestType, HandlerFunc, MiddlewareFunc]) NewContext(u telegram.Update) (RequestType, error) {
-	return b.requestBuilder(request.NewNativeContext(b, u))
+	return b.requestBuilder(request.NewNativeFromUpdate(b, u))
 }
 
 // CallbackEndpoint is an interface for callback buttons that have a unique identifier

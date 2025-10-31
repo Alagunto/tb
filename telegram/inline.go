@@ -24,14 +24,14 @@ type InlineQuery struct {
 }
 
 // QueryResponse builds a response to an inline InlineQuery.
-type QueryResponse struct {
+type InlineQueryResponse struct {
 	// The ID of the query to which this is a response.
 	//
 	// Note: Telebot sets this field automatically!
 	QueryID string `json:"inline_query_id"`
 
 	// The results for the inline query.
-	Results Results `json:"results"`
+	Results InlineQueryResults `json:"results"`
 
 	// (Optional) The maximum amount of time in seconds that the result
 	// of the inline query may be cached on the server.

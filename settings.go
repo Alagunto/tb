@@ -11,7 +11,7 @@ import (
 
 // Settings represents a utility struct for passing certain
 // properties of a bot around and is required to make bots.
-type Settings[RequestType request.Interface, HandlerFunc func(RequestType) error, MiddlewareFunc func(HandlerFunc) HandlerFunc] struct {
+type Settings[RequestType request.Interface] struct {
 	URL   string
 	Token string
 
@@ -37,7 +37,7 @@ type Settings[RequestType request.Interface, HandlerFunc func(RequestType) error
 	// OnError is a callback function that will get called on errors
 	// resulted from the handler. It is used as post-middleware function.
 	// Notice that context can be nil. Receives error, context and stack trace.
-	OnError func(error, RequestType, DebugInfo[RequestType, HandlerFunc, MiddlewareFunc])
+	OnError func(error, RequestType)
 
 	// HTTP Client used to make requests to telegram api
 	Client *http.Client
@@ -52,7 +52,7 @@ type Settings[RequestType request.Interface, HandlerFunc func(RequestType) error
 	Censorer censorship.Censorer
 }
 
-func (s *Settings[RequestType, HandlerFunc, MiddlewareFunc]) DefaultsForEmptyValues() {
+func (s *Settings[RequestType]) DefaultsForEmptyValues() {
 	if s.Updates == 0 {
 		s.Updates = 100
 	}
@@ -68,8 +68,8 @@ func (s *Settings[RequestType, HandlerFunc, MiddlewareFunc]) DefaultsForEmptyVal
 		s.Poller = &LongPoller{}
 	}
 	if s.OnError == nil {
-		s.OnError = func(err error, c RequestType, info DebugInfo[RequestType, HandlerFunc, MiddlewareFunc]) {
-			fmt.Println(err, c, info)
+		s.OnError = func(err error, c RequestType) {
+			fmt.Println(err, c)
 		}
 	}
 

@@ -85,18 +85,18 @@ func main() {
 	}
 
 	// Create a request builder function that wraps native context
-	requestBuilder := func(req request.Interface) (*Context, error) {
-		return &Context{Interface: req}, nil
+	requestBuilder := func(req request.Interface) (*request.Native, error) {
+		return request.NewNativeFromRequest(req), nil
 	}
 
 	// Create bot settings
-	settings := tb.Settings[*Context, func(*Context) error, func(func(*Context) error) func(*Context) error]{
+	settings := tb.Settings[*request.Native]{
 		Token: token,
 		Poller: &tb.LongPoller{
-			Timeout:      10 * time.Second,
+			Timeout:        10 * time.Second,
 			AllowedUpdates: []string{"message", "edited_message"},
 		},
-		OnError: func(err error, ctx *Context, info tb.DebugInfo[*Context, func(*Context) error, func(func(*Context) error) func(*Context) error]) {
+		OnError: func(err error, ctx *request.Native) {
 			log.Printf("Error: %v", err)
 		},
 	}
@@ -108,7 +108,7 @@ func main() {
 	}
 
 	// Register handlers for different parse modes
-	bot.Handle("/start", func(c *Context) error {
+	bot.Handle("/start", func(c *request.Native) error {
 		return c.Reply("Welcome! This bot demonstrates different parse modes.\n\n" +
 			"Commands:\n" +
 			"/markdown - Test Markdown parse mode\n" +
@@ -118,25 +118,25 @@ func main() {
 			"/default - Test default (no parse mode)")
 	})
 
-	bot.Handle("/markdown", func(c *Context) error {
+	bot.Handle("/markdown", func(c *request.Native) error {
 		text := "*Bold text*\n_Italic text_\n`Code inline`\n[Link](https://telegram.org)"
 		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeMarkdown)
 		return c.Reply(text, opts)
 	})
 
-	bot.Handle("/markdownv2", func(c *Context) error {
+	bot.Handle("/markdownv2", func(c *request.Native) error {
 		text := "*Bold\\* text*\n_Italic\\_ text_\n`Code\\` inline`\n[Link](https://telegram\\.org)"
 		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeMarkdownV2)
 		return c.Reply(text, opts)
 	})
 
-	bot.Handle("/html", func(c *Context) error {
+	bot.Handle("/html", func(c *request.Native) error {
 		text := "<b>Bold text</b>\n<i>Italic text</i>\n<code>Code inline</code>\n<a href=\"https://telegram.org\">Link</a>"
 		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeHTML)
 		return c.Reply(text, opts)
 	})
 
-	bot.Handle("/entities", func(c *Context) error {
+	bot.Handle("/entities", func(c *request.Native) error {
 		// Send a message with custom entities (more control than parse modes)
 		text := "Bold Italic Code Link"
 		entities := telegram.Entities{
@@ -149,13 +149,13 @@ func main() {
 		return c.Reply(text, opts)
 	})
 
-	bot.Handle("/default", func(c *Context) error {
+	bot.Handle("/default", func(c *request.Native) error {
 		// No parse mode - plain text
 		return c.Reply("This is plain text with *no* formatting applied.")
 	})
 
 	// Handle all text messages
-	bot.Handle(tb.OnText, func(c *Context) error {
+	bot.Handle(tb.OnText, func(c *request.Native) error {
 		// Echo back with some formatting
 		text := fmt.Sprintf("You said: %s", c.Text())
 		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeHTML)
@@ -165,4 +165,3 @@ func main() {
 	log.Println("Bot started! Press Ctrl+C to stop.")
 	bot.Start()
 }
-
