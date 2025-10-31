@@ -1,0 +1,38 @@
+{
+  "pattern": "telegram-effects-correct-implementation",
+  "date": "2025-10-31",
+  "verified_via": "Perplexity API research",
+  "six_core_effects": {
+    "0": {"name": "Fire", "constant": "EffectFire", "emoji": "🔥", "id": "5104841245755180586"},
+    "1": {"name": "ThumbsUp/Like", "constant": "EffectLike", "emoji": "👍", "id": "5107584321108051014"},
+    "2": {"name": "ThumbsDown/Dislike", "constant": "EffectDislike", "emoji": "👎", "id": "5104858069142078462"},
+    "3": {"name": "Heart", "constant": "EffectHeart", "emoji": "❤️", "id": "5159385139981059251"},
+    "4": {"name": "Celebration", "constant": "EffectCelebration", "emoji": "🎉", "id": "5046509860389126442"},
+    "5": {"name": "Poop", "constant": "EffectPoop", "emoji": "💩", "id": "5046589136895476101"}
+  },
+  "corrections_made": [
+    "Removed EffectRainbow - does not exist in Telegram",
+    "Renamed EffectParty to EffectPoop - the 6th effect is poop, not party",
+    "Updated documentation to clarify only 6 core effects exist",
+    "Added note about premium effects having undocumented IDs"
+  ],
+  "key_facts": [
+    "Only 6 core effects available to all users (IDs 0-5)",
+    "Telegram Premium has hundreds more effects with undocumented IDs",
+    "Effects only work in private chats, not groups or channels",
+    "Use getAvailableMessageEffects API for dynamic effect discovery",
+    "Premium effect IDs require reverse engineering or API discovery"
+  ],
+  "api_recommendations": [
+    "Use messages.getAvailableEffects API method for runtime discovery",
+    "Implement effect ID caching with hash validation",
+    "Gracefully degrade when effects unavailable",
+    "Log effect usage patterns for monitoring"
+  ],
+  "files_corrected": [
+    "telegram/effects.go",
+    "examples/effects/main.go"
+  ],
+  "verified": true,
+  "research_source": "Perplexity API - comprehensive Telegram Bot API documentation"
+}

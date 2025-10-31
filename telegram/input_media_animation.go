@@ -16,3 +16,39 @@ type InputMediaAnimation struct {
 	HasSpoiler            bool      `json:"has_spoiler,omitempty"`
 	ShowCaptionAboveMedia bool      `json:"show_caption_above_media,omitempty"`
 }
+
+// Field converts InputMediaAnimation to a map for API requests.
+func (a *InputMediaAnimation) Field() (map[string]any, error) {
+	result := map[string]any{
+		"type":  a.Type,
+		"media": a.Media,
+	}
+	if a.Thumbnail != "" {
+		result["thumbnail"] = a.Thumbnail
+	}
+	if a.Caption != "" {
+		result["caption"] = a.Caption
+	}
+	if a.ParseMode != "" {
+		result["parse_mode"] = string(a.ParseMode)
+	}
+	if len(a.CaptionEntities) > 0 {
+		result["caption_entities"] = a.CaptionEntities
+	}
+	if a.Width > 0 {
+		result["width"] = a.Width
+	}
+	if a.Height > 0 {
+		result["height"] = a.Height
+	}
+	if a.Duration > 0 {
+		result["duration"] = a.Duration
+	}
+	if a.HasSpoiler {
+		result["has_spoiler"] = true
+	}
+	if a.ShowCaptionAboveMedia {
+		result["show_caption_above_media"] = true
+	}
+	return result, nil
+}

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/alagunto/tb"
-	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/request"
 	"github.com/alagunto/tb/telegram"
 )
@@ -46,83 +45,81 @@ func main() {
 		return c.Reply("Welcome! This bot demonstrates message effects.\n\n" +
 			"⚠️ Note: Message effects only work in private chats!\n\n" +
 			"Commands:\n" +
-			"/effect_rainbow - Send message with rainbow effect\n" +
-			"/effect_snow - Send message with snow effect\n" +
-			"/effect_hearts - Send message with hearts effect\n" +
-			"/effect_celebrate - Send message with celebration effect\n" +
-			"/effect_fireworks - Send message with fireworks effect\n" +
-			"/effect_shake - Send message with shake effect\n" +
-			"/effect_explosion - Send message with explosion effect\n" +
-			"/effect_boom - Send message with boom effect\n" +
+			"/effect_fire - Send message with fire effect 🔥\n" +
+			"/effect_like - Send message with like effect 👍\n" +
+			"/effect_dislike - Send message with dislike effect 👎\n" +
+			"/effect_heart - Send message with heart effect ❤️\n" +
+			"/effect_celebrate - Send message with celebration effect 🎉\n" +
+			"/effect_poop - Send message with poop effect 💩\n" +
 			"/effect_all - Send messages with all available effects")
 	})
 
 	// Helper function to send message with effect
 	sendWithEffect := func(c *request.Native, effectID telegram.EffectID, description string) error {
+		msg := c.Message()
+		if msg == nil {
+			return c.Reply("No message context available")
+		}
+
+		// Check if this is a private chat
+		if msg.Chat.Type != telegram.ChatPrivate {
+			return c.Reply("⚠️ Message effects only work in private chats! Please use this command in a direct message with the bot.")
+		}
+
 		text := fmt.Sprintf("Message with effect: %s", description)
-		opts := communications.NewSendOptions().WithEffectID(effectID)
+		opts := tb.SendOptions().WithEffectID(effectID)
 		return c.Reply(text, opts)
 	}
 
-	// Rainbow effect
-	bot.Handle("/effect_rainbow", func(c *request.Native) error {
-		return sendWithEffect(c, telegram.EffectID("rainbow"), "Rainbow")
+	// Fire effect
+	bot.Handle("/effect_fire", func(c *request.Native) error {
+		return sendWithEffect(c, telegram.EffectFire, "Fire 🔥")
 	})
 
-	// Snow effect
-	bot.Handle("/effect_snow", func(c *request.Native) error {
-		return sendWithEffect(c, telegram.EffectID("snow"), "Snow")
+	// Like effect
+	bot.Handle("/effect_like", func(c *request.Native) error {
+		return sendWithEffect(c, telegram.EffectLike, "Like 👍")
 	})
 
-	// Hearts effect
-	bot.Handle("/effect_hearts", func(c *request.Native) error {
-		return sendWithEffect(c, telegram.EffectID("hearts"), "Hearts")
+	// Dislike effect
+	bot.Handle("/effect_dislike", func(c *request.Native) error {
+		return sendWithEffect(c, telegram.EffectDislike, "Dislike 👎")
+	})
+
+	// Heart effect
+	bot.Handle("/effect_heart", func(c *request.Native) error {
+		return sendWithEffect(c, telegram.EffectHeart, "Heart ❤️")
 	})
 
 	// Celebration effect
 	bot.Handle("/effect_celebrate", func(c *request.Native) error {
-		return sendWithEffect(c, telegram.EffectID("celebrate"), "Celebration")
+		return sendWithEffect(c, telegram.EffectCelebration, "Celebration 🎉")
 	})
 
-	// Fireworks effect
-	bot.Handle("/effect_fireworks", func(c *request.Native) error {
-		return sendWithEffect(c, telegram.EffectID("fireworks"), "Fireworks")
-	})
-
-	// Shake effect
-	bot.Handle("/effect_shake", func(c *request.Native) error {
-		return sendWithEffect(c, telegram.EffectID("shake"), "Shake")
-	})
-
-	// Explosion effect
-	bot.Handle("/effect_explosion", func(c *request.Native) error {
-		return sendWithEffect(c, telegram.EffectID("explosion"), "Explosion")
-	})
-
-	// Boom effect
-	bot.Handle("/effect_boom", func(c *request.Native) error {
-		return sendWithEffect(c, telegram.EffectID("boom"), "Boom")
+	// Poop effect
+	bot.Handle("/effect_poop", func(c *request.Native) error {
+		return sendWithEffect(c, telegram.EffectPoop, "Poop 💩")
 	})
 
 	// Send all effects
 	bot.Handle("/effect_all", func(c *request.Native) error {
+		// These are the six core effects (numeric IDs 0-5)
+		// Use getAvailableMessageEffects API for dynamic discovery of all effects
 		effects := []struct {
 			id          telegram.EffectID
 			description string
 		}{
-			{telegram.EffectID("rainbow"), "Rainbow"},
-			{telegram.EffectID("snow"), "Snow"},
-			{telegram.EffectID("hearts"), "Hearts"},
-			{telegram.EffectID("celebrate"), "Celebration"},
-			{telegram.EffectID("fireworks"), "Fireworks"},
-			{telegram.EffectID("shake"), "Shake"},
-			{telegram.EffectID("explosion"), "Explosion"},
-			{telegram.EffectID("boom"), "Boom"},
+			{telegram.EffectFire, "Fire 🔥"},
+			{telegram.EffectLike, "Like 👍"},
+			{telegram.EffectDislike, "Dislike 👎"},
+			{telegram.EffectHeart, "Heart ❤️"},
+			{telegram.EffectCelebration, "Celebration 🎉"},
+			{telegram.EffectPoop, "Poop 💩"},
 		}
 
 		for _, effect := range effects {
 			text := fmt.Sprintf("Effect: %s", effect.description)
-			opts := communications.NewSendOptions().WithEffectID(effect.id)
+			opts := tb.SendOptions().WithEffectID(effect.id)
 			if err := c.Reply(text, opts); err != nil {
 				log.Printf("Error sending effect %s: %v", effect.description, err)
 			}

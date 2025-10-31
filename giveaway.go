@@ -103,5 +103,5 @@ type GiveawayCompleted struct {
 	UnclaimedPrizes int `json:"unclaimed_prize_count"`
 
 	// (Optional) Message with the giveaway that was completed, if it wasn't deleted.
-	Message *Message `json:"giveaway_message"`
+	Message *telegram.Message `json:"giveaway_message"`
 }

@@ -4,7 +4,11 @@ import (
 	"github.com/alagunto/tb/telegram"
 )
 
-var SupportedCurrencies = map[string]telegram.Currency{
+// SupportedCurrencies is an alias to telegram.SupportedCurrencies for backwards compatibility.
+var SupportedCurrencies = telegram.SupportedCurrencies
+
+// Deprecated: Use telegram.SupportedCurrencies directly
+var _ = map[string]telegram.Currency{
 	"AED": {Code: "AED", Title: "United Arab Emirates Dirham", Symbol: "AED", Native: "د.إ.\u200f", ThousandsSep: ",", DecimalSep: ".", SymbolLeft: true, SpaceBetween: true, Exp: 2, MinAmount: 367, MaxAmount: 3673200},
 	"AFN": {Code: "AFN", Title: "Afghan Afghani", Symbol: "AFN", Native: "\u060b", ThousandsSep: ",", DecimalSep: ".", SymbolLeft: true, SpaceBetween: false, Exp: 2, MinAmount: 7554, MaxAmount: 75540495},
 	"ALL": {Code: "ALL", Title: "Albanian Lek", Symbol: "ALL", Native: "Lek", ThousandsSep: ".", DecimalSep: ",", SymbolLeft: false, SpaceBetween: false, Exp: 2, MinAmount: 10908, MaxAmount: 109085036},

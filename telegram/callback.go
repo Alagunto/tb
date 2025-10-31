@@ -1,8 +1,8 @@
 package telegram
 
-// CallbackQuery object represents a query from a callback button in an
+// Callback object represents a query from a callback button in an
 // inline keyboard.
-type CallbackQuery struct {
+type Callback struct {
 	ID string `json:"id"`
 
 	// For message sent to channels, Sender may be empty
@@ -28,51 +28,29 @@ type CallbackQuery struct {
 	// is requested from the bot when a user presses the Play button of
 	// that game. GameShortName may be empty
 	GameShortName string `json:"game_short_name"`
-
-	// Unique displays an unique of the button from which the
-	// callback was fired. Sets immediately before the handling,
-	// while the Data field stores only with payload.
-	Unique string `json:"-"`
 }
 
 // CallbackResponse builds a response to a CallbackQuery query.
 type CallbackResponse struct {
-	// The ID of the callback to which this is a response.
-	//
-	// Note: Telebot sets this field automatically!
-	CallbackID string `json:"callback_query_id"`
-
-	// Text of the notification. If not specified, nothing will be
-	// shown to the user.
-	Text string `json:"text,omitempty"`
-
-	// (Optional) If true, an alert will be shown by the client instead
-	// of a notification at the top of the chat screen. Defaults to false.
-	ShowAlert bool `json:"show_alert,omitempty"`
-
-	// (Optional) URL that will be opened by the user's client.
-	// If you have created a Game and accepted the conditions via
-	// @BotFather, specify the URL that opens your game.
-	//
-	// Note: this will only work if the query comes from a game
-	// callback button. Otherwise, you may use deep-linking:
-	// https://telegram.me/your_bot?start=XXXX
-	URL string `json:"url,omitempty"`
+	Text      string `json:"text,omitempty"`
+	ShowAlert bool   `json:"show_alert,omitempty"`
+	URL       string `json:"url,omitempty"`
+	CacheTime int    `json:"cache_time,omitempty"`
 }
 
 // MessageSig satisfies Editable interface.
-func (c *CallbackQuery) MessageSig() (string, int64) {
+func (c *Callback) MessageSig() (string, int64) {
 	if c.IsInline() {
 		return c.MessageID, 0
 	}
 	if c.Message != nil {
 		// MessageSig needs to be handled at a higher level
-		return "", 0
+		return c.Message.MessageSig()
 	}
 	return "", 0
 }
 
 // IsInline says whether message is an inline message.
-func (c *CallbackQuery) IsInline() bool {
+func (c *Callback) IsInline() bool {
 	return c.MessageID != ""
 }

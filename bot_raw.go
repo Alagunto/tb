@@ -5,11 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/alagunto/tb/bot"
-	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/errors"
-	"github.com/alagunto/tb/files"
-	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/telegram"
 )
 

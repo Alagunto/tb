@@ -19,7 +19,7 @@ type Interface interface {
 	Message() *telegram.Message
 
 	// Callback returns stored callback if such presented.
-	CallbackQuery() *telegram.CallbackQuery
+	CallbackQuery() *telegram.Callback
 
 	// CallbackMessage returns the message that was used to trigger the callback query if such presented.
 	CallbackMessage() *telegram.Message
@@ -28,7 +28,7 @@ type Interface interface {
 	InlineQuery() *telegram.InlineQuery
 
 	// InlineResult returns stored inline result if such presented.
-	InlineResult() *telegram.InlineResult
+	InlineResult() *telegram.ChosenInlineResult
 
 	// ShippingQuery returns stored shipping query if such presented.
 	ShippingQuery() *telegram.ShippingQuery
@@ -37,7 +37,7 @@ type Interface interface {
 	PreCheckoutQuery() *telegram.PreCheckoutQuery
 
 	// Payment returns payment instance.
-	Payment() *telegram.Payment
+	Payment() *telegram.SuccessfulPayment
 
 	// Poll returns stored poll if such presented.
 	Poll() *telegram.Poll

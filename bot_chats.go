@@ -6,7 +6,6 @@ import (
 
 	"github.com/alagunto/tb/bot"
 	"github.com/alagunto/tb/telegram"
-	"github.com/alagunto/tb/telegram/methods"
 )
 
 // ChatByID fetches chat info of its ID.
@@ -19,45 +18,37 @@ func (b *Bot[RequestType]) ChatByID(id int64) (*telegram.Chat, error) {
 
 // ChatByUsername fetches chat info by its username.
 func (b *Bot[RequestType]) ChatByUsername(name string) (*telegram.Chat, error) {
-	req := methods.GetChatRequest{
+	req := telegram.GetChatRequest{
 		ChatID: name,
 	}
 
-	r := NewApiRequester[methods.GetChatRequest, methods.GetChatResponse](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "getChat", req)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	r := NewApiRequester[telegram.GetChatRequest, telegram.Chat](b.token, b.apiURL, b.client)
+	return r.Request(context.Background(), "getChat", req)
 }
 
 // ProfilePhotosOf returns list of profile pictures for a user.
-func (b *Bot[RequestType]) ProfilePhotosOf(user *telegram.User) ([]telegram.Photo, error) {
-	req := methods.GetUserProfilePhotosRequest{
+func (b *Bot[RequestType]) ProfilePhotosOf(user *telegram.User) ([]telegram.PhotoSize, error) {
+	req := telegram.GetUserProfilePhotosRequest{
 		UserID: user.Recipient(),
 	}
 
-	r := NewApiRequester[methods.GetUserProfilePhotosRequest, methods.GetUserProfilePhotosResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.GetUserProfilePhotosRequest, []telegram.PhotoSize](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "getUserProfilePhotos", req)
 	if err != nil {
 		return nil, err
 	}
-	return result.Photos, nil
+	return *result, nil
 }
 
 // ChatMemberOf returns information about a member of a chat.
 func (b *Bot[RequestType]) ChatMemberOf(chat, user bot.Recipient) (*telegram.ChatMember, error) {
-	req := methods.GetChatMemberRequest{
+	req := telegram.GetChatMemberRequest{
 		ChatID: chat.Recipient(),
 		UserID: user.Recipient(),
 	}
 
-	r := NewApiRequester[methods.GetChatMemberRequest, methods.GetChatMemberResponse](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "getChatMember", req)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	r := NewApiRequester[telegram.GetChatMemberRequest, telegram.ChatMember](b.token, b.apiURL, b.client)
+	return r.Request(context.Background(), "getChatMember", req)
 }
 
 // GetMe returns the bot's information.
@@ -67,7 +58,7 @@ func (b *Bot[RequestType]) GetMe() (*telegram.User, error) {
 
 // StarTransactions returns the bot's star transactions.
 func (b *Bot[RequestType]) StarTransactions(offset, limit int) ([]telegram.StarTransaction, error) {
-	req := methods.GetStarTransactionsRequest{
+	req := telegram.GetStarTransactionsRequest{
 		Offset: offset,
 		Limit:  limit,
 	}
@@ -76,7 +67,7 @@ func (b *Bot[RequestType]) StarTransactions(offset, limit int) ([]telegram.StarT
 		Transactions []telegram.StarTransaction `json:"transactions"`
 	}
 
-	r := NewApiRequester[methods.GetStarTransactionsRequest, starTransactionsResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.GetStarTransactionsRequest, starTransactionsResponse](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "getStarTransactions", req)
 	if err != nil {
 		return nil, err

@@ -8,20 +8,6 @@ type Thread struct {
 	ID                int    `json:"message_thread_id"`
 }
 
-// Game object represents a game.
-type Game struct {
-	Name string `json:"game_short_name"`
-
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Photo       *Photo `json:"photo"`
-
-	// (Optional)
-	Text      string          `json:"text"`
-	Entities  []MessageEntity `json:"text_entities"`
-	Animation *Animation      `json:"animation"`
-}
-
 // ProximityAlert sent whenever a user in the chat triggers
 // a proximity alert set by another user.
 type ProximityAlert struct {
@@ -58,11 +44,6 @@ type RecipientShared struct {
 	RequestID int   `json:"request_id"`
 	UserID    int64 `json:"user_id,omitempty"`
 	ChatID    int64 `json:"chat_id,omitempty"`
-}
-
-// ChatBackground represents a chat background.
-type ChatBackground struct {
-	Type string `json:"type"`
 }
 
 // ForumTopicCreated represents a service message about a new forum topic created in the chat.

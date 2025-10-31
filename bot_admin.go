@@ -4,10 +4,8 @@ import (
 	"context"
 
 	"github.com/alagunto/tb/bot"
-	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/telegram"
-	"github.com/alagunto/tb/telegram/methods"
 )
 
 // Pin pins a message in a supergroup or a channel.
@@ -17,12 +15,12 @@ import (
 func (b *Bot[RequestType]) Pin(msg bot.Editable) error {
 	msgID, chatID := msg.MessageSig()
 
-	req := methods.PinChatMessageRequest{
+	req := telegram.PinMessageRequest{
 		ChatID:    chatID,
 		MessageID: msgID,
 	}
 
-	r := NewApiRequester[methods.PinChatMessageRequest, methods.PinChatMessageResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.PinMessageRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "pinChatMessage", req)
 	return err
 }
@@ -30,7 +28,7 @@ func (b *Bot[RequestType]) Pin(msg bot.Editable) error {
 // Unpin unpins a message in a supergroup or a channel.
 // It supports tb.Silent option.
 func (b *Bot[RequestType]) Unpin(chat bot.Recipient, messageID ...int) error {
-	req := methods.UnpinChatMessageRequest{
+	req := telegram.UnpinMessageRequest{
 		ChatID: chat.Recipient(),
 	}
 
@@ -38,7 +36,7 @@ func (b *Bot[RequestType]) Unpin(chat bot.Recipient, messageID ...int) error {
 		req.MessageID = messageID[0]
 	}
 
-	r := NewApiRequester[methods.UnpinChatMessageRequest, methods.UnpinChatMessageResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.UnpinMessageRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "unpinChatMessage", req)
 	return err
 }
@@ -46,11 +44,11 @@ func (b *Bot[RequestType]) Unpin(chat bot.Recipient, messageID ...int) error {
 // UnpinAll unpins all messages in a supergroup or a channel.
 // It supports tb.Silent option.
 func (b *Bot[RequestType]) UnpinAll(chat bot.Recipient) error {
-	req := methods.UnpinAllChatMessagesRequest{
+	req := telegram.UnpinAllMessageRequest{
 		ChatID: chat.Recipient(),
 	}
 
-	r := NewApiRequester[methods.UnpinAllChatMessagesRequest, methods.UnpinAllChatMessagesResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.UnpinAllMessageRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "unpinAllChatMessages", req)
 	return err
 }
@@ -64,10 +62,10 @@ func (b *Bot[RequestType]) UnpinAll(chat bot.Recipient) error {
 //
 // Currently, Telegram supports only a narrow range of possible
 // actions, these are aligned as constants of this package.
-func (b *Bot[RequestType]) Notify(to bot.Recipient, action telegram.ChatAction, opts ...communications.SendOptions) error {
+func (b *Bot[RequestType]) Notify(to bot.Recipient, action telegram.ChatAction, opts ...params.SendOptions) error {
 	sendOpts := params.Merge(opts...)
 
-	req := methods.SendChatActionRequest{
+	req := telegram.SendChatActionRequest{
 		ChatID: to.Recipient(),
 		Action: string(action),
 	}
@@ -79,35 +77,31 @@ func (b *Bot[RequestType]) Notify(to bot.Recipient, action telegram.ChatAction, 
 		req.BusinessConnectionID = sendOpts.BusinessConnectionID
 	}
 
-	r := NewApiRequester[methods.SendChatActionRequest, methods.SendChatActionResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.SendChatActionRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "sendChatAction", req)
 	return err
 }
 
 // Leave makes bot leave a group, supergroup or channel.
 func (b *Bot[RequestType]) Leave(chat bot.Recipient) error {
-	req := methods.LeaveChatRequest{
+	req := telegram.LeaveChatRequest{
 		ChatID: chat.Recipient(),
 	}
 
-	r := NewApiRequester[methods.LeaveChatRequest, methods.LeaveChatResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.LeaveChatRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "leaveChat", req)
 	return err
 }
 
 // MenuButton returns the current value of the bot's menu button in a private chat,
 // or the default menu button.
-func (b *Bot[RequestType]) MenuButton(chat *telegram.User) (*MenuButton, error) {
-	req := methods.GetChatMenuButtonRequest{
+func (b *Bot[RequestType]) MenuButton(chat *telegram.User) (*telegram.MenuButton, error) {
+	req := telegram.GetChatMenuButtonRequest{
 		ChatID: chat.Recipient(),
 	}
 
-	r := NewApiRequester[methods.GetChatMenuButtonRequest, methods.GetChatMenuButtonResponse](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "getChatMenuButton", req)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	r := NewApiRequester[telegram.GetChatMenuButtonRequest, telegram.MenuButton](b.token, b.apiURL, b.client)
+	return r.Request(context.Background(), "getChatMenuButton", req)
 }
 
 // SetMenuButton changes the bot's menu button in a private chat,
@@ -118,8 +112,7 @@ func (b *Bot[RequestType]) MenuButton(chat *telegram.User) (*MenuButton, error) 
 //   - MenuButtonType for simple menu buttons (default, commands)
 //   - MenuButton complete structure for web_app menu button type
 func (b *Bot[RequestType]) SetMenuButton(chat *telegram.User, mb interface{}) error {
-	req := methods.SetChatMenuButtonRequest{}
-
+	req := telegram.SetChatMenuButtonRequest{}
 	// chat_id is optional
 	if chat != nil {
 		req.ChatID = chat.Recipient()
@@ -132,95 +125,95 @@ func (b *Bot[RequestType]) SetMenuButton(chat *telegram.User, mb interface{}) er
 		req.MenuButton = v
 	}
 
-	r := NewApiRequester[methods.SetChatMenuButtonRequest, methods.SetChatMenuButtonResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.SetChatMenuButtonRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "setChatMenuButton", req)
 	return err
 }
 
 // Logout logs out from the cloud Bot API server before launching the bot locally.
 func (b *Bot[RequestType]) Logout() (bool, error) {
-	r := NewApiRequester[methods.LogOutRequest, methods.LogOutResponse](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "logOut", methods.LogOutRequest{})
+	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
+	result, err := r.Request(context.Background(), "logOut", make(map[string]any))
 	if err != nil {
 		return false, err
 	}
-	return bool(*result), nil
+	return *result, nil
 }
 
 // Close closes the bot instance before moving it from one local server to another.
 func (b *Bot[RequestType]) Close() (bool, error) {
-	r := NewApiRequester[methods.CloseRequest, methods.CloseResponse](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "close", methods.CloseRequest{})
+	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
+	result, err := r.Request(context.Background(), "close", make(map[string]any))
 	if err != nil {
 		return false, err
 	}
-	return bool(*result), nil
+	return *result, nil
 }
 
 // SetMyName change's the bot name.
 func (b *Bot[RequestType]) SetMyName(name, language string) error {
-	req := methods.SetMyNameRequest{
+	req := telegram.SetMyNameRequest{
 		Name:         name,
 		LanguageCode: language,
 	}
 
-	r := NewApiRequester[methods.SetMyNameRequest, methods.SetMyNameResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.SetMyNameRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "setMyName", req)
 	return err
 }
 
 // MyName returns the current bot name for the given user language.
-func (b *Bot[RequestType]) MyName(language string) (*methods.GetMyNameResponse, error) {
-	req := methods.GetMyNameRequest{
+func (b *Bot[RequestType]) MyName(language string) (*telegram.BotName, error) {
+	req := telegram.GetMyNameRequest{
 		LanguageCode: language,
 	}
 
-	r := NewApiRequester[methods.GetMyNameRequest, methods.GetMyNameResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.GetMyNameRequest, telegram.BotName](b.token, b.apiURL, b.client)
 	return r.Request(context.Background(), "getMyName", req)
 }
 
 // SetMyDescription change's the bot description, which is shown in the chat
 // with the bot if the chat is empty.
 func (b *Bot[RequestType]) SetMyDescription(desc, language string) error {
-	req := methods.SetMyDescriptionRequest{
+	req := telegram.SetMyDescriptionRequest{
 		Description:  desc,
 		LanguageCode: language,
 	}
 
-	r := NewApiRequester[methods.SetMyDescriptionRequest, methods.SetMyDescriptionResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.SetMyDescriptionRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "setMyDescription", req)
 	return err
 }
 
 // MyDescription the current bot description for the given user language.
-func (b *Bot[RequestType]) MyDescription(language string) (*methods.GetMyDescriptionResponse, error) {
-	req := methods.GetMyDescriptionRequest{
+func (b *Bot[RequestType]) MyDescription(language string) (*telegram.BotDescription, error) {
+	req := telegram.GetMyDescriptionRequest{
 		LanguageCode: language,
 	}
 
-	r := NewApiRequester[methods.GetMyDescriptionRequest, methods.GetMyDescriptionResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.GetMyDescriptionRequest, telegram.BotDescription](b.token, b.apiURL, b.client)
 	return r.Request(context.Background(), "getMyDescription", req)
 }
 
 // SetMyShortDescription change's the bot short description, which is shown on
 // the bot's profile page and is sent together with the link when users share the bot.
 func (b *Bot[RequestType]) SetMyShortDescription(desc, language string) error {
-	req := methods.SetMyShortDescriptionRequest{
+	req := telegram.SetMyShortDescriptionRequest{
 		ShortDescription: desc,
 		LanguageCode:     language,
 	}
 
-	r := NewApiRequester[methods.SetMyShortDescriptionRequest, methods.SetMyShortDescriptionResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.SetMyShortDescriptionRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "setMyShortDescription", req)
 	return err
 }
 
 // MyShortDescription the current bot short description for the given user language.
-func (b *Bot[RequestType]) MyShortDescription(language string) (*methods.GetMyShortDescriptionResponse, error) {
-	req := methods.GetMyShortDescriptionRequest{
+func (b *Bot[RequestType]) MyShortDescription(language string) (*telegram.BotShortDescription, error) {
+	req := telegram.GetMyShortDescriptionRequest{
 		LanguageCode: language,
 	}
 
-	r := NewApiRequester[methods.GetMyShortDescriptionRequest, methods.GetMyShortDescriptionResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.GetMyShortDescriptionRequest, telegram.BotShortDescription](b.token, b.apiURL, b.client)
 	return r.Request(context.Background(), "getMyShortDescription", req)
 }

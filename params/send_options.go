@@ -40,7 +40,7 @@ type SendOptions struct {
 	ThreadID int
 
 	// ReplyParams Describes the message to reply to
-	ReplyParams *telegram.ReplyParams
+	ReplyParams *telegram.ReplyParameters
 
 	// Unique identifier of the business connection
 	BusinessConnectionID string
@@ -120,7 +120,6 @@ func (o SendOptions) InjectIntoMap(params map[string]any) error {
 	}
 
 	if o.ReplyMarkup != nil {
-		o.ReplyMarkup.InlineKeyboard = o.PrepareButtons(o.ReplyMarkup.InlineKeyboard)
 		params["reply_markup"] = o.ReplyMarkup
 	}
 
@@ -149,29 +148,6 @@ func (o SendOptions) ToMap() map[string]any {
 	return params
 }
 
-// PrepareButtons processes InlineButtons with Unique field for callback handling
-func (o SendOptions) PrepareButtons(keys [][]telegram.InlineButton) [][]telegram.InlineButton {
-	if len(keys) < 1 || len(keys[0]) < 1 {
-		return keys
-	}
-
-	for i := range keys {
-		for j := range keys[i] {
-			key := &keys[i][j]
-			if key.Unique != "" {
-				// Format: "\f<callback_name>|<data>"
-				data := key.Data
-				if data == "" {
-					key.Data = "\f" + key.Unique
-				} else {
-					key.Data = "\f" + key.Unique + "|" + data
-				}
-			}
-		}
-	}
-	return keys
-}
-
 // InjectIntoMethodRequest injects SendOptions fields into a method request
 // using type assertions and setter interfaces.
 func (o SendOptions) InjectIntoMethodRequest(request interface{}) {
@@ -182,7 +158,6 @@ func (o SendOptions) InjectIntoMethodRequest(request interface{}) {
 	// Inject reply markup
 	if o.ReplyMarkup != nil {
 		if setter, ok := request.(telegram.SetsReplyMarkup); ok {
-			o.ReplyMarkup.InlineKeyboard = o.PrepareButtons(o.ReplyMarkup.InlineKeyboard)
 			setter.SetReplyMarkup(o.ReplyMarkup)
 		}
 	}
@@ -205,6 +180,13 @@ func (o SendOptions) InjectIntoMethodRequest(request interface{}) {
 	if o.BusinessConnectionID != "" {
 		if setter, ok := request.(telegram.SetsBusinessConnection); ok {
 			setter.SetBusinessConnectionID(o.BusinessConnectionID)
+		}
+	}
+
+	// Inject message effect ID
+	if o.EffectID != "" {
+		if setter, ok := request.(telegram.SetsMessageEffect); ok {
+			setter.SetMessageEffectID(string(o.EffectID))
 		}
 	}
 }

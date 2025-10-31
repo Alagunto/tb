@@ -1,14 +1,8 @@
-# TB (Telebot fork)
+# Rules of project
 
-```bash
-go get -u github.com/alagunto/tb
-```
-
-# Overview
-TB is fork of a bot framework for [Telegram Bot API](https://core.telegram.org/bots/api). Find the original named Telebot [there](https://github.com/tucnak/telebot).
-
-I've enjoyed the original design approach and couldn't stand this project being ditched.
-
-# License
-
-Telebot is distributed under MIT.
+- All telegram models must be in ./telegram. That includes any model that is declared by the telegram api.
+- All the bot.go methods that interact with telegram api must use ./api_requester.go
+- bot.go methods must not declare their own structs. instead use ./telegram/ package structs as type params for generic api_requester.go
+- Clean architecture. I really mean it.
+- No repeating yourself. Create abstractions when required.
+- For sending/editing messages methods in Bot, we must support ./params/ as sending options to allow interfaces like bot.Send(chat, photo, tb.SendOptions().WithoutNotification().WithEffectID(effectID))

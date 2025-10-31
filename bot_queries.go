@@ -5,7 +5,6 @@ import (
 
 	"github.com/alagunto/tb/errors"
 	"github.com/alagunto/tb/telegram"
-	"github.com/alagunto/tb/telegram/methods"
 )
 
 // AnswerInlineQuery sends a response to an inline query.
@@ -14,7 +13,7 @@ func (b *Bot[RequestType]) AnswerInlineQuery(query *telegram.InlineQuery, resp *
 		return errors.WithInvalidParam(errors.ErrTelebot, "query", nil)
 	}
 
-	req := methods.AnswerInlineQueryRequest{
+	req := telegram.AnswerInlineQueryRequest{
 		InlineQueryID: query.ID,
 	}
 
@@ -26,7 +25,7 @@ func (b *Bot[RequestType]) AnswerInlineQuery(query *telegram.InlineQuery, resp *
 		req.Button = resp.Button
 	}
 
-	r := NewApiRequester[methods.AnswerInlineQueryRequest, methods.AnswerInlineQueryResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.AnswerInlineQueryRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "answerInlineQuery", req)
 	return err
 }
@@ -39,8 +38,8 @@ func (b *Bot[RequestType]) AnswerInlineQuery(query *telegram.InlineQuery, resp *
 //
 //	b.RespondToCallback(c)
 //	b.RespondToCallback(c, response)
-func (b *Bot[RequestType]) RespondToCallback(c *telegram.CallbackQuery, resp ...*telegram.CallbackResponse) error {
-	req := methods.AnswerCallbackQueryRequest{
+func (b *Bot[RequestType]) RespondToCallback(c *telegram.Callback, resp ...*telegram.CallbackResponse) error {
+	req := telegram.AnswerCallbackQueryRequest{
 		CallbackQueryID: c.ID,
 	}
 
@@ -50,7 +49,7 @@ func (b *Bot[RequestType]) RespondToCallback(c *telegram.CallbackQuery, resp ...
 		req.URL = resp[0].URL
 	}
 
-	requester := NewApiRequester[methods.AnswerCallbackQueryRequest, methods.AnswerCallbackQueryResponse](b.token, b.apiURL, b.client)
+	requester := NewApiRequester[telegram.AnswerCallbackQueryRequest, bool](b.token, b.apiURL, b.client)
 	_, err := requester.Request(context.Background(), "answerCallbackQuery", req)
 	return err
 }
@@ -64,7 +63,7 @@ func (b *Bot[RequestType]) RespondToCallback(c *telegram.CallbackQuery, resp ...
 //	b.Ship(query, opts...) // OK with options
 //	b.Ship(query, "Oops!") // Error message
 func (b *Bot[RequestType]) Ship(query *telegram.ShippingQuery, what ...interface{}) error {
-	req := methods.AnswerShippingQueryRequest{
+	req := telegram.AnswerShippingQueryRequest{
 		ShippingQueryID: query.ID,
 	}
 
@@ -87,14 +86,14 @@ func (b *Bot[RequestType]) Ship(query *telegram.ShippingQuery, what ...interface
 		req.ShippingOptions = opts
 	}
 
-	requester := NewApiRequester[methods.AnswerShippingQueryRequest, methods.AnswerShippingQueryResponse](b.token, b.apiURL, b.client)
+	requester := NewApiRequester[telegram.AnswerShippingQueryRequest, bool](b.token, b.apiURL, b.client)
 	_, err := requester.Request(context.Background(), "answerShippingQuery", req)
 	return err
 }
 
 // Accept finalizes the deal.
 func (b *Bot[RequestType]) Accept(query *telegram.PreCheckoutQuery, errorMessage ...string) error {
-	req := methods.AnswerPreCheckoutQueryRequest{
+	req := telegram.AnswerPreCheckoutQueryRequest{
 		PreCheckoutQueryID: query.ID,
 		Ok:                 len(errorMessage) == 0,
 	}
@@ -103,7 +102,7 @@ func (b *Bot[RequestType]) Accept(query *telegram.PreCheckoutQuery, errorMessage
 		req.ErrorMessage = errorMessage[0]
 	}
 
-	requester := NewApiRequester[methods.AnswerPreCheckoutQueryRequest, methods.AnswerPreCheckoutQueryResponse](b.token, b.apiURL, b.client)
+	requester := NewApiRequester[telegram.AnswerPreCheckoutQueryRequest, bool](b.token, b.apiURL, b.client)
 	_, err := requester.Request(context.Background(), "answerPreCheckoutQuery", req)
 	return err
 }

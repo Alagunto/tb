@@ -14,3 +14,33 @@ type InputMediaAudio struct {
 	Performer       string    `json:"performer,omitempty"`
 	Title           string    `json:"title,omitempty"`
 }
+
+// Field converts InputMediaAudio to a map for API requests.
+func (a *InputMediaAudio) Field() (map[string]any, error) {
+	result := map[string]any{
+		"type":  a.Type,
+		"media": a.Media,
+	}
+	if a.Thumbnail != "" {
+		result["thumbnail"] = a.Thumbnail
+	}
+	if a.Caption != "" {
+		result["caption"] = a.Caption
+	}
+	if a.ParseMode != "" {
+		result["parse_mode"] = string(a.ParseMode)
+	}
+	if len(a.CaptionEntities) > 0 {
+		result["caption_entities"] = a.CaptionEntities
+	}
+	if a.Duration > 0 {
+		result["duration"] = a.Duration
+	}
+	if a.Performer != "" {
+		result["performer"] = a.Performer
+	}
+	if a.Title != "" {
+		result["title"] = a.Title
+	}
+	return result, nil
+}

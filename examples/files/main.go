@@ -6,9 +6,6 @@ import (
 	"time"
 
 	"github.com/alagunto/tb"
-	"github.com/alagunto/tb/files"
-	"github.com/alagunto/tb/outgoing"
-	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/request"
 	"github.com/alagunto/tb/telegram"
 )
@@ -44,166 +41,119 @@ func main() {
 
 	// Start command
 	bot.Handle("/start", func(c *request.Native) error {
-		return c.Reply("Welcome! This bot demonstrates file sending.\n\n" +
+		return c.Reply("Welcome! This bot demonstrates sending media files.\n\n" +
 			"Commands:\n" +
 			"/photo <url> - Send a photo from URL\n" +
-			"/photo_local <path> - Send a local photo file\n" +
-			"/document <url> - Send a document from URL\n" +
-			"/document_local <path> - Send a local document\n" +
 			"/video <url> - Send a video from URL\n" +
-			"/video_local <path> - Send a local video\n" +
-			"/audio <url> - Send an audio file\n" +
-			"/voice <url> - Send a voice message\n" +
-			"/sticker <file_id> - Send a sticker by file_id\n" +
-			"/album - Send a media album")
+			"/document <url> - Send a document from URL\n" +
+			"/audio <url> - Send an audio file from URL\n" +
+			"/album - Send a media album with photos\n\n" +
+			"Note: File uploads from disk are not yet fully implemented in v5.\n" +
+			"Use URLs or file_ids for now.")
 	})
 
 	// Send photo from URL
 	bot.Handle("/photo", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
-			return c.Reply("Please provide a photo URL. Usage: /photo <url>")
+			return c.Reply("Please provide a photo URL. Usage: /photo <url>\n\nExample:\n/photo https://picsum.photos/800/600")
 		}
 		url := args[0]
-		photo := &telegram.Photo{
-			Source:  files.UseURL(url),
-			Caption: "This is a photo sent from URL!",
+
+		photo := &telegram.InputMediaPhoto{
+			Type:    "photo",
+			Media:   url,
+			Caption: "📷 Photo from URL!",
 		}
+
 		return c.Send(photo)
-	})
-
-	// Send local photo
-	bot.Handle("/photo_local", func(c *request.Native) error {
-		args := c.Args()
-		if len(args) == 0 {
-			return c.Reply("Please provide a file path. Usage: /photo_local <path>")
-		}
-		path := args[0]
-		photo := &telegram.Photo{
-			Source:  files.UseLocalFile(path),
-			Caption: "This is a local photo file!",
-		}
-		opts := params.NewSendOptions().WithParseMode(telegram.ParseModeHTML)
-		return c.Send(photo, opts)
-	})
-
-	// Send document from URL
-	bot.Handle("/document", func(c *request.Native) error {
-		args := c.Args()
-		if len(args) == 0 {
-			return c.Reply("Please provide a document URL. Usage: /document <url>")
-		}
-		url := args[0]
-		doc := &telegram.Document{
-			Source:  files.UseURL(url),
-			Caption: "This is a document sent from URL!",
-		}
-		return c.Send(doc)
-	})
-
-	// Send local document
-	bot.Handle("/document_local", func(c *request.Native) error {
-		args := c.Args()
-		if len(args) == 0 {
-			return c.Reply("Please provide a file path. Usage: /document_local <path>")
-		}
-		path := args[0]
-		doc := &telegram.Document{
-			Source:  files.UseLocalFile(path),
-			Caption: "This is a local document file!",
-		}
-		return c.Send(doc)
 	})
 
 	// Send video from URL
 	bot.Handle("/video", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
-			return c.Reply("Please provide a video URL. Usage: /video <url>")
+			return c.Reply("Please provide a video URL. Usage: /video <url>\n\nExample:\n/video https://sample-videos.com/video123/mp4/240/big_buck_bunny_240p_1mb.mp4")
 		}
 		url := args[0]
-		video := &telegram.Video{
-			Source:  files.UseURL(url),
-			Caption: "This is a video sent from URL!",
+
+		video := &telegram.InputMediaVideo{
+			Type:    "video",
+			Media:   url,
+			Caption: "🎥 Video from URL!",
 		}
+
 		return c.Send(video)
 	})
 
-	// Send local video
-	bot.Handle("/video_local", func(c *request.Native) error {
+	// Send document from URL
+	bot.Handle("/document", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
-			return c.Reply("Please provide a file path. Usage: /video_local <path>")
+			return c.Reply("Please provide a document URL. Usage: /document <url>\n\nExample:\n/document https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf")
 		}
-		path := args[0]
-		video := &telegram.Video{
-			Source:  files.UseLocalFile(path),
-			Caption: "This is a local video file!",
+		url := args[0]
+
+		doc := &telegram.InputMediaDocument{
+			Type:    "document",
+			Media:   url,
+			Caption: "📄 Document from URL!",
 		}
-		return c.Send(video)
+
+		return c.Send(doc)
 	})
 
 	// Send audio from URL
 	bot.Handle("/audio", func(c *request.Native) error {
 		args := c.Args()
 		if len(args) == 0 {
-			return c.Reply("Please provide an audio URL. Usage: /audio <url>")
+			return c.Reply("Please provide an audio URL. Usage: /audio <url>\n\nExample:\n/audio https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3")
 		}
 		url := args[0]
-		audio := &telegram.Audio{
-			Source:  files.UseURL(url),
-			Caption: "This is an audio file!",
+
+		audio := &telegram.InputMediaAudio{
+			Type:    "audio",
+			Media:   url,
+			Caption: "🎵 Audio from URL!",
 		}
+
 		return c.Send(audio)
-	})
-
-	// Send voice message from URL
-	bot.Handle("/voice", func(c *request.Native) error {
-		args := c.Args()
-		if len(args) == 0 {
-			return c.Reply("Please provide a voice URL. Usage: /voice <url>")
-		}
-		url := args[0]
-		voice := &telegram.Voice{
-			Source: files.UseURL(url),
-		}
-		return c.Send(voice)
-	})
-
-	// Send sticker by file_id
-	bot.Handle("/sticker", func(c *request.Native) error {
-		args := c.Args()
-		if len(args) == 0 {
-			return c.Reply("Please provide a sticker file_id. Usage: /sticker <file_id>")
-		}
-		fileID := args[0]
-		sticker := &telegram.Sticker{
-			Source: files.UseTelegramFile(fileID),
-		}
-		return c.Send(sticker)
 	})
 
 	// Send media album
 	bot.Handle("/album", func(c *request.Native) error {
-		// Create an album with multiple photos
-		// Note: You need to provide actual URLs or file paths for this to work
+		// Create an album with multiple photos from URLs
 		album := telegram.InputAlbum{
-			Media: []outgoing.Content{
-				&telegram.Photo{
-					Source:  files.UseURL("https://via.placeholder.com/150?text=Photo1"),
-					Caption: "First photo in album",
+			Media: []telegram.InputMedia{
+				&telegram.InputMediaPhoto{
+					Type:    "photo",
+					Media:   "https://picsum.photos/800/600?random=1",
+					Caption: "First photo in album 📷",
 				},
-				&telegram.Photo{
-					Source: files.UseURL("https://via.placeholder.com/150?text=Photo2"),
+				&telegram.InputMediaPhoto{
+					Type:  "photo",
+					Media: "https://picsum.photos/800/600?random=2",
 				},
-				&telegram.Photo{
-					Source: files.UseURL("https://via.placeholder.com/150?text=Photo3"),
+				&telegram.InputMediaPhoto{
+					Type:  "photo",
+					Media: "https://picsum.photos/800/600?random=3",
 				},
 			},
 		}
-		return c.SendAlbum(album)
+
+		if err := c.SendAlbum(album); err != nil {
+			return c.Reply("Failed to send album: " + err.Error())
+		}
+
+		return c.Reply("✅ Album sent successfully!")
+	})
+
+	// Handle text messages
+	bot.Handle(tb.OnText, func(c *request.Native) error {
+		return c.Reply("Send /start to see available commands!")
 	})
 
 	log.Println("Bot started! Press Ctrl+C to stop.")
+	log.Println("💡 Tip: Use public URLs for media files")
 	bot.Start()
 }

@@ -70,7 +70,7 @@ func (c *Native) CallbackMessage() *telegram.Message {
 	return c.u.CallbackQuery.Message
 }
 
-func (c *Native) CallbackQuery() *telegram.CallbackQuery {
+func (c *Native) CallbackQuery() *telegram.Callback {
 	return c.u.CallbackQuery
 }
 
@@ -78,7 +78,7 @@ func (c *Native) InlineQuery() *telegram.InlineQuery {
 	return c.u.InlineQuery
 }
 
-func (c *Native) InlineResult() *telegram.InlineResult {
+func (c *Native) InlineResult() *telegram.ChosenInlineResult {
 	return c.u.ChosenInlineResult
 }
 
@@ -90,7 +90,7 @@ func (c *Native) PreCheckoutQuery() *telegram.PreCheckoutQuery {
 	return c.u.PreCheckoutQuery
 }
 
-func (c *Native) Payment() *telegram.Payment {
+func (c *Native) Payment() *telegram.SuccessfulPayment {
 	if c.u.Message == nil {
 		return nil
 	}
@@ -163,9 +163,9 @@ func (c *Native) Sender() *telegram.User {
 	case c.u.ChosenInlineResult != nil:
 		return c.u.ChosenInlineResult.Sender
 	case c.u.ShippingQuery != nil:
-		return c.u.ShippingQuery.Sender
+		return c.u.ShippingQuery.From
 	case c.u.PreCheckoutQuery != nil:
-		return c.u.PreCheckoutQuery.Sender
+		return c.u.PreCheckoutQuery.From
 	case c.u.PollAnswer != nil:
 		return c.u.PollAnswer.Sender
 	case c.u.MyChatMember != nil:
@@ -237,19 +237,19 @@ func (c *Native) Data() string {
 	case c.u.Message != nil:
 		m := c.u.Message
 		if m.Payment != nil {
-			return m.Payment.Payload
+			return m.Payment.InvoicePayload
 		}
 		return m.Payload
 	case c.u.CallbackQuery != nil:
 		return c.u.CallbackQuery.Data
 	case c.u.InlineQuery != nil:
-		return c.u.InlineQuery.Text
+		return c.u.InlineQuery.Query
 	case c.u.ChosenInlineResult != nil:
 		return c.u.ChosenInlineResult.Query
 	case c.u.ShippingQuery != nil:
-		return c.u.ShippingQuery.Payload
+		return c.u.ShippingQuery.InvoicePayload
 	case c.u.PreCheckoutQuery != nil:
-		return c.u.PreCheckoutQuery.Payload
+		return c.u.PreCheckoutQuery.InvoicePayload
 	default:
 		return ""
 	}
@@ -259,7 +259,7 @@ func (c *Native) Args() []string {
 	m := c.u.Message
 	switch {
 	case m != nil && m.Payment != nil:
-		return strings.Split(m.Payment.Payload, "|")
+		return strings.Split(m.Payment.InvoicePayload, "|")
 	case m != nil:
 		payload := strings.Trim(m.Payload, " ")
 		if payload != "" {
@@ -268,7 +268,7 @@ func (c *Native) Args() []string {
 	case c.u.CallbackQuery != nil:
 		return strings.Split(c.u.CallbackQuery.Data, "|")
 	case c.u.InlineQuery != nil:
-		return strings.Split(c.u.InlineQuery.Text, " ")
+		return strings.Split(c.u.InlineQuery.Query, " ")
 	case c.u.ChosenInlineResult != nil:
 		return strings.Split(c.u.ChosenInlineResult.Query, " ")
 	}
@@ -301,7 +301,7 @@ func (c *Native) Reply(what interface{}, opts ...params.SendOptions) error {
 		return errors.WithMissingEntity(errors.ErrContextInsufficient, errors.MissingEntityMessage)
 	}
 	opt := params.Merge(opts...).
-		WithReplyParams(&telegram.ReplyParams{MessageID: msg.ID})
+		WithReplyParams(&telegram.ReplyParameters{MessageID: msg.ID})
 	_, err := c.API.ReplyTo(msg, what, opt)
 	return err
 }

@@ -12,17 +12,19 @@ type Update struct {
 	ChannelPost       *Message `json:"channel_post,omitempty"`        // channel_post	Message	Optional. New incoming channel post of any kind - text, photo, sticker, etc.
 	EditedChannelPost *Message `json:"edited_channel_post,omitempty"` // edited_channel_post	Message	Optional. New version of a channel post that is known to the bot and was edited
 
-	MessageReaction      *MessageReaction      `json:"message_reaction"`       // message_reaction	MessageReactionUpdated	Optional. A reaction to a message was changed by a user
-	MessageReactionCount *MessageReactionCount `json:"message_reaction_count"` // message_reaction_count	MessageReactionCountUpdated	Optional. Reactions to a message with anonymous reactions were changed
+	// The new status of a reaction to a message.
+	MessageReaction *MessageReactionUpdated `json:"message_reaction,omitempty"`
+	// The new count of reactions to a message.
+	MessageReactionCount *MessageReactionCountUpdated `json:"message_reaction_count,omitempty"`
 
-	CallbackQuery      *CallbackQuery `json:"callback_query,omitempty"`       // callback_query	CallbackQuery	Optional. New incoming callback query
-	InlineQuery        *InlineQuery   `json:"inline_query,omitempty"`         // inline_query	InlineQuery	Optional. New incoming inline query
-	ChosenInlineResult *InlineResult  `json:"chosen_inline_result,omitempty"` // chosen_inline_result	ChosenInlineResult	Optional. The result of an inline query that was chosen by a user and sent to their chat partner
+	CallbackQuery      *Callback      `json:"callback_query,omitempty"`       // callback_query	CallbackQuery	Optional. New incoming callback query
+	InlineQuery        *InlineQuery        `json:"inline_query,omitempty"`         // inline_query	InlineQuery	Optional. New incoming inline query
+	ChosenInlineResult *ChosenInlineResult `json:"chosen_inline_result,omitempty"` // chosen_inline_result	ChosenInlineResult	Optional. The result of an inline query that was chosen by a user and sent to their chat partner
 
 	ShippingQuery    *ShippingQuery    `json:"shipping_query,omitempty"`     // shipping_query	ShippingQuery	Optional. New incoming shipping query. Only for invoices with flexible price
 	PreCheckoutQuery *PreCheckoutQuery `json:"pre_checkout_query,omitempty"` // pre_checkout_query	PreCheckoutQuery	Optional. New incoming pre-checkout query. Contains full information about checkout
 
-	Poll       *Poll       `json:"poll,omitempty"`        // poll	Poll	Optional. New poll state. Bots receive only updates about manually stopped polls and polls, which are sent by the bot
+	Poll       *Poll       `json:"poll,omitempty"`        // poll	Poll	Optional. New poll state. Bots receive only updates about manually stopped polls and polls, which are sent by the bot itself.
 	PollAnswer *PollAnswer `json:"poll_answer,omitempty"` // poll_answer	PollAnswer	Optional. A user changed their answer in a non-anonymous poll. Bots receive new votes only in polls that were sent by the bot itself.
 
 	MyChatMember    *ChatMember      `json:"my_chat_member,omitempty"`    // my_chat_member	ChatMemberUpdated	Optional. The bot's chat member status was updated in a chat. For private chats, this update is received only when the bot is blocked or unblocked by the user.

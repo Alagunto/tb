@@ -1,0 +1,27 @@
+{
+  "pattern": "message-effect-injection-fix",
+  "date": "2025-10-31",
+  "problem": "EffectID not being sent to Telegram API - missing from InjectIntoMethodRequest implementation",
+  "solution": {
+    "steps": [
+      "1. Added HasMessageEffect embedded struct with MessageEffectID field in telegram/method_requests.go",
+      "2. Added SetMessageEffectID() method implementing setter pattern",
+      "3. Added SetsMessageEffect interface for type assertion",
+      "4. Embedded HasMessageEffect into SendMessageRequest struct",
+      "5. Added EffectID injection block in InjectIntoMethodRequest() in params/send_options.go"
+    ],
+    "key_learnings": [
+      "InjectIntoMethodRequest uses setter interface pattern, not direct field access",
+      "Must create both embedded struct AND interface for new injectable fields",
+      "Embedded structs with json tags automatically serialize at top level",
+      "InjectIntoMap and InjectIntoMethodRequest are two separate code paths",
+      "sendText() uses InjectIntoMethodRequest, sendMedia() uses InjectIntoMap"
+    ],
+    "architectural_insight": "The codebase uses two injection methods: InjectIntoMap for map-based requests (media) and InjectIntoMethodRequest for strongly-typed requests (text messages). Both must be updated for complete feature support."
+  },
+  "files_modified": [
+    "telegram/method_requests.go",
+    "params/send_options.go"
+  ],
+  "success": true
+}

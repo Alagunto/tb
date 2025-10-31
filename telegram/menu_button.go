@@ -4,7 +4,7 @@ package telegram
 type MenuButton struct {
 	Type   MenuButtonType `json:"type"`
 	Text   string         `json:"text,omitempty"`
-	WebApp *WebApp        `json:"web_app,omitempty"`
+	WebApp *WebAppInfo    `json:"web_app,omitempty"`
 }
 
 type MenuButtonType = string

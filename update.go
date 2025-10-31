@@ -277,7 +277,7 @@ func (b *Bot[RequestType]) ProcessUpdate(c RequestType, u telegram.Update) {
 			b.runHandler(c, OnNewGroupTitle)
 			return
 		}
-		if m.NewGroupPhoto != nil {
+		if m.NewChatPhoto != nil {
 			b.runHandler(c, OnNewGroupPhoto)
 			return
 		}

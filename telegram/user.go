@@ -1,5 +1,7 @@
 package telegram
 
+import "strconv"
+
 // User object represents a Telegram user or bot.
 type User struct {
 	ID                      int64  `json:"id"`
@@ -15,4 +17,9 @@ type User struct {
 	SupportsInlineQueries   bool   `json:"supports_inline_queries,omitempty"`
 	CanConnectToBusiness    bool   `json:"can_connect_to_business,omitempty"`
 	HasMainWebApp           bool   `json:"has_main_web_app,omitempty"`
+}
+
+// Recipient returns user id as string for sending messages.
+func (u *User) Recipient() string {
+	return strconv.FormatInt(u.ID, 10)
 }

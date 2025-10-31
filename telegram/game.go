@@ -25,18 +25,3 @@ type Game struct {
 	// Upload via BotFather.
 	Animation *Animation `json:"animation,omitempty"`
 }
-
-// sendGame creates a new game message.
-func (b *Bot[RequestType]) sendGame(c Recipient, game string, opt *SendOptions) (*Message, error) {
-	req := methods.SendGameRequest{
-		ChatID:        c.Recipient(),
-		GameShortName: game,
-	}
-
-	if opt != nil {
-		opt.InjectIntoMethodRequest(&req)
-	}
-
-	r := NewApiRequester[methods.SendGameRequest, methods.SendGameResponse](b.token, b.apiURL, b.client)
-	return r.Request(context.Background(), "sendGame", req)
-}

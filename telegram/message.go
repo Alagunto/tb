@@ -4,8 +4,6 @@ import (
 	"strconv"
 	"time"
 	"unicode/utf16"
-
-	"github.com/alagunto/tb/telegram/media"
 )
 
 // Message object represents a message.
@@ -115,9 +113,9 @@ type Message struct {
 
 	// Media (photo, video, music, etc.) - see
 	// https://core.telegram.org/bots/api#message
-	Photo           *media.PhotoSize `json:"photo,omitempty"`
-	Caption         string           `json:"caption,omitempty"`
-	CaptionEntities []MessageEntity  `json:"caption_entities,omitempty"`
+	Photo           *PhotoSize      `json:"photo,omitempty"`
+	Caption         string          `json:"caption,omitempty"`
+	CaptionEntities []MessageEntity `json:"caption_entities,omitempty"`
 
 	// Entities in caption
 	HasMediaSpoiler bool `json:"has_media_spoiler,omitempty"`
@@ -155,7 +153,7 @@ type Message struct {
 	NewChatTitle string `json:"new_chat_title,omitempty"`
 
 	// For a service message, represents all available thumbnails of the new chat photo.
-	NewChatPhoto []media.PhotoSize `json:"new_chat_photo,omitempty"`
+	NewChatPhoto []PhotoSize `json:"new_chat_photo,omitempty"`
 
 	// For a service message, true if chat photo just got removed.
 	GroupPhotoDeleted bool `json:"delete_chat_photo,omitempty"`
@@ -182,7 +180,7 @@ type Message struct {
 	Invoice *Invoice `json:"invoice,omitempty"`
 
 	// Payment is a service message about a successful payment
-	Payment *Payment `json:"successful_payment,omitempty"`
+	Payment *SuccessfulPayment `json:"successful_payment,omitempty"`
 
 	// RefundedPayment is a service message about a refunded payment
 	RefundedPayment *RefundedPayment `json:"refunded_payment,omitempty"`
@@ -242,25 +240,25 @@ type Message struct {
 	WebAppData *WebAppData `json:"web_app_data,omitempty"`
 
 	// VideoNote is a video note
-	VideoNote *media.VideoNote `json:"video_note,omitempty"`
+	VideoNote *VideoNote `json:"video_note,omitempty"`
 
 	// Voice is a voice message
-	Voice *media.Voice `json:"voice,omitempty"`
+	Voice *Voice `json:"voice,omitempty"`
 
 	// Audio is an audio file
-	Audio *media.Audio `json:"audio,omitempty"`
+	Audio *Audio `json:"audio,omitempty"`
 
 	// Document is a general file
-	Document *media.Document `json:"document,omitempty"`
+	Document *Document `json:"document,omitempty"`
 
 	// Animation is an animation file
-	Animation *media.Animation `json:"animation,omitempty"`
+	Animation *Animation `json:"animation,omitempty"`
 
 	// Sticker is a sticker
-	Sticker *media.Sticker `json:"sticker,omitempty"`
+	Sticker *Sticker `json:"sticker,omitempty"`
 
 	// Video is a video file
-	Video *media.Video `json:"video,omitempty"`
+	Video *Video `json:"video,omitempty"`
 
 	// BoostAdded is user boosted the chat
 	BoostAdded *BoostAdded `json:"boost_added,omitempty"`
@@ -345,3 +343,6 @@ type PassportData struct{}
 type ExternalReply struct{}
 type TextQuote struct{}
 type MessageOrigin struct{}
+type WriteAccessAllowed struct{}
+type WebAppData struct{}
+type ChatBackground struct{}

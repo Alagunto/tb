@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/alagunto/tb"
-	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/request"
 	"github.com/alagunto/tb/telegram"
 )
@@ -64,7 +63,7 @@ func main() {
 
 	bot.Handle("/html", func(c *request.Native) error {
 		text := "<b>Bold text</b>\n<i>Italic text</i>\n<code>Code inline</code>\n<a href=\"https://telegram.org\">Link</a>"
-		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeHTML)
+		opts := tb.SendOptions().WithParseMode(telegram.ParseModeHTML)
 		return c.Reply(text, opts)
 	})
 
@@ -77,7 +76,7 @@ func main() {
 			{Type: telegram.EntityCode, Offset: 12, Length: 4},
 			{Type: telegram.EntityTextLink, Offset: 17, Length: 4, URL: "https://telegram.org"},
 		}
-		opts := communications.NewSendOptions().WithEntities(entities)
+		opts := tb.SendOptions().WithEntities(entities)
 		return c.Reply(text, opts)
 	})
 
@@ -90,7 +89,7 @@ func main() {
 	bot.Handle(tb.OnText, func(c *request.Native) error {
 		// Echo back with some formatting
 		text := fmt.Sprintf("You said: %s", c.Text())
-		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeHTML)
+		opts := tb.SendOptions().WithParseMode(telegram.ParseModeHTML)
 		return c.Reply(text, opts)
 	})
 

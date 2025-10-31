@@ -6,15 +6,9 @@ import (
 	"strconv"
 
 	"github.com/alagunto/tb/bot"
-	"github.com/alagunto/tb/communications"
 	"github.com/alagunto/tb/errors"
-	"github.com/alagunto/tb/files"
-	"github.com/alagunto/tb/outgoing"
 	"github.com/alagunto/tb/params"
-	"github.com/alagunto/tb/sendables"
 	"github.com/alagunto/tb/telegram"
-	"github.com/alagunto/tb/telegram/messages"
-	"github.com/alagunto/tb/telegram/methods"
 )
 
 // SendTo accepts 2+ arguments, starting with destination chat, followed by
@@ -31,89 +25,104 @@ import (
 //   - *ReplyMarkup (a component of SendOptions)
 //   - Option (a shortcut flag for popular options)
 //   - ParseMode (HTML, Markdown, etc)
-func (b *Bot[RequestType]) SendTo(to bot.Recipient, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) SendTo(to bot.Recipient, what interface{}, opts ...params.SendOptions) (*telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
 	switch object := what.(type) {
 	case string:
 		return b.sendText(to, object, &sendOpts)
-	case outgoing.Media[any]:
+	case telegram.InputMedia:
 		return b.sendMedia(to, object, &sendOpts)
 	default:
 		return nil, errors.WithInvalidParam(errors.ErrUnsupportedWhat, "what", fmt.Sprintf("%v", what))
 	}
 }
 
-func (b *Bot[RequestType]) sendText(to bot.Recipient, text string, opts *communications.SendOptions) (*telegram.Message, error) {
-	req := methods.SendMessageRequest{
+func (b *Bot[RequestType]) sendText(to bot.Recipient, text string, opts *params.SendOptions) (*telegram.Message, error) {
+	req := telegram.SendMessageRequest{
 		ChatID: to.Recipient(),
 		Text:   b.CensorText(text),
 	}
 
 	if opts != nil {
+		req.ParseMode = string(opts.ParseMode)
+		req.Entities = opts.Entities
 		opts.InjectIntoMethodRequest(&req)
 	}
 
-	r := NewApiRequester[methods.SendMessageRequest, methods.SendMessageResponse](b.token, b.apiURL, b.client)
-	return r.Request(context.Background(), "sendMessage", req)
+	r := NewApiRequester[telegram.SendMessageRequest, telegram.Message](b.token, b.apiURL, b.client)
+	result, err := r.Request(context.Background(), "sendMessage", req)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
-// sendMedia handles sending content that implements the outgoing.Media interface.
-func (b *Bot[RequestType]) sendMedia(to bot.Recipient, media outgoing.Media[any], opts *communications.SendOptions) (*telegram.Message, error) {
-	method := media.ToTelegramSendMethod()
+// sendMedia handles sending content that implements the telegram.InputMedia interface.
+func (b *Bot[RequestType]) sendMedia(to bot.Recipient, media telegram.InputMedia, opts *params.SendOptions) (*telegram.Message, error) {
+	if to == nil {
+		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
+	}
+
+	mediaParams, err := media.Field()
+	if err != nil {
+		return nil, err
+	}
+
+	sendOpts := params.Merge(*opts)
+	paramsMap := sendOpts.ToMap()
+
+	// Merge media parameters into the request
+	for k, v := range mediaParams {
+		paramsMap[k] = v
+	}
 
 	r := NewApiRequester[map[string]any, telegram.Message](b.token, b.apiURL, b.client)
-	for field, file := range method.Files {
-		r.WithFileToUpload(field, file)
-	}
 
-	params := method.Params
-	params["chat_id"] = to.Recipient()
+	// TODO: Handle file uploads - need to implement proper file upload detection
+	// The media.Field() method should already set media parameter correctly
+	// (file_id for existing files, URL for remote files, or attach:// for uploads)
+
+	paramsMap["chat_id"] = to.Recipient()
 	if opts != nil {
-		opts.InjectInto(params)
+		opts.InjectIntoMap(paramsMap)
 	}
 
-	return r.Request(context.Background(), method.Name, params)
+	result, err := r.Request(context.Background(), "send"+mediaParams["type"].(string), paramsMap)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // SendAlbumTo sends multiple instances of media as a single message.
 // To include the caption, make sure the first Inputtable of an album has it.
 // From all existing options, it only supports tele.Silent.
-func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a sendables.InputAlbum, opts ...communications.SendOptions) ([]messages.Message, error) {
+func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a telegram.InputAlbum, opts ...params.SendOptions) ([]telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
-
-	p := params.New().
-		Add("chat_id", to.Recipient()).
-		Build()
-
+	sendOpts := params.Merge(opts...)
 	paramsMap := sendOpts.ToMap()
+	paramsMap["chat_id"] = to.Recipient()
 
-	filesToSend := make(map[string]files.FileSource)
-	for _, x := range a.Media {
-		for name, source := range x.ToTelegramSendMethod().Files {
-			filesToSend[name] = source
+	// TODO: Handle file uploads - need to implement proper file upload detection
+	mediaArray := make([]map[string]any, len(a.Media))
+	for i, x := range a.Media {
+		mediaParams, err := x.Field()
+		if err != nil {
+			return nil, err
 		}
+		mediaArray[i] = mediaParams
 	}
+	paramsMap["media"] = mediaArray
 
-	// Use ApiRequester for sendMediaGroup which returns []Message
-
-	r := NewApiRequester[map[string]any, []messages.Message](b.token, b.apiURL, b.client)
-	for _, x := range a.Media {
-		for name, source := range x.ToTelegramSendMethod().Files {
-			r = r.WithFileToUpload(name, source)
-		}
-	}
-	for name, source := range filesToSend {
-		r = r.WithFileToUpload(name, source)
-	}
+	r := NewApiRequester[map[string]any, []telegram.Message](b.token, b.apiURL, b.client)
 
 	result, err := r.Request(context.Background(), "sendMediaGroup", paramsMap)
 	if err != nil {
@@ -125,18 +134,14 @@ func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a sendables.InputAlbum,
 
 // ReplyTo behaves just like Send() with an exception of "reply-to" indicator.
 // This function will panic upon nil Message.
-func (b *Bot[RequestType]) ReplyTo(to *telegram.Message, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
-	sendOpts := communications.MergeMultipleSendOptions(opts...).WithReplyParams(&telegram.ReplyParams{MessageID: to.ID})
+func (b *Bot[RequestType]) ReplyTo(to *telegram.Message, what interface{}, opts ...params.SendOptions) (*telegram.Message, error) {
+	sendOpts := params.Merge(opts...).WithReplyParams(&telegram.ReplyParameters{MessageID: to.ID})
 
 	var recipient bot.Recipient
 	if to.Chat.Type == telegram.ChatPrivate {
-		recipient = &telegram.User{
-			ID: to.Sender.ID,
-		}
+		recipient = to.Sender
 	} else {
-		recipient = &telegram.Chat{
-			ID: to.Chat.ID,
-		}
+		recipient = to.Chat
 		if to.ThreadID != 0 {
 			sendOpts = sendOpts.WithThreadID(to.ThreadID)
 		}
@@ -147,15 +152,15 @@ func (b *Bot[RequestType]) ReplyTo(to *telegram.Message, what interface{}, opts 
 
 // ForwardTo behaves just like SendTo() but of all options it only supports Silent (see Bots API).
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType]) ForwardTo(to bot.Recipient, msg bot.Editable, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) ForwardTo(to bot.Recipient, msg bot.Editable, opts ...params.SendOptions) (*telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
 	msgID, chatID := msg.MessageSig()
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
-	req := methods.ForwardMessageRequest{
+	req := telegram.ForwardMessageRequest{
 		ChatID:     to.Recipient(),
 		FromChatID: chatID,
 		MessageID:  msgID,
@@ -171,7 +176,7 @@ func (b *Bot[RequestType]) ForwardTo(to bot.Recipient, msg bot.Editable, opts ..
 		req.ProtectContent = true
 	}
 
-	r := NewApiRequester[methods.ForwardMessageRequest, methods.ForwardMessageResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.ForwardMessageRequest, telegram.Message](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "forwardMessage", req)
 	if err != nil {
 		return nil, errors.Wrap(err)
@@ -184,7 +189,7 @@ func (b *Bot[RequestType]) ForwardTo(to bot.Recipient, msg bot.Editable, opts ..
 // If some of the specified messages can't be found or forwarded, they are skipped.
 // Service messages and messages with protected content can't be forwarded.
 // Album grouping is kept for forwarded messages.
-func (b *Bot[RequestType]) ForwardManyTo(to bot.Recipient, msgs []bot.Editable, opts ...communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType]) ForwardManyTo(to bot.Recipient, msgs []bot.Editable, opts ...params.SendOptions) ([]telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
@@ -192,7 +197,7 @@ func (b *Bot[RequestType]) ForwardManyTo(to bot.Recipient, msgs []bot.Editable, 
 		return nil, nil
 	}
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
 	// Extract message IDs and from_chat_id
 	messageIDs := make([]string, len(msgs))
@@ -210,7 +215,7 @@ func (b *Bot[RequestType]) ForwardManyTo(to bot.Recipient, msgs []bot.Editable, 
 		}
 	}
 
-	req := methods.ForwardMessagesRequest{
+	req := telegram.ForwardMessagesRequest{
 		ChatID:     to.Recipient(),
 		FromChatID: fromChatID,
 		MessageIDs: messageIDs,
@@ -226,7 +231,7 @@ func (b *Bot[RequestType]) ForwardManyTo(to bot.Recipient, msgs []bot.Editable, 
 		req.ProtectContent = true
 	}
 
-	r := NewApiRequester[methods.ForwardMessagesRequest, methods.ForwardMessagesResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.ForwardMessagesRequest, []telegram.Message](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "forwardMessages", req)
 	if err != nil {
 		return nil, err
@@ -238,15 +243,15 @@ func (b *Bot[RequestType]) ForwardManyTo(to bot.Recipient, msgs []bot.Editable, 
 // CopyTo behaves just like ForwardTo() but the copied message doesn't have a link to the original message (see Bots API).
 //
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType]) CopyTo(to bot.Recipient, msg bot.Editable, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) CopyTo(to bot.Recipient, msg bot.Editable, opts ...params.SendOptions) (*telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
 	msgID, chatID := msg.MessageSig()
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
-	req := methods.CopyMessageRequest{
+	req := telegram.CopyMessageRequest{
 		ChatID:     to.Recipient(),
 		FromChatID: chatID,
 		MessageID:  msgID,
@@ -268,7 +273,7 @@ func (b *Bot[RequestType]) CopyTo(to bot.Recipient, msg bot.Editable, opts ...co
 		req.ReplyMarkup = sendOpts.ReplyMarkup
 	}
 
-	r := NewApiRequester[methods.CopyMessageRequest, methods.CopyMessageResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.CopyMessageRequest, telegram.Message](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "copyMessage", req)
 	if err != nil {
 		return nil, errors.Wrap(err)
@@ -284,7 +289,7 @@ func (b *Bot[RequestType]) CopyTo(to bot.Recipient, msg bot.Editable, opts ...co
 // correct_option_id is known to the bot. The method is analogous
 // to the method forwardMessages, but the copied messages don't have a link to the original message.
 // Album grouping is kept for copied messages.
-func (b *Bot[RequestType]) CopyManyTo(to bot.Recipient, msgs []bot.Editable, opts ...communications.SendOptions) ([]telegram.Message, error) {
+func (b *Bot[RequestType]) CopyManyTo(to bot.Recipient, msgs []bot.Editable, opts ...params.SendOptions) ([]telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
@@ -292,7 +297,7 @@ func (b *Bot[RequestType]) CopyManyTo(to bot.Recipient, msgs []bot.Editable, opt
 		return nil, nil
 	}
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
 	// Extract message IDs and from_chat_id
 	messageIDs := make([]string, len(msgs))
@@ -310,7 +315,7 @@ func (b *Bot[RequestType]) CopyManyTo(to bot.Recipient, msgs []bot.Editable, opt
 		}
 	}
 
-	req := methods.CopyMessagesRequest{
+	req := telegram.CopyMessagesRequest{
 		ChatID:     to.Recipient(),
 		FromChatID: fromChatID,
 		MessageIDs: messageIDs,
@@ -326,7 +331,7 @@ func (b *Bot[RequestType]) CopyManyTo(to bot.Recipient, msgs []bot.Editable, opt
 		req.ProtectContent = true
 	}
 
-	r := NewApiRequester[methods.CopyMessagesRequest, methods.CopyMessagesResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.CopyMessagesRequest, []telegram.Message](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "copyMessages", req)
 	if err != nil {
 		return nil, err
@@ -350,17 +355,17 @@ func (b *Bot[RequestType]) CopyManyTo(to bot.Recipient, msgs []bot.Editable, opt
 //	b.Edit(m, tele.Location{42.1337, 69.4242})
 //	b.Edit(c, "edit inline message from the callback")
 //	b.Edit(r, "edit message from chosen inline result")
-func (b *Bot[RequestType]) Edit(msg bot.Editable, what interface{}, opts ...communications.SendOptions) (*telegram.Message, error) {
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+func (b *Bot[RequestType]) Edit(msg bot.Editable, what interface{}, opts ...params.SendOptions) (*telegram.Message, error) {
+	sendOpts := params.Merge(opts...)
 	msgID, chatID := msg.MessageSig()
 
 	switch v := what.(type) {
 	case *telegram.ReplyMarkup:
 		return b.EditReplyMarkup(msg, v)
-	case outgoing.Content:
-		return b.EditMedia(msg, v, opts...)
+	case telegram.InputMedia:
+		return b.EditMedia(msg, v, sendOpts)
 	case string:
-		req := methods.EditMessageTextRequest{
+		req := telegram.EditMessageTextRequest{
 			Text: b.CensorText(v),
 		}
 
@@ -371,17 +376,17 @@ func (b *Bot[RequestType]) Edit(msg bot.Editable, what interface{}, opts ...comm
 			req.MessageID = msgID
 		}
 
-		sendOpts.InjectIntoMethodRequest(&req)
+		params.New().With(sendOpts).Build()
 
-		r := NewApiRequester[methods.EditMessageTextRequest, methods.EditMessageTextResponse](b.token, b.apiURL, b.client)
+		r := NewApiRequester[telegram.EditMessageTextRequest, telegram.Message](b.token, b.apiURL, b.client)
 		result, err := r.Request(context.Background(), "editMessageText", req)
 		if err != nil {
 			return nil, errors.Wrap(err)
 		}
 		return result, nil
 
-	case Checklist:
-		req := methods.EditMessageChecklistRequest{
+	case telegram.Checklist:
+		req := telegram.EditMessageChecklistRequest{
 			Checklist: v,
 		}
 
@@ -392,19 +397,19 @@ func (b *Bot[RequestType]) Edit(msg bot.Editable, what interface{}, opts ...comm
 			req.MessageID = msgID
 		}
 
-		sendOpts.InjectIntoMethodRequest(&req)
+		params.New().With(sendOpts).Build()
 
-		r := NewApiRequester[methods.EditMessageChecklistRequest, methods.EditMessageChecklistResponse](b.token, b.apiURL, b.client)
+		r := NewApiRequester[telegram.EditMessageChecklistRequest, telegram.Message](b.token, b.apiURL, b.client)
 		result, err := r.Request(context.Background(), "editMessageChecklist", req)
 		if err != nil {
 			return nil, errors.Wrap(err)
 		}
 		return result, nil
 
-	case Location:
-		req := methods.EditMessageLiveLocationRequest{
-			Latitude:  float64(v.Lat),
-			Longitude: float64(v.Lng),
+	case telegram.Location:
+		req := telegram.EditMessageLiveLocationRequest{
+			Latitude:  v.Latitude,
+			Longitude: v.Longitude,
 		}
 
 		if chatID == 0 { // if inline message
@@ -414,22 +419,21 @@ func (b *Bot[RequestType]) Edit(msg bot.Editable, what interface{}, opts ...comm
 			req.MessageID = msgID
 		}
 
-		if v.HorizontalAccuracy != nil {
-			accuracy := float64(*v.HorizontalAccuracy)
-			req.HorizontalAccuracy = &accuracy
+		if v.HorizontalAccuracy != 0 {
+			req.HorizontalAccuracy = &v.HorizontalAccuracy
 		}
 		if v.Heading != 0 {
 			req.Heading = v.Heading
 		}
-		if v.AlertRadius != 0 {
-			req.ProximityAlertRadius = v.AlertRadius
+		if v.ProximityAlertRadius != 0 {
+			req.ProximityAlertRadius = v.ProximityAlertRadius
 		}
 		if v.LivePeriod != 0 {
 			req.LivePeriod = v.LivePeriod
 		}
-		sendOpts.InjectIntoMethodRequest(&req)
+		params.New().With(sendOpts).Build()
 
-		r := NewApiRequester[methods.EditMessageLiveLocationRequest, methods.EditMessageLiveLocationResponse](b.token, b.apiURL, b.client)
+		r := NewApiRequester[telegram.EditMessageLiveLocationRequest, telegram.Message](b.token, b.apiURL, b.client)
 		result, err := r.Request(context.Background(), "editMessageLiveLocation", req)
 		if err != nil {
 			return nil, errors.Wrap(err)
@@ -450,7 +454,7 @@ func (b *Bot[RequestType]) Edit(msg bot.Editable, what interface{}, opts ...comm
 func (b *Bot[RequestType]) EditReplyMarkup(msg bot.Editable, markup *telegram.ReplyMarkup) (*telegram.Message, error) {
 	msgID, chatID := msg.MessageSig()
 
-	req := methods.EditMessageReplyMarkupRequest{}
+	req := telegram.EditMessageReplyMarkupRequest{}
 
 	if chatID == 0 { // if inline message
 		req.InlineMessageID = msgID
@@ -464,15 +468,13 @@ func (b *Bot[RequestType]) EditReplyMarkup(msg bot.Editable, markup *telegram.Re
 		markup = &telegram.ReplyMarkup{}
 	}
 
-	// Use SendOptions to prepare buttons (handles Unique field processing)
-	opt := communications.SendOptions{ReplyMarkup: markup}
-	if markup != nil {
-		markup.InlineKeyboard = opt.PrepareButtons(markup.InlineKeyboard)
-	}
+	// TODO: Implement button preparation logic
+	// The PrepareButtons method doesn't exist in SendOptions
+	// Need to implement logic to process button unique identifiers
 
 	req.ReplyMarkup = markup
 
-	r := NewApiRequester[methods.EditMessageReplyMarkupRequest, methods.EditMessageReplyMarkupResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.EditMessageReplyMarkupRequest, telegram.Message](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "editMessageReplyMarkup", req)
 	if err != nil {
 		return nil, errors.Wrap(err)
@@ -486,12 +488,12 @@ func (b *Bot[RequestType]) EditReplyMarkup(msg bot.Editable, markup *telegram.Re
 //
 // If edited message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[RequestType]) EditCaption(msg bot.Editable, caption string, opts ...communications.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) EditCaption(msg bot.Editable, caption string, opts ...params.SendOptions) (*telegram.Message, error) {
 	msgID, chatID := msg.MessageSig()
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
-	req := methods.EditMessageCaptionRequest{
+	req := telegram.EditMessageCaptionRequest{
 		Caption:         b.CensorText(caption),
 		ParseMode:       string(sendOpts.ParseMode),
 		CaptionEntities: sendOpts.Entities,
@@ -504,9 +506,9 @@ func (b *Bot[RequestType]) EditCaption(msg bot.Editable, caption string, opts ..
 		req.MessageID = msgID
 	}
 
-	sendOpts.InjectIntoMethodRequest(&req)
+	params.New().With(sendOpts).Build()
 
-	r := NewApiRequester[methods.EditMessageCaptionRequest, methods.EditMessageCaptionResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.EditMessageCaptionRequest, telegram.Message](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "editMessageCaption", req)
 	if err != nil {
 		return nil, errors.Wrap(err)
@@ -525,19 +527,12 @@ func (b *Bot[RequestType]) EditCaption(msg bot.Editable, caption string, opts ..
 //
 //	b.EditMedia(m, &tele.Photo{File: tele.FromDisk("chicken.jpg")})
 //	b.EditMedia(m, &tele.Video{File: tele.FromURL("http://video.mp4")})
-func (b *Bot[RequestType]) EditMedia(msg bot.Editable, media outgoing.Content, opts ...communications.SendOptions) (*telegram.Message, error) {
-	// Handle media file
-	mediaFile := media.ToTelegramSendMethod().Files["media"]
-
-	repr := "attach://media"
-
+func (b *Bot[RequestType]) EditMedia(msg bot.Editable, media telegram.InputMedia, opts ...params.SendOptions) (*telegram.Message, error) {
 	msgID, chatID := msg.MessageSig()
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
-	req := methods.EditMessageMediaRequest{
-		Media: repr,
-	}
+	req := telegram.EditMessageMediaRequest{}
 
 	if chatID == 0 { // if inline message
 		req.InlineMessageID = msgID
@@ -546,11 +541,19 @@ func (b *Bot[RequestType]) EditMedia(msg bot.Editable, media outgoing.Content, o
 		req.MessageID = msgID
 	}
 
-	sendOpts.InjectIntoMethodRequest(&req)
+	params.New().With(sendOpts).Build()
 
-	// Create the requester
-	r := NewApiRequester[methods.EditMessageMediaRequest, methods.EditMessageMediaResponse](b.token, b.apiURL, b.client)
-	r = r.WithFileToUpload("media", mediaFile)
+	// TODO: Handle file uploads - need to implement proper file upload detection
+	// Get media parameters from the InputMedia
+	mediaParams, err := media.Field()
+	if err != nil {
+		return nil, err
+	}
+	if mediaStr, ok := mediaParams["media"].(string); ok {
+		req.Media = mediaStr
+	}
+
+	r := NewApiRequester[telegram.EditMessageMediaRequest, telegram.Message](b.token, b.apiURL, b.client)
 
 	result, err := r.Request(context.Background(), "editMessageMedia", req)
 	if err != nil {
@@ -574,12 +577,12 @@ func (b *Bot[RequestType]) EditMedia(msg bot.Editable, media outgoing.Content, o
 func (b *Bot[RequestType]) Delete(msg bot.Editable) error {
 	msgID, chatID := msg.MessageSig()
 
-	req := methods.DeleteMessageRequest{
+	req := telegram.DeleteMessageRequest{
 		ChatID:    chatID,
 		MessageID: msgID,
 	}
 
-	r := NewApiRequester[methods.DeleteMessageRequest, methods.DeleteMessageResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.DeleteMessageRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "deleteMessage", req)
 	return err
 }
@@ -607,12 +610,12 @@ func (b *Bot[RequestType]) DeleteMany(msgs []bot.Editable) error {
 		}
 	}
 
-	req := methods.DeleteMessagesRequest{
+	req := telegram.DeleteMessagesRequest{
 		ChatID:     chatID,
 		MessageIDs: messageIDs,
 	}
 
-	r := NewApiRequester[methods.DeleteMessagesRequest, methods.DeleteMessagesResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.DeleteMessagesRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "deleteMessages", req)
 	return err
 }
@@ -625,12 +628,12 @@ func (b *Bot[RequestType]) DeleteMany(msgs []bot.Editable) error {
 //
 // If the message is sent by the bot, returns it,
 // otherwise returns nil and ErrTrueResult.
-func (b *Bot[RequestType]) StopLiveLocation(msg bot.Editable, opts ...communications.SendOptions) (*Message, error) {
+func (b *Bot[RequestType]) StopLiveLocation(msg bot.Editable, opts ...params.SendOptions) (*telegram.Message, error) {
 	msgID, chatID := msg.MessageSig()
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
-	req := methods.StopMessageLiveLocationRequest{}
+	req := telegram.StopMessageLiveLocationRequest{}
 
 	if chatID == 0 { // if inline message
 		req.InlineMessageID = msgID
@@ -639,9 +642,9 @@ func (b *Bot[RequestType]) StopLiveLocation(msg bot.Editable, opts ...communicat
 		req.MessageID = msgID
 	}
 
-	sendOpts.InjectIntoMethodRequest(&req)
+	params.New().With(sendOpts).Build()
 
-	r := NewApiRequester[methods.StopMessageLiveLocationRequest, methods.StopMessageLiveLocationResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.StopMessageLiveLocationRequest, telegram.Message](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "stopMessageLiveLocation", req)
 	if err != nil {
 		return nil, errors.Wrap(err)
@@ -655,19 +658,19 @@ func (b *Bot[RequestType]) StopLiveLocation(msg bot.Editable, opts ...communicat
 //
 // It supports ReplyMarkup.
 // This function will panic upon nil Editable.
-func (b *Bot[RequestType]) StopPoll(msg bot.Editable, opts ...communications.SendOptions) (*Poll, error) {
+func (b *Bot[RequestType]) StopPoll(msg bot.Editable, opts ...params.SendOptions) (*telegram.Poll, error) {
 	msgID, chatID := msg.MessageSig()
 
-	sendOpts := communications.MergeMultipleSendOptions(opts...)
+	sendOpts := params.Merge(opts...)
 
-	req := methods.StopPollRequest{
+	req := telegram.StopPollRequest{
 		ChatID:    chatID,
 		MessageID: msgID,
 	}
 
-	sendOpts.InjectIntoMethodRequest(&req)
+	params.New().With(sendOpts).Build()
 
-	r := NewApiRequester[methods.StopPollRequest, methods.StopPollResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.StopPollRequest, telegram.Poll](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "stopPoll", req)
 	if err != nil {
 		return nil, err

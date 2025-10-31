@@ -4,15 +4,18 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/alagunto/tb"
-	"github.com/alagunto/tb/communications"
-	"github.com/alagunto/tb/files"
-	"github.com/alagunto/tb/outgoing"
 	"github.com/alagunto/tb/request"
 	"github.com/alagunto/tb/telegram"
 )
+
+// Admin IDs - replace with actual admin user IDs
+var adminIDs = map[int64]bool{
+	123456789: true, // Replace with actual admin ID
+}
 
 func main() {
 	token := os.Getenv("BOT_TOKEN")
@@ -30,288 +33,226 @@ func main() {
 		Token: token,
 		Poller: &tb.LongPoller{
 			Timeout:        10 * time.Second,
-			AllowedUpdates: []string{"message", "callback_query", "inline_query"},
+			AllowedUpdates: []string{"message", "callback_query"},
 		},
 		OnError: func(err error, ctx *request.Native) {
 			log.Printf("Error: %v", err)
 		},
 	}
+
 	// Create the bot
 	bot, err := tb.NewBot(requestBuilder, settings)
 	if err != nil {
 		log.Fatalf("Failed to create bot: %v", err)
 	}
 
-	// Start command with inline keyboard
+	// Helper function to check if user is admin
+	isAdmin := func(userID int64) bool {
+		return adminIDs[userID]
+	}
+
+	// Start command
 	bot.Handle("/start", func(c *request.Native) error {
-		keyboard := &telegram.ReplyMarkup{
-			InlineKeyboard: [][]telegram.InlineButton{
-				{
-					{Text: "Button 1", Unique: "btn1"},
-					{Text: "Button 2", Unique: "btn2"},
-				},
-				{
-					{Text: "URL Button", URL: "https://telegram.org"},
-					{Text: "Inline Query", InlineQuery: "test query"},
-				},
-			},
-		}
-		opts := communications.NewSendOptions().WithReplyMarkup(keyboard)
-		return c.Reply("Welcome! This bot demonstrates advanced features.\n\n"+
-			"Commands:\n"+
-			"/keyboard - Show inline keyboard\n"+
-			"/reply_keyboard - Show reply keyboard\n"+
-			"/album - Send media album\n"+
-			"/edit - Test message editing\n"+
-			"/delete - Test message deletion\n"+
-			"/forward - Forward a message\n"+
-			"/copy - Copy a message\n"+
-			"/location - Send location\n"+
-			"/poll - Create a poll\n"+
-			"/reaction - Add reaction to message", opts)
-	})
-
-	// Inline keyboard example
-	bot.Handle("/keyboard", func(c *request.Native) error {
-		keyboard := &telegram.ReplyMarkup{
-			InlineKeyboard: [][]telegram.InlineButton{
-				{
-					{Text: "Option A", Unique: "option_a"},
-					{Text: "Option B", Unique: "option_b"},
-				},
-				{
-					{Text: "Option C", Unique: "option_c"},
-				},
-			},
-		}
-		opts := communications.NewSendOptions().WithReplyMarkup(keyboard)
-		return c.Reply("Choose an option:", opts)
-	})
-
-	// Handle callback queries from inline buttons
-	bot.Handle("\fbtn1", func(c *request.Native) error {
-		// Answer the callback query
-		callback := c.CallbackQuery()
-		if callback != nil {
-			resp := &telegram.CallbackResponse{
-				Text:      "You clicked Button 1!",
-				ShowAlert: false,
-			}
-			c.RespondToCallback(callback, resp)
-		}
-		return c.EditLastCaption("You selected Button 1!")
-	})
-
-	bot.Handle("\fbtn2", func(c *request.Native) error {
-		callback := c.CallbackQuery()
-		if callback != nil {
-			resp := &telegram.CallbackResponse{
-				Text:      "You clicked Button 2!",
-				ShowAlert: false,
-			}
-			c.RespondToCallback(callback, resp)
-		}
-		return c.EditLastCaption("You selected Button 2!")
-	})
-
-	bot.Handle("\foption_a", func(c *request.Native) error {
-		callback := c.CallbackQuery()
-		if callback != nil {
-			resp := &telegram.CallbackResponse{
-				Text: "Selected Option A",
-			}
-			c.RespondToCallback(callback, resp)
-		}
-		return c.EditLast("You selected Option A!")
-	})
-
-	bot.Handle("\foption_b", func(c *request.Native) error {
-		callback := c.CallbackQuery()
-		if callback != nil {
-			resp := &telegram.CallbackResponse{
-				Text: "Selected Option B",
-			}
-			c.RespondToCallback(callback, resp)
-		}
-		return c.EditLast("You selected Option B!")
-	})
-
-	bot.Handle("\foption_c", func(c *request.Native) error {
-		callback := c.CallbackQuery()
-		if callback != nil {
-			resp := &telegram.CallbackResponse{
-				Text:      "Selected Option C",
-				ShowAlert: true,
-			}
-			c.RespondToCallback(callback, resp)
-		}
-		return c.EditLast("You selected Option C!")
-	})
-
-	// Reply keyboard example
-	bot.Handle("/reply_keyboard", func(c *request.Native) error {
-		keyboard := &telegram.ReplyMarkup{
-			ReplyKeyboard: [][]telegram.ReplyButton{
-				{
-					{Text: "Button 1"},
-					{Text: "Button 2"},
-				},
-				{
-					{Text: "Button 3"},
-					{Text: "Request Location", Location: true},
-				},
-			},
-			ResizeKeyboard:  true,
-			OneTimeKeyboard: true,
-		}
-		opts := communications.NewSendOptions().WithReplyMarkup(keyboard)
-		return c.Reply("Reply keyboard activated! Press any button.", opts)
-	})
-
-	// Media album example
-	bot.Handle("/album", func(c *request.Native) error {
-		album := telegram.InputAlbum{
-			Media: []outgoing.Content{
-				&telegram.Photo{
-					Source:  files.UseURL("https://via.placeholder.com/300x200?text=Photo+1"),
-					Caption: "First photo in the album",
-				},
-				&telegram.Photo{
-					Source: files.UseURL("https://via.placeholder.com/300x200?text=Photo+2"),
-				},
-				&telegram.Photo{
-					Source: files.UseURL("https://via.placeholder.com/300x200?text=Photo+3"),
-				},
-			},
-		}
-		return c.SendAlbum(album)
-	})
-
-	// Message editing example
-	bot.Handle("/edit", func(c *request.Native) error {
-		// Send initial message
-		msg, err := c.SendTo(c.Recipient(), "This message will be edited in 2 seconds...")
-		if err != nil {
-			return err
+		sender := c.Sender()
+		if sender == nil {
+			return c.Reply("Could not identify sender")
 		}
 
-		// Wait and edit
-		time.Sleep(2 * time.Second)
-		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeHTML)
-		_, err = c.Edit(msg, "Message edited! <b>Success!</b>", opts)
-		return err
-	})
+		greeting := fmt.Sprintf("👋 Hello, %s!\n\n", sender.FirstName)
 
-	// Message deletion example
-	bot.Handle("/delete", func(c *request.Native) error {
-		msg, err := c.SendTo(c.Recipient(), "This message will be deleted in 3 seconds...")
-		if err != nil {
-			return err
+		if isAdmin(sender.ID) {
+			greeting += "You are an admin. Available commands:\n" +
+				"/info - Show chat information\n" +
+				"/stats - Show bot statistics\n" +
+				"/ban - Ban a user (reply to their message)\n" +
+				"/unban - Unban a user (reply to their message)\n" +
+				"/pin - Pin a message (reply to it)\n" +
+				"/unpin - Unpin chat messages"
+		} else {
+			greeting += "Available commands:\n" +
+				"/help - Show this help message\n" +
+				"/echo <text> - Echo your message"
 		}
 
-		time.Sleep(3 * time.Second)
-		return c.Delete(msg)
+		return c.Reply(greeting)
 	})
 
-	// Forward message example
-	bot.Handle("/forward", func(c *request.Native) error {
-		// Forward the user's message back to them
+	// Info command - shows chat information
+	bot.Handle("/info", func(c *request.Native) error {
 		msg := c.Message()
 		if msg == nil {
-			return c.Reply("Please reply to a message to forward it.")
+			return c.Reply("No message context available")
 		}
-		_, err := c.ForwardTo(c.Recipient(), msg)
-		return err
+
+		chat := msg.Chat
+		sender := msg.Sender
+
+		info := fmt.Sprintf("📊 Chat Information\n\n"+
+			"Chat ID: %d\n"+
+			"Chat Type: %s\n"+
+			"Chat Title: %s\n\n"+
+			"Your ID: %d\n"+
+			"Your Username: @%s\n"+
+			"Your Name: %s %s",
+			chat.ID,
+			chat.Type,
+			chat.Title,
+			sender.ID,
+			sender.Username,
+			sender.FirstName,
+			sender.LastName,
+		)
+
+		return c.Reply(info)
 	})
 
-	// Copy message example
-	bot.Handle("/copy", func(c *request.Native) error {
-		// Copy the user's message
+	// Stats command - admin only
+	bot.Handle("/stats", func(c *request.Native) error {
+		sender := c.Sender()
+		if sender == nil || !isAdmin(sender.ID) {
+			return c.Reply("⛔️ This command is only available to admins")
+		}
+
 		msg := c.Message()
 		if msg == nil {
-			return c.Reply("Please reply to a message to copy it.")
-		}
-		opts := communications.NewSendOptions().WithParseMode(telegram.ParseModeHTML)
-		_, err := c.CopyTo(c.Recipient(), msg, opts)
-		return err
-	})
-
-	// Location example
-	bot.Handle("/location", func(c *request.Native) error {
-		location := &telegram.Location{
-			Lat: 37.7749,
-			Lng: -122.4194,
-		}
-		return c.Send(location)
-	})
-
-	// Poll example
-	bot.Handle("/poll", func(c *request.Native) error {
-		// Note: Poll creation requires specific Telegram API methods
-		// This is a placeholder showing the concept
-		return c.Reply("Poll creation would go here. Check Telegram API documentation for poll creation.")
-	})
-
-	// Reaction example
-	bot.Handle("/reaction", func(c *request.Native) error {
-		// Send a message first
-		msg, err := c.SendTo(c.Recipient(), "React to this message!")
-		if err != nil {
-			return err
+			return c.Reply("No message context")
 		}
 
-		// Note: Reactions are typically added by users, but you can react programmatically
-		// using the Telegram API. This is a placeholder.
-		return c.Reply(fmt.Sprintf("Message sent with ID: %d. You can react to it!", msg.ID))
+		stats := fmt.Sprintf("📈 Bot Statistics\n\n"+
+			"Message ID: %d\n"+
+			"Chat ID: %d\n"+
+			"Sender ID: %d",
+			msg.ID,
+			msg.Chat.ID,
+			sender.ID,
+		)
+
+		return c.Reply(stats)
 	})
 
-	// Handle inline queries
-	bot.Handle(tb.OnQuery, func(c *request.Native) error {
-		query := c.InlineQuery()
-		if query == nil {
+	// Ban command - admin only
+	bot.Handle("/ban", func(c *request.Native) error {
+		sender := c.Sender()
+		if sender == nil || !isAdmin(sender.ID) {
+			return c.Reply("⛔️ This command is only available to admins")
+		}
+
+		msg := c.Message()
+		if msg == nil || msg.ReplyTo == nil || msg.ReplyTo.Sender == nil {
+			return c.Reply("Please reply to a message from the user you want to ban")
+		}
+
+		userToBan := msg.ReplyTo.Sender
+		if isAdmin(userToBan.ID) {
+			return c.Reply("❌ Cannot ban an admin")
+		}
+
+		// Note: In v5, ban/kick methods would need to be implemented in bot.go
+		// This is a placeholder showing the intended API usage
+		return c.Reply(fmt.Sprintf("⚠️ Ban command received for user @%s (ID: %d)\n\n"+
+			"Note: Ban functionality needs to be implemented in bot.go",
+			userToBan.Username, userToBan.ID))
+	})
+
+	// Pin command - admin only
+	bot.Handle("/pin", func(c *request.Native) error {
+		sender := c.Sender()
+		if sender == nil || !isAdmin(sender.ID) {
+			return c.Reply("⛔️ This command is only available to admins")
+		}
+
+		msg := c.Message()
+		if msg == nil || msg.ReplyTo == nil {
+			return c.Reply("Please reply to a message you want to pin")
+		}
+
+		// Pin the replied-to message
+		if err := c.API.Pin(msg.ReplyTo); err != nil {
+			return c.Reply("Failed to pin message: " + err.Error())
+		}
+
+		return c.Reply("✅ Message pinned!")
+	})
+
+	// Unpin command - admin only
+	bot.Handle("/unpin", func(c *request.Native) error {
+		sender := c.Sender()
+		if sender == nil || !isAdmin(sender.ID) {
+			return c.Reply("⛔️ This command is only available to admins")
+		}
+
+		msg := c.Message()
+		if msg == nil {
+			return c.Reply("No message context")
+		}
+
+		if err := c.API.Unpin(msg.Chat); err != nil {
+			return c.Reply("Failed to unpin: " + err.Error())
+		}
+
+		return c.Reply("✅ Messages unpinned!")
+	})
+
+	// Echo command - available to everyone
+	bot.Handle("/echo", func(c *request.Native) error {
+		args := c.Args()
+		if len(args) == 0 {
+			return c.Reply("Usage: /echo <text>")
+		}
+
+		text := strings.Join(args, " ")
+		opts := tb.SendOptions().WithParseMode(telegram.ParseModeHTML)
+
+		response := fmt.Sprintf("🔊 <b>Echo:</b>\n%s", text)
+		return c.Reply(response, opts)
+	})
+
+	// Handle all text messages
+	bot.Handle(tb.OnText, func(c *request.Native) error {
+		msg := c.Message()
+		if msg == nil {
 			return nil
 		}
 
-		article1 := &telegram.InlineQueryArticleResult{
-			InlineQueryResultBase: telegram.InlineQueryResultBase{
-				ID: "1",
-			},
-			Title:       "Result 1",
-			Text:        "You selected Result 1",
-			Description: "This is the first result",
-		}
-		article2 := &telegram.InlineQueryArticleResult{
-			InlineQueryResultBase: telegram.InlineQueryResultBase{
-				ID: "2",
-			},
-			Title:       "Result 2",
-			Text:        "You selected Result 2",
-			Description: "This is the second result",
-		}
-		results := []telegram.InlineQueryResult{
-			article1,
-			article2,
+		// Don't respond to commands
+		if strings.HasPrefix(msg.Text, "/") {
+			return nil
 		}
 
-		response := &telegram.InlineQueryResponse{
-			Results: results,
+		sender := c.Sender()
+		if sender == nil {
+			return nil
 		}
 
-		return c.AnswerInlineQuery(query, response)
+		response := fmt.Sprintf("💬 %s said: %s", sender.FirstName, msg.Text)
+		return c.Reply(response)
 	})
 
-	// Handle callback queries (generic handler)
+	// Handle callback queries (for inline buttons)
 	bot.Handle(tb.OnCallback, func(c *request.Native) error {
 		callback := c.CallbackQuery()
-		if callback != nil {
-			resp := &telegram.CallbackResponse{
-				Text: "Callback received!",
-			}
-			return c.RespondToCallback(callback, resp)
+		if callback == nil {
+			return nil
 		}
-		return nil
+
+		// Respond to the callback
+		response := &telegram.CallbackResponse{
+			Text:      fmt.Sprintf("You clicked: %s", callback.Data),
+			ShowAlert: false,
+		}
+
+		return c.API.RespondToCallback(callback, response)
 	})
 
 	log.Println("Bot started! Press Ctrl+C to stop.")
+	log.Printf("Admins: %v", getAdminIDs())
 	bot.Start()
+}
+
+func getAdminIDs() []int64 {
+	ids := make([]int64, 0, len(adminIDs))
+	for id := range adminIDs {
+		ids = append(ids, id)
+	}
+	return ids
 }

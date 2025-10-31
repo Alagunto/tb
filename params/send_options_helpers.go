@@ -58,7 +58,7 @@ func (o SendOptions) WithEffectID(id telegram.EffectID) SendOptions {
 }
 
 // WithReplyParams sets reply parameters for the message.
-func (o SendOptions) WithReplyParams(params *telegram.ReplyParams) SendOptions {
+func (o SendOptions) WithReplyParams(params *telegram.ReplyParameters) SendOptions {
 	o.ReplyParams = params
 	return o
 }

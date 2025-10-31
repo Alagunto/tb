@@ -1,0 +1,24 @@
+{
+  "pattern": "telegram-effect-id-implementation",
+  "date": "2025-10-31",
+  "problem": "Message effects using string names instead of proper Telegram effect ID constants",
+  "solution": {
+    "steps": [
+      "1. Added proper EffectID constants in telegram/effects.go with actual Telegram API IDs",
+      "2. Updated example handlers to use constants (telegram.EffectRainbow) instead of string literals",
+      "3. Added private chat validation to prevent confusion when effects don't work in groups",
+      "4. Verified effect IDs match Telegram Bot API requirements"
+    ],
+    "key_learnings": [
+      "Telegram effects require numeric string IDs, not human-readable names",
+      "Effects only work in private chats - validation improves UX",
+      "Effect IDs should be constants to prevent typos and enable type checking",
+      "Effect IDs may change - documentation should mention getAvailableMessageEffects API"
+    ]
+  },
+  "files_modified": [
+    "telegram/effects.go",
+    "examples/effects/main.go"
+  ],
+  "success": true
+}

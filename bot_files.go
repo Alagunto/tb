@@ -2,14 +2,12 @@ package tb
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"net/http"
 	"os"
 
 	"github.com/alagunto/tb/errors"
 	"github.com/alagunto/tb/files"
-	"github.com/alagunto/tb/telegram/methods"
+	"github.com/alagunto/tb/telegram"
 )
 
 // FileByID returns full file object including File.FilePath, allowing you to
@@ -18,11 +16,11 @@ import (
 // Usually, Telegram-provided File objects miss FilePath so you might need to
 // perform an additional request to fetch them.
 func (b *Bot[RequestType]) FileByID(fileID string) (files.FileReference, error) {
-	req := methods.GetFileRequest{
+	req := telegram.GetFileRequest{
 		FileID: fileID,
 	}
 
-	r := NewApiRequester[methods.GetFileRequest, methods.GetFileResponse](b.token, b.apiURL, b.client)
+	r := NewApiRequester[telegram.GetFileRequest, files.FileReference](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "getFile", req)
 	if err != nil {
 		return files.FileReference{}, err
