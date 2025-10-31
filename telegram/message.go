@@ -5,7 +5,6 @@ import (
 	"time"
 	"unicode/utf16"
 
-	"github.com/alagunto/tb/telegram"
 	"github.com/alagunto/tb/telegram/media"
 )
 
