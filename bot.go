@@ -246,10 +246,3 @@ func extractEndpoint[RequestType request.Interface](endpoint interface{}) string
 	}
 	return ""
 }
-
-// BotInfo represents a single object of BotName, BotDescription, BotShortDescription instances.
-type BotInfo struct {
-	Name             string `json:"name,omitempty"`
-	Description      string `json:"description,omitempty"`
-	ShortDescription string `json:"short_description,omitempty"`
-}

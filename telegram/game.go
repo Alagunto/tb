@@ -27,26 +27,16 @@ type Game struct {
 }
 
 // sendGame creates a new game message.
-func (b *Bot) sendGame(c Recipient, game string, opt *SendOptions) (*Message, error) {
-	params := map[string]string{
-		"chat_id":          c.Recipient(),
-		"game_short_name": game,
+func (b *Bot[RequestType]) sendGame(c Recipient, game string, opt *SendOptions) (*Message, error) {
+	req := methods.SendGameRequest{
+		ChatID:        c.Recipient(),
+		GameShortName: game,
 	}
 
 	if opt != nil {
-		b.embedSendOptions(params, opt)
+		opt.InjectIntoMethodRequest(&req)
 	}
 
-	data, err := b.sendMethodRequest(methodSendGame, params)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp struct {
-		Result *Message
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, err
-	}
-	return resp.Result, nil
+	r := NewApiRequester[methods.SendGameRequest, methods.SendGameResponse](b.token, b.apiURL, b.client)
+	return r.Request(context.Background(), "sendGame", req)
 }

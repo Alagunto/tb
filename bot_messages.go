@@ -42,57 +42,42 @@ func (b *Bot[RequestType]) SendTo(to bot.Recipient, what interface{}, opts ...co
 	case string:
 		return b.sendText(to, object, &sendOpts)
 	case outgoing.Media[any]:
-		return b.sendContent(to, object, &sendOpts)
+		return b.sendMedia(to, object, &sendOpts)
 	default:
 		return nil, errors.WithInvalidParam(errors.ErrUnsupportedWhat, "what", fmt.Sprintf("%v", what))
 	}
 }
 
-// sendContent handles sending content that implements the outgoing.Content interface.
-// This is the new file upload system that makes upload timing explicit.
-func (b *Bot[RequestType]) sendMedia(to bot.Recipient, content outgoing.Media[any], opts *communications.SendOptions) (*messages.Message, error) {
-	method := content.ToTelegramSendMethod()
-
-	// Start with base params from method.Params (already map[string]any)
-	paramsMap := make(map[string]any)
-	paramsMap["chat_id"] = to.Recipient()
-
-	// Add content-specific params
-	for k, v := range method.Params {
-		paramsMap[k] = v
+func (b *Bot[RequestType]) sendText(to bot.Recipient, text string, opts *communications.SendOptions) (*telegram.Message, error) {
+	req := methods.SendMessageRequest{
+		ChatID: to.Recipient(),
+		Text:   b.CensorText(text),
 	}
 
-	// Send the request using the new FileSource format
-	result, err := b.sendFiles(method.Name, method.Files, paramsMap)
-	if err != nil {
-		return nil, err
+	if opts != nil {
+		opts.InjectIntoMethodRequest(&req)
 	}
 
-	// Let content update itself with the response (if it implements ResponseHandler)
-	if handler, ok := content.(outgoing.Media[any]); ok {
-		if err := handler.UpdateFrom(result); err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
+	r := NewApiRequester[methods.SendMessageRequest, methods.SendMessageResponse](b.token, b.apiURL, b.client)
+	return r.Request(context.Background(), "sendMessage", req)
 }
 
-// sendPrepared sends a prepared sendable to Telegram
-func (b *Bot[RequestType]) sendPrepared(to bot.Recipient, prepared *sendables.Prepared, opts *communications.SendOptions) (*telegram.Message, error) {
-	// Build params
-	paramsMap := make(map[string]any)
-	paramsMap["chat_id"] = to.Recipient()
+// sendMedia handles sending content that implements the outgoing.Media interface.
+func (b *Bot[RequestType]) sendMedia(to bot.Recipient, media outgoing.Media[any], opts *communications.SendOptions) (*telegram.Message, error) {
+	method := media.ToTelegramSendMethod()
 
-	// Add prepared params (convert strings to any)
-	for k, v := range prepared.Params {
-		paramsMap[k] = v
+	r := NewApiRequester[map[string]any, telegram.Message](b.token, b.apiURL, b.client)
+	for field, file := range method.Files {
+		r.WithFileToUpload(field, file)
 	}
 
-	opts.InjectInto(paramsMap)
+	params := method.Params
+	params["chat_id"] = to.Recipient()
+	if opts != nil {
+		opts.InjectInto(params)
+	}
 
-	// Use sendFiles which handles ApiRequester internally
-	return b.sendFiles(prepared.SendMethod.String(), prepared.Files, paramsMap)
+	return r.Request(context.Background(), method.Name, params)
 }
 
 // SendAlbumTo sends multiple instances of media as a single message.

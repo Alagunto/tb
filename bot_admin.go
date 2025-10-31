@@ -170,22 +170,13 @@ func (b *Bot[RequestType]) SetMyName(name, language string) error {
 }
 
 // MyName returns the current bot name for the given user language.
-func (b *Bot[RequestType]) MyName(language string) (*BotInfo, error) {
+func (b *Bot[RequestType]) MyName(language string) (*methods.GetMyNameResponse, error) {
 	req := methods.GetMyNameRequest{
 		LanguageCode: language,
 	}
 
 	r := NewApiRequester[methods.GetMyNameRequest, methods.GetMyNameResponse](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "getMyName", req)
-	if err != nil {
-		return nil, err
-	}
-
-	return &BotInfo{
-		Name:             result.Name,
-		Description:      result.Description,
-		ShortDescription: result.ShortDescription,
-	}, nil
+	return r.Request(context.Background(), "getMyName", req)
 }
 
 // SetMyDescription change's the bot description, which is shown in the chat
@@ -202,22 +193,13 @@ func (b *Bot[RequestType]) SetMyDescription(desc, language string) error {
 }
 
 // MyDescription the current bot description for the given user language.
-func (b *Bot[RequestType]) MyDescription(language string) (*BotInfo, error) {
+func (b *Bot[RequestType]) MyDescription(language string) (*methods.GetMyDescriptionResponse, error) {
 	req := methods.GetMyDescriptionRequest{
 		LanguageCode: language,
 	}
 
 	r := NewApiRequester[methods.GetMyDescriptionRequest, methods.GetMyDescriptionResponse](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "getMyDescription", req)
-	if err != nil {
-		return nil, err
-	}
-
-	return &BotInfo{
-		Name:             result.Name,
-		Description:      result.Description,
-		ShortDescription: result.ShortDescription,
-	}, nil
+	return r.Request(context.Background(), "getMyDescription", req)
 }
 
 // SetMyShortDescription change's the bot short description, which is shown on
@@ -234,20 +216,11 @@ func (b *Bot[RequestType]) SetMyShortDescription(desc, language string) error {
 }
 
 // MyShortDescription the current bot short description for the given user language.
-func (b *Bot[RequestType]) MyShortDescription(language string) (*BotInfo, error) {
+func (b *Bot[RequestType]) MyShortDescription(language string) (*methods.GetMyShortDescriptionResponse, error) {
 	req := methods.GetMyShortDescriptionRequest{
 		LanguageCode: language,
 	}
 
 	r := NewApiRequester[methods.GetMyShortDescriptionRequest, methods.GetMyShortDescriptionResponse](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "getMyShortDescription", req)
-	if err != nil {
-		return nil, err
-	}
-
-	return &BotInfo{
-		Name:             result.Name,
-		Description:      result.Description,
-		ShortDescription: result.ShortDescription,
-	}, nil
+	return r.Request(context.Background(), "getMyShortDescription", req)
 }

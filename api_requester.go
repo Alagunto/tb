@@ -156,3 +156,41 @@ func (r *ApiRequester[RequestSchema, ResponseSchema]) Request(ctx context.Contex
 	}
 	return &response.Result, nil
 }
+
+// FileRequester is a struct that handles all file download requests to the Telegram API.
+type FileRequester struct {
+	token  string
+	apiURL string
+	client *http.Client
+}
+
+// NewFileRequester creates a new FileRequester.
+func NewFileRequester(token, apiURL string, client *http.Client) *FileRequester {
+	return &FileRequester{
+		token:  token,
+		apiURL: apiURL,
+		client: client,
+	}
+}
+
+// Download performs the file download request.
+func (r *FileRequester) Download(filePath string) (io.ReadCloser, error) {
+	url := r.apiURL + "/file/bot" + r.token + "/" + filePath
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, errors.Wrap(err)
+	}
+
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("telebot: expected status 200 but got %s", resp.Status)
+	}
+
+	return resp.Body, nil
+}

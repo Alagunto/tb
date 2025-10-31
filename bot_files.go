@@ -32,7 +32,7 @@ func (b *Bot[RequestType]) FileByID(fileID string) (files.FileReference, error) 
 
 // Download saves the file from Telegram servers locally.
 // Maximum file size to download is 20 MB.
-func (b *Bot[RequestType]) Download(file *files.FileRef, localFilename string) error {
+func (b *Bot[RequestType]) Download(file *files.FileReference, localFilename string) error {
 	reader, err := b.File(file)
 	if err != nil {
 		return err
@@ -54,35 +54,7 @@ func (b *Bot[RequestType]) Download(file *files.FileRef, localFilename string) e
 }
 
 // File gets a file from Telegram servers.
-func (b *Bot[RequestType]) File(file *files.FileRef) (io.ReadCloser, error) {
-	var filePath string
-	if file.FilePath != "" {
-		filePath = file.FilePath
-	} else {
-		f, err := b.FileByID(file.FileID)
-		if err != nil {
-			return nil, err
-		}
-		filePath = f.FilePath
-		file.FilePath = filePath // cache the file path
-	}
-
-	url := b.apiURL + "/file/bot" + b.token + "/" + filePath
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, errors.Wrap(err)
-	}
-
-	resp, err := b.client.Do(req)
-	if err != nil {
-		return nil, errors.Wrap(err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("telebot: expected status 200 but got %s", resp.Status)
-	}
-
-	return resp.Body, nil
+func (b *Bot[RequestType]) File(file *files.FileReference) (io.ReadCloser, error) {
+	r := NewFileRequester(b.token, b.apiURL, b.client)
+	return r.Download(file.FilePath)
 }

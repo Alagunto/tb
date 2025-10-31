@@ -50,48 +50,6 @@ func (b *Bot[RequestType]) Raw(method string, payload any) ([]byte, error) {
 
 // Internal helper methods that use ApiRequester with proper types
 
-func (b *Bot[RequestType]) sendText(to bot.Recipient, text string, opt *communications.SendOptions) (*telegram.Message, error) {
-	p := params.New().
-		Add("chat_id", to.Recipient()).
-		Add("text", text)
-	// opt.Inje(p.Build())
-
-	r := NewApiRequester[map[string]any, telegram.Message](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "sendMessage", params)
-	if err != nil {
-		return nil, errors.Wrap(err)
-	}
-	return result, nil
-}
-
-func (b *Bot[RequestType]) sendFiles(method string, filesToSend map[string]files.FileSource, params map[string]any) (*telegram.Message, error) {
-	// Create the requester
-	r := NewApiRequester[map[string]any, telegram.Message](b.token, b.apiURL, b.client)
-
-	// Process files and add them to the requester or params
-	for name, source := range filesToSend {
-		paramValue, needsUpload, err := source.ToTelegramParam(name)
-		if err != nil {
-			return nil, errors.Wrap(err)
-		}
-
-		if needsUpload {
-			// File needs to be uploaded - add it to the requester
-			r = r.WithFileToUpload(name, source)
-		} else {
-			// File is already on Telegram or accessible via URL
-			params[name] = paramValue
-		}
-	}
-
-	// Make the request with files
-	result, err := r.Request(context.Background(), method, params)
-	if err != nil {
-		return nil, errors.Wrap(err)
-	}
-	return result, nil
-}
-
 func (b *Bot[RequestType]) getMe() (*telegram.User, error) {
 	r := NewApiRequester[map[string]any, telegram.User](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "getMe", make(map[string]any))
