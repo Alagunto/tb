@@ -2,75 +2,58 @@ package tb
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
-	"github.com/alagunto/tb/bot"
 	"github.com/alagunto/tb/telegram"
 )
 
-// ChatByID fetches chat info of its ID.
-//
-// Including current name of the user for one-on-one conversations,
-// current username of a user, group or channel, etc.
-func (b *Bot[RequestType]) ChatByID(id int64) (*telegram.Chat, error) {
-	return b.ChatByUsername(strconv.FormatInt(id, 10))
+// Me returns the bot's user information.
+func (b *Bot[RequestType]) Me() *telegram.User {
+	return b.me
 }
 
-// ChatByUsername fetches chat info by its username.
-func (b *Bot[RequestType]) ChatByUsername(name string) (*telegram.Chat, error) {
-	req := telegram.GetChatRequest{
-		ChatID: name,
+// ChatByID fetches a chat by its ID or username.
+func (b *Bot[RequestType]) ChatByID(chatID string) (*telegram.Chat, error) {
+	params := make(map[string]any)
+	
+	// Try to parse as int64 first
+	if id, err := strconv.ParseInt(chatID, 10, 64); err == nil {
+		params["chat_id"] = id
+	} else {
+		// Treat as username
+		params["chat_id"] = chatID
 	}
 
-	r := NewApiRequester[telegram.GetChatRequest, telegram.Chat](b.token, b.apiURL, b.client)
-	return r.Request(context.Background(), "getChat", req)
+	r := NewApiRequester[map[string]any, telegram.Chat](b.token, b.apiURL, b.client)
+	result, err := r.Request(context.Background(), "getChat", params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chat: %w", err)
+	}
+	return result, nil
 }
 
-// ProfilePhotosOf returns list of profile pictures for a user.
-func (b *Bot[RequestType]) ProfilePhotosOf(user *telegram.User) ([]telegram.PhotoSize, error) {
-	req := telegram.GetUserProfilePhotosRequest{
-		UserID: user.Recipient(),
-	}
+// ChatByUsername fetches a chat by its username.
+func (b *Bot[RequestType]) ChatByUsername(username string) (*telegram.Chat, error) {
+	return b.ChatByID(username)
+}
 
-	r := NewApiRequester[telegram.GetUserProfilePhotosRequest, []telegram.PhotoSize](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "getUserProfilePhotos", req)
+// GetWebhookInfo returns current webhook status.
+func (b *Bot[RequestType]) GetWebhookInfo() (*telegram.WebhookInfo, error) {
+	r := NewApiRequester[map[string]any, telegram.WebhookInfo](b.token, b.apiURL, b.client)
+	result, err := r.Request(context.Background(), "getWebhookInfo", make(map[string]any))
 	if err != nil {
 		return nil, err
 	}
-	return *result, nil
+	return result, nil
 }
 
-// ChatMemberOf returns information about a member of a chat.
-func (b *Bot[RequestType]) ChatMemberOf(chat, user bot.Recipient) (*telegram.ChatMember, error) {
-	req := telegram.GetChatMemberRequest{
-		ChatID: chat.Recipient(),
-		UserID: user.Recipient(),
-	}
+// DeleteWebhook removes webhook integration.
+func (b *Bot[RequestType]) DeleteWebhook(dropPendingUpdates bool) error {
+	params := make(map[string]any)
+	params["drop_pending_updates"] = dropPendingUpdates
 
-	r := NewApiRequester[telegram.GetChatMemberRequest, telegram.ChatMember](b.token, b.apiURL, b.client)
-	return r.Request(context.Background(), "getChatMember", req)
-}
-
-// GetMe returns the bot's information.
-func (b *Bot[RequestType]) GetMe() (*telegram.User, error) {
-	return b.getMe()
-}
-
-// StarTransactions returns the bot's star transactions.
-func (b *Bot[RequestType]) StarTransactions(offset, limit int) ([]telegram.StarTransaction, error) {
-	req := telegram.GetStarTransactionsRequest{
-		Offset: offset,
-		Limit:  limit,
-	}
-
-	type starTransactionsResponse struct {
-		Transactions []telegram.StarTransaction `json:"transactions"`
-	}
-
-	r := NewApiRequester[telegram.GetStarTransactionsRequest, starTransactionsResponse](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "getStarTransactions", req)
-	if err != nil {
-		return nil, err
-	}
-	return result.Transactions, nil
+	r := NewApiRequester[map[string]any, bool](b.token, b.apiURL, b.client)
+	_, err := r.Request(context.Background(), "deleteWebhook", params)
+	return err
 }

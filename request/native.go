@@ -152,6 +152,18 @@ func (c *Native) BoostRemoved() *telegram.BoostRemoved {
 	return c.u.RemovedChatBoost
 }
 
+func (c *Native) MessageReactionUpdated() *telegram.MessageReactionUpdated {
+	return c.u.MessageReaction
+}
+
+func (c *Native) MessageReactionCountUpdated() *telegram.MessageReactionCountUpdated {
+	return c.u.MessageReactionCount
+}
+
+func (c *Native) ChosenInlineResult() *telegram.ChosenInlineResult {
+	return c.u.ChosenInlineResult
+}
+
 func (c *Native) Sender() *telegram.User {
 	switch {
 	case c.u.CallbackQuery != nil:

@@ -311,6 +311,8 @@ type AnswerInlineQueryRequest struct {
 	IsPersonal    bool                     `json:"is_personal,omitempty"`
 	NextOffset    string                   `json:"next_offset,omitempty"`
 	Button        *InlineQueryResultsButton `json:"button,omitempty"`
+	SwitchPMText  string                   `json:"switch_pm_text,omitempty"`
+	SwitchPMParameter string               `json:"switch_pm_parameter,omitempty"`
 }
 
 // AnswerCallbackQueryRequest represents a request to answer a callback query.

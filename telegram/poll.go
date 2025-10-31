@@ -19,3 +19,21 @@ type Poll struct {
 	OpenPeriod        int             `json:"open_period,omitempty"`
 	CloseDate         int64           `json:"close_date,omitempty"`
 }
+
+// SendPollParams represents the payload required to send a poll.
+type SendPollParams struct {
+	Question             string           `json:"question"`
+	Options              []string         `json:"options"`
+	IsAnonymous          bool             `json:"is_anonymous,omitempty"`
+	Type                 PollType         `json:"type,omitempty"`
+	AllowsMultipleAnswers bool            `json:"allows_multiple_answers,omitempty"`
+	CorrectOptionID      *int             `json:"correct_option_id,omitempty"`
+	Explanation          string           `json:"explanation,omitempty"`
+	ExplanationParseMode ParseMode        `json:"explanation_parse_mode,omitempty"`
+	ExplanationEntities  []MessageEntity  `json:"explanation_entities,omitempty"`
+	QuestionParseMode    ParseMode        `json:"question_parse_mode,omitempty"`
+	QuestionEntities     []MessageEntity  `json:"question_entities,omitempty"`
+	OpenPeriod           *int             `json:"open_period,omitempty"`
+	CloseDate            *int64           `json:"close_date,omitempty"`
+	IsClosed             bool             `json:"is_closed,omitempty"`
+}

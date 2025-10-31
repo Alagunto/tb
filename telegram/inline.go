@@ -27,15 +27,17 @@ func (r *ChosenInlineResult) MessageSig() (string, int64) {
 
 // InlineQueryResponse builds a response to an inline query.
 type InlineQueryResponse struct {
-	Results    []InlineQueryResult `json:"results"`
-	CacheTime  int                 `json:"cache_time,omitempty"`
-	IsPersonal bool                `json:"is_personal,omitempty"`
-	NextOffset string              `json:"next_offset,omitempty"`
-	Button     *InlineQueryResultsButton `json:"button,omitempty"`
+	Results           []InlineQueryResult     `json:"results"`
+	CacheTime         int                     `json:"cache_time,omitempty"`
+	IsPersonal        bool                    `json:"is_personal,omitempty"`
+	NextOffset        string                  `json:"next_offset,omitempty"`
+	Button            *InlineQueryResultsButton `json:"button,omitempty"`
+	SwitchPMText      string                  `json:"switch_pm_text,omitempty"`
+	SwitchPMParameter string                  `json:"switch_pm_parameter,omitempty"`
 }
 
 type InlineQueryResultsButton struct {
-	Text   string      `json:"text"`
-	WebApp *WebAppInfo `json:"web_app,omitempty"`
-	Start  string      `json:"start_parameter,omitempty"`
+	Text           string      `json:"text"`
+	WebApp         *WebAppInfo `json:"web_app,omitempty"`
+	StartParameter string      `json:"start_parameter,omitempty"`
 }
