@@ -29,8 +29,8 @@ type ChatMember struct {
 	User *User `json:"user"`
 
 	// ChatMemberOwner, ChatMemberAdministrator only:
-	IsAnonymous bool   `json:"is_anonymous"` // is_anonymous	Boolean	True, if the user's presence in the chat is hidden
-	CustomTitle string `json:"custom_title"` // custom_title	String	Optional. Custom title for this user
+	IsAnonymous bool   `json:"is_anonymous,omitempty"` // is_anonymous	Boolean	True, if the user's presence in the chat is hidden
+	CustomTitle string `json:"custom_title,omitempty"` // custom_title	String	Optional. Custom title for this user
 
 	// ChatMemberBanned, ChatMemberMember, ChatMemberRestricted only:
 	// If ChatMemberRestricted: date when restrictions will be lifted for this user; Unix time. If 0, then the user is banned forever

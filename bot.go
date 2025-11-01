@@ -41,7 +41,7 @@ func NewBot[RequestType request.Interface, HandlerFunc func(RequestType) error, 
 	if settings.Offline {
 		bot.me = &telegram.User{}
 	} else {
-		user, err := bot.getMe()
+		user, err := bot.GetMe()
 		if err != nil {
 			return nil, err
 		}
@@ -127,10 +127,13 @@ var (
 // Middleware usage:
 //
 //	b.Handle("/ban", onBan, middleware.Whitelist(ids...))
+//
+// Note: This method will panic if the endpoint is unsupported or already registered.
+// This is intentional as it indicates a programming error that should be caught during development.
 func (b *Bot[RequestType]) Handle(endpoint interface{}, h func(RequestType) error, m ...func(func(RequestType) error) func(RequestType) error) {
 	end := extractEndpoint[RequestType](endpoint)
 	if end == "" {
-		panic("telebot: unsupported endpoint")
+		panic("telebot: unsupported endpoint - this is a programming error")
 	}
 
 	if len(b.group.middleware) > 0 {
@@ -138,7 +141,7 @@ func (b *Bot[RequestType]) Handle(endpoint interface{}, h func(RequestType) erro
 	}
 
 	if _, ok := b.handlers[end]; ok {
-		panic("telebot: handler is already registered for endpoint " + end + ", overriding the existing handler is almost always a bug")
+		panic(fmt.Sprintf("telebot: handler already registered for endpoint %q - duplicate registration is a programming error", end))
 	}
 	handler := func(c RequestType) error {
 		return applyMiddleware(h, m...)(c)
@@ -164,21 +167,20 @@ func (b *Bot[RequestType]) Trigger(endpoint interface{}, c RequestType) error {
 
 // Start brings bot into motion by consuming incoming
 // updates (see Bot.updates channel).
-func (b *Bot[RequestType]) Start() {
+// Returns an error if no poller is configured.
+func (b *Bot[RequestType]) Start() error {
 	if b.poller == nil {
-		panic("telebot: can't start without a poller")
+		return fmt.Errorf("telebot: can't start without a poller")
 	}
 
-	// do nothing if called twice
+	// Prevent race conditions: hold lock during entire initialization
 	b.stopMu.Lock()
 	if b.stopClient != nil {
 		b.stopMu.Unlock()
-		return
+		return nil // Already started
 	}
 
 	b.stopClient = make(chan struct{})
-	b.stopMu.Unlock()
-
 	stop := make(chan struct{})
 	stopConfirm := make(chan struct{})
 
@@ -186,6 +188,7 @@ func (b *Bot[RequestType]) Start() {
 		b.poller.Poll(b, b.updates, stop)
 		close(stopConfirm)
 	}()
+	b.stopMu.Unlock()
 
 	for {
 		select {
@@ -196,15 +199,31 @@ func (b *Bot[RequestType]) Start() {
 				b.onError(err, ctx)
 				continue
 			}
-			b.ProcessUpdate(ctx, upd)
-			// call to stop polling
+			
+			// Handle update asynchronously if not in synchronous mode
+			if b.settings.Synchronous {
+				b.handleUpdate(ctx, upd)
+			} else {
+				b.handlersWg.Add(1)
+				go func(c RequestType, u telegram.Update) {
+					defer b.handlersWg.Done()
+					b.ProcessUpdate(c, u)
+				}(ctx, upd)
+			}
+			
+		// call to stop polling
 		case confirm := <-b.stop:
 			close(stop)
 			<-stopConfirm
 			close(confirm)
-			return
+			return nil
 		}
 	}
+}
+
+// handleUpdate is a helper to process updates synchronously
+func (b *Bot[RequestType]) handleUpdate(ctx RequestType, upd telegram.Update) {
+	b.ProcessUpdate(ctx, upd)
 }
 
 // Stop gracefully shuts the poller down and waits for all handlers to complete.

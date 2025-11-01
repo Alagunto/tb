@@ -311,5 +311,7 @@ func main() {
 
 	log.Println("🎹 Keyboards bot started! Press Ctrl+C to stop.")
 	log.Println("💡 Tip: Reply keyboards work in all chat types, inline keyboards work everywhere")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }

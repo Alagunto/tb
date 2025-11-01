@@ -279,6 +279,8 @@ func main() {
 	log.Printf("Bot username: @%s", botInfo.Username)
 	log.Println("💡 Try it: Type @" + botInfo.Username + " hello in any chat!")
 	log.Println("⚠️  Make sure inline mode is enabled in @BotFather (use /setinline)")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 

@@ -155,5 +155,7 @@ func main() {
 
 	log.Println("Bot started! Press Ctrl+C to stop.")
 	log.Println("💡 Tip: Use public URLs for media files")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }

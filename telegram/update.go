@@ -31,11 +31,11 @@ type Update struct {
 	ChatMember      *ChatMember      `json:"chat_member,omitempty"`       // chat_member	ChatMemberUpdated	Optional. A chat member's status was updated in a chat. The bot must be an administrator in the chat and must explicitly specify "chat_member" in the list of allowed_updates to receive these updates.
 	ChatJoinRequest *ChatJoinRequest `json:"chat_join_request,omitempty"` // chat_join_request	ChatJoinRequest	Optional. A request to join the chat has been sent. The bot must have the can_invite_users administrator right in the chat to receive these updates.
 
-	ChatBoost        *BoostUpdated `json:"chat_boost"`         // chat_boost	ChatBoostUpdated	Optional. A chat boost was added or changed. The bot must be an administrator in the chat to receive these updates.
-	RemovedChatBoost *BoostRemoved `json:"removed_chat_boost"` // removed_chat_boost	ChatBoostRemoved	Optional. A boost was removed from a chat. The bot must be an administrator in the chat to receive these updates.
+	ChatBoost        *BoostUpdated `json:"chat_boost,omitempty"`         // chat_boost	ChatBoostUpdated	Optional. A chat boost was added or changed. The bot must be an administrator in the chat to receive these updates.
+	RemovedChatBoost *BoostRemoved `json:"removed_chat_boost,omitempty"` // removed_chat_boost	ChatBoostRemoved	Optional. A boost was removed from a chat. The bot must be an administrator in the chat to receive these updates.
 
-	BusinessConnection      *BusinessConnection      `json:"business_connection"`       // business_connection	BusinessConnection	Optional. The bot was connected to or disconnected from a business account, or a user edited an existing connection with the bot
-	BusinessMessage         *Message                 `json:"business_message"`          // business_message	Message	Optional. New message from a connected business account
-	EditedBusinessMessage   *Message                 `json:"edited_business_message"`   // edited_business_message	Message	Optional. New version of a message from a connected business account
-	DeletedBusinessMessages *BusinessMessagesDeleted `json:"deleted_business_messages"` // deleted_business_messages	BusinessMessagesDeleted	Optional. Messages were deleted from a connected business account
+	BusinessConnection      *BusinessConnection      `json:"business_connection,omitempty"`       // business_connection	BusinessConnection	Optional. The bot was connected to or disconnected from a business account, or a user edited an existing connection with the bot
+	BusinessMessage         *Message                 `json:"business_message,omitempty"`          // business_message	Message	Optional. New message from a connected business account
+	EditedBusinessMessage   *Message                 `json:"edited_business_message,omitempty"`   // edited_business_message	Message	Optional. New version of a message from a connected business account
+	DeletedBusinessMessages *BusinessMessagesDeleted `json:"deleted_business_messages,omitempty"` // deleted_business_messages	BusinessMessagesDeleted	Optional. Messages were deleted from a connected business account
 }

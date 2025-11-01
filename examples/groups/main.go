@@ -377,7 +377,9 @@ func main() {
 	log.Println("👥 Group management bot started! Press Ctrl+C to stop.")
 	log.Println("⚠️  Add bot to a group and make it an administrator")
 	log.Println("📝 Don't forget to update adminIDs in the code with your user ID!")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func joinArgs(args []string) string {

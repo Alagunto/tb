@@ -13,7 +13,7 @@ func (b *Bot[RequestType]) BusinessConnection(id string) (*telegram.BusinessConn
 		"business_connection_id": id,
 	}
 
-	data, err := b.Raw("getBusinessConnection", params)
+	data, err := b.Raw( "getBusinessConnection", params)
 	if err != nil {
 		return nil, err
 	}

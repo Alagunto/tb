@@ -249,6 +249,8 @@ func main() {
 
 	log.Println("📊 Polls bot started! Press Ctrl+C to stop.")
 	log.Println("💡 Tip: Use /quiz_poll for educational quizzes with correct answers")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 

@@ -11,7 +11,7 @@ import (
 
 // Raw lets you call any method of Bot API manually.
 // This method is for external use only - bot.go methods should use ApiRequester directly.
-func (b *Bot[RequestType]) Raw(method string, payload any) ([]byte, error) {
+func (b *Bot[RequestType]) Raw(method string, payload interface{}) ([]byte, error) {
 	// Convert payload to map[string]any if it isn't already
 	var params map[string]any
 	switch p := payload.(type) {
@@ -44,9 +44,14 @@ func (b *Bot[RequestType]) Raw(method string, payload any) ([]byte, error) {
 	return *result, nil
 }
 
+// RawBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) RawBackground(method string, payload any) ([]byte, error) {
+	return b.Raw(method, payload)
+}
+
 // Internal helper methods that use ApiRequester with proper types
 
-func (b *Bot[RequestType]) getMe() (*telegram.User, error) {
+func (b *Bot[RequestType]) GetMe() (*telegram.User, error) {
 	r := NewApiRequester[map[string]any, telegram.User](b.token, b.apiURL, b.client)
 	result, err := r.Request(context.Background(), "getMe", make(map[string]any))
 	if err != nil {
@@ -78,4 +83,9 @@ func (b *Bot[RequestType]) GetUpdates(offset, limit int, timeout time.Duration, 
 		return nil, errors.Wrap(err)
 	}
 	return *result, nil
+}
+
+// GetUpdatesBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) GetUpdatesBackground(offset, limit int, timeout time.Duration, allowed []string) ([]telegram.Update, error) {
+	return b.GetUpdates(offset, limit, timeout, allowed)
 }

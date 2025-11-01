@@ -259,7 +259,9 @@ func main() {
 	log.Println("   1. Supergroup with Topics enabled")
 	log.Println("   2. Bot must be administrator")
 	log.Println("   3. Bot needs 'Manage Topics' permission")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func joinArgs(args []string) string {

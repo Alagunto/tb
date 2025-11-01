@@ -7,28 +7,6 @@ import (
 	"github.com/alagunto/tb/telegram"
 )
 
-// AnswerInlineQuery sends a response to an inline query.
-func (b *Bot[RequestType]) AnswerInlineQuery(query *telegram.InlineQuery, resp *telegram.InlineQueryResponse) error {
-	if query == nil {
-		return errors.WithInvalidParam(errors.ErrTelebot, "query", nil)
-	}
-
-	req := telegram.AnswerInlineQueryRequest{
-		InlineQueryID: query.ID,
-	}
-
-	if resp != nil {
-		req.Results = resp.Results
-		req.CacheTime = resp.CacheTime
-		req.IsPersonal = resp.IsPersonal
-		req.NextOffset = resp.NextOffset
-		req.Button = resp.Button
-	}
-
-	r := NewApiRequester[telegram.AnswerInlineQueryRequest, bool](b.token, b.apiURL, b.client)
-	_, err := r.Request(context.Background(), "answerInlineQuery", req)
-	return err
-}
 
 // RespondToCallback sends a response for a given callback query. A callback can
 // only be responded to once, subsequent attempts to respond to the same callback
@@ -52,6 +30,11 @@ func (b *Bot[RequestType]) RespondToCallback(c *telegram.Callback, resp ...*tele
 	requester := NewApiRequester[telegram.AnswerCallbackQueryRequest, bool](b.token, b.apiURL, b.client)
 	_, err := requester.Request(context.Background(), "answerCallbackQuery", req)
 	return err
+}
+
+// RespondToCallbackBackground sends a response for a given callback query using background context.
+func (b *Bot[RequestType]) RespondToCallbackBackground(c *telegram.Callback, resp ...*telegram.CallbackResponse) error {
+	return b.RespondToCallback(c, resp...)
 }
 
 // Ship replies to the shipping query, if you sent an invoice
@@ -91,6 +74,11 @@ func (b *Bot[RequestType]) Ship(query *telegram.ShippingQuery, what ...interface
 	return err
 }
 
+// ShipBackground replies to the shipping query using background context.
+func (b *Bot[RequestType]) ShipBackground(query *telegram.ShippingQuery, what ...interface{}) error {
+	return b.Ship(query, what...)
+}
+
 // Accept finalizes the deal.
 func (b *Bot[RequestType]) Accept(query *telegram.PreCheckoutQuery, errorMessage ...string) error {
 	req := telegram.AnswerPreCheckoutQueryRequest{
@@ -105,4 +93,9 @@ func (b *Bot[RequestType]) Accept(query *telegram.PreCheckoutQuery, errorMessage
 	requester := NewApiRequester[telegram.AnswerPreCheckoutQueryRequest, bool](b.token, b.apiURL, b.client)
 	_, err := requester.Request(context.Background(), "answerPreCheckoutQuery", req)
 	return err
+}
+
+// AcceptBackground finalizes the deal using background context.
+func (b *Bot[RequestType]) AcceptBackground(query *telegram.PreCheckoutQuery, errorMessage ...string) error {
+	return b.Accept(query, errorMessage...)
 }

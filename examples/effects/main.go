@@ -137,5 +137,7 @@ func main() {
 
 	log.Println("Bot started! Press Ctrl+C to stop.")
 	log.Println("⚠️  Remember: Message effects only work in private chats!")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }

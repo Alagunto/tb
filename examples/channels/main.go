@@ -289,7 +289,9 @@ func main() {
 	log.Println("📢 Channel management bot started! Press Ctrl+C to stop.")
 	log.Printf("Managing channel: %s", channel.Title)
 	log.Println("⚠️  Make sure the bot is an administrator in the channel")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // Helper function to join command arguments

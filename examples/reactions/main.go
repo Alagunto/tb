@@ -263,6 +263,8 @@ func main() {
 	log.Println("❤️ Reactions bot started! Press Ctrl+C to stop.")
 	log.Println("💡 Tip: Some reactions require Telegram Premium")
 	log.Println("📱 Try the bot in groups to see anonymous reaction counts!")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 

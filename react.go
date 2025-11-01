@@ -22,13 +22,9 @@ func (b *Bot[RequestType]) React(to bot.Recipient, msg bot.Editable, r telegram.
 		"message_id": msgID,
 	}
 
-	data, _ := json.Marshal(r.Reactions)
+	data, _ := json.Marshal(r)
 	params["reaction"] = string(data)
 
-	if r.Big {
-		params["is_big"] = "true"
-	}
-
-	_, err := b.Raw("setMessageReaction", params)
+	_, err := b.Raw( "setMessageReaction", params)
 	return err
 }

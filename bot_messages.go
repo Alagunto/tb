@@ -35,15 +35,20 @@ func (b *Bot[RequestType]) SendTo(to bot.Recipient, what interface{}, opts ...pa
 
 	switch object := what.(type) {
 	case string:
-		return b.sendText(to, object, &sendOpts)
+		return b.sendText(context.Background(), to, object, &sendOpts)
 	case telegram.InputMedia:
-		return b.sendMedia(to, object, &sendOpts)
+		return b.sendMedia(context.Background(), to, object, &sendOpts)
 	default:
 		return nil, errors.WithInvalidParam(errors.ErrUnsupportedWhat, "what", fmt.Sprintf("%v", what))
 	}
 }
 
-func (b *Bot[RequestType]) sendText(to bot.Recipient, text string, opts *params.SendOptions) (*telegram.Message, error) {
+// SendToBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) SendToBackground(to bot.Recipient, what interface{}, opts ...params.SendOptions) (*telegram.Message, error) {
+	return b.SendTo(to, what, opts...)
+}
+
+func (b *Bot[RequestType]) sendText(ctx context.Context, to bot.Recipient, text string, opts *params.SendOptions) (*telegram.Message, error) {
 	req := telegram.SendMessageRequest{
 		ChatID: to.Recipient(),
 		Text:   b.CensorText(text),
@@ -56,7 +61,7 @@ func (b *Bot[RequestType]) sendText(to bot.Recipient, text string, opts *params.
 	}
 
 	r := NewApiRequester[telegram.SendMessageRequest, telegram.Message](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "sendMessage", req)
+	result, err := r.Request(ctx, "sendMessage", req)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +69,7 @@ func (b *Bot[RequestType]) sendText(to bot.Recipient, text string, opts *params.
 }
 
 // sendMedia handles sending content that implements the telegram.InputMedia interface.
-func (b *Bot[RequestType]) sendMedia(to bot.Recipient, media telegram.InputMedia, opts *params.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) sendMedia(ctx context.Context, to bot.Recipient, media telegram.InputMedia, opts *params.SendOptions) (*telegram.Message, error) {
 	if to == nil {
 		return nil, errors.WithInvalidParam(errors.ErrBadRecipient, "recipient", nil)
 	}
@@ -114,7 +119,7 @@ func (b *Bot[RequestType]) sendMedia(to bot.Recipient, media telegram.InputMedia
 
 	// Capitalize first letter for proper Telegram API method name (sendPhoto, sendVideo, etc.)
 	methodName := "send" + strings.ToUpper(string(mediaType[0])) + mediaType[1:]
-	result, err := r.Request(context.Background(), methodName, paramsMap)
+	result, err := r.Request(ctx, methodName, paramsMap)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +159,11 @@ func (b *Bot[RequestType]) SendAlbumTo(to bot.Recipient, a telegram.InputAlbum, 
 	return *result, nil
 }
 
+// SendAlbumToBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) SendAlbumToBackground(to bot.Recipient, a telegram.InputAlbum, opts ...params.SendOptions) ([]telegram.Message, error) {
+	return b.SendAlbumTo(to, a, opts...)
+}
+
 // ReplyTo behaves just like Send() with an exception of "reply-to" indicator.
 // This function will panic upon nil Message.
 func (b *Bot[RequestType]) ReplyTo(to *telegram.Message, what interface{}, opts ...params.SendOptions) (*telegram.Message, error) {
@@ -170,6 +180,11 @@ func (b *Bot[RequestType]) ReplyTo(to *telegram.Message, what interface{}, opts 
 	}
 
 	return b.SendTo(recipient, what, sendOpts)
+}
+
+// ReplyToBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) ReplyToBackground(to *telegram.Message, what interface{}, opts ...params.SendOptions) (*telegram.Message, error) {
+	return b.ReplyTo(to, what, opts...)
 }
 
 // ForwardTo behaves just like SendTo() but of all options it only supports Silent (see Bots API).
@@ -205,6 +220,11 @@ func (b *Bot[RequestType]) ForwardTo(to bot.Recipient, msg bot.Editable, opts ..
 	}
 
 	return result, nil
+}
+
+// ForwardToBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) ForwardToBackground(to bot.Recipient, msg bot.Editable, opts ...params.SendOptions) (*telegram.Message, error) {
+	return b.ForwardTo(to, msg, opts...)
 }
 
 // ForwardManyTo method forwards multiple messages of any kind.
@@ -262,6 +282,11 @@ func (b *Bot[RequestType]) ForwardManyTo(to bot.Recipient, msgs []bot.Editable, 
 	return *result, nil
 }
 
+// ForwardManyToBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) ForwardManyToBackground(to bot.Recipient, msgs []bot.Editable, opts ...params.SendOptions) ([]telegram.Message, error) {
+	return b.ForwardManyTo(to, msgs, opts...)
+}
+
 // CopyTo behaves just like ForwardTo() but the copied message doesn't have a link to the original message (see Bots API).
 //
 // This function will panic upon nil Editable.
@@ -302,6 +327,11 @@ func (b *Bot[RequestType]) CopyTo(to bot.Recipient, msg bot.Editable, opts ...pa
 	}
 
 	return result, nil
+}
+
+// CopyToBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) CopyToBackground(to bot.Recipient, msg bot.Editable, opts ...params.SendOptions) (*telegram.Message, error) {
+	return b.CopyTo(to, msg, opts...)
 }
 
 // CopyManyTo this method makes a copy of messages of any kind.
@@ -360,6 +390,11 @@ func (b *Bot[RequestType]) CopyManyTo(to bot.Recipient, msgs []bot.Editable, opt
 	}
 
 	return *result, nil
+}
+
+// CopyManyToBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) CopyManyToBackground(to bot.Recipient, msgs []bot.Editable, opts ...params.SendOptions) ([]telegram.Message, error) {
+	return b.CopyManyTo(to, msgs, opts...)
 }
 
 // Edit is magic, it lets you change already sent message.
@@ -467,6 +502,11 @@ func (b *Bot[RequestType]) Edit(msg bot.Editable, what interface{}, opts ...para
 	}
 }
 
+// EditBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) EditBackground(msg bot.Editable, what interface{}, opts ...params.SendOptions) (*telegram.Message, error) {
+	return b.Edit(msg, what, opts...)
+}
+
 // EditReplyMarkup edits reply markup of already sent message.
 // This function will panic upon nil Editable.
 // Pass nil or empty ReplyMarkup to delete it from the message.
@@ -505,6 +545,11 @@ func (b *Bot[RequestType]) EditReplyMarkup(msg bot.Editable, markup *telegram.Re
 	return result, nil
 }
 
+// EditReplyMarkupBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) EditReplyMarkupBackground(msg bot.Editable, markup *telegram.ReplyMarkup) (*telegram.Message, error) {
+	return b.EditReplyMarkup(msg, markup)
+}
+
 // EditCaption edits already sent photo caption with known recipient and message id.
 // This function will panic upon nil Editable.
 //
@@ -537,6 +582,11 @@ func (b *Bot[RequestType]) EditCaption(msg bot.Editable, caption string, opts ..
 	}
 
 	return result, nil
+}
+
+// EditCaptionBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) EditCaptionBackground(msg bot.Editable, caption string, opts ...params.SendOptions) (*telegram.Message, error) {
+	return b.EditCaption(msg, caption, opts...)
 }
 
 // EditMedia edits already sent media with known recipient and message id.
@@ -585,6 +635,11 @@ func (b *Bot[RequestType]) EditMedia(msg bot.Editable, media telegram.InputMedia
 	return result, nil
 }
 
+// EditMediaBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) EditMediaBackground(msg bot.Editable, media telegram.InputMedia, opts ...params.SendOptions) (*telegram.Message, error) {
+	return b.EditMedia(msg, media, opts...)
+}
+
 // Delete removes the message, including service messages.
 // This function will panic upon nil Editable.
 //
@@ -607,6 +662,11 @@ func (b *Bot[RequestType]) Delete(msg bot.Editable) error {
 	r := NewApiRequester[telegram.DeleteMessageRequest, bool](b.token, b.apiURL, b.client)
 	_, err := r.Request(context.Background(), "deleteMessage", req)
 	return err
+}
+
+// DeleteBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) DeleteBackground(msg bot.Editable) error {
+	return b.Delete(msg)
 }
 
 // DeleteMany deletes multiple messages simultaneously.
@@ -642,6 +702,11 @@ func (b *Bot[RequestType]) DeleteMany(msgs []bot.Editable) error {
 	return err
 }
 
+// DeleteManyBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) DeleteManyBackground(msgs []bot.Editable) error {
+	return b.DeleteMany(msgs)
+}
+
 // StopLiveLocation stops broadcasting live message location
 // before Location.LivePeriod expires.
 //
@@ -675,6 +740,11 @@ func (b *Bot[RequestType]) StopLiveLocation(msg bot.Editable, opts ...params.Sen
 	return result, nil
 }
 
+// StopLiveLocationBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) StopLiveLocationBackground(msg bot.Editable, opts ...params.SendOptions) (*telegram.Message, error) {
+	return b.StopLiveLocation(msg, opts...)
+}
+
 // StopPoll stops a poll which was sent by the bot and returns
 // the stopped Poll object with the final results.
 //
@@ -698,4 +768,9 @@ func (b *Bot[RequestType]) StopPoll(msg bot.Editable, opts ...params.SendOptions
 		return nil, err
 	}
 	return result, nil
+}
+
+// StopPollBackground is a convenience wrapper using context.Background()
+func (b *Bot[RequestType]) StopPollBackground(msg bot.Editable, opts ...params.SendOptions) (*telegram.Poll, error) {
+	return b.StopPoll(msg, opts...)
 }

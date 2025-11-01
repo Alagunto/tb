@@ -94,5 +94,7 @@ func main() {
 	})
 
 	log.Println("Bot started! Press Ctrl+C to stop.")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }

@@ -236,6 +236,8 @@ func main() {
 	}
 
 	// Start the bot (this will start the webhook HTTP server)
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 

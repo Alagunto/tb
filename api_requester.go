@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 
@@ -58,22 +57,19 @@ func (r *ApiRequester[RequestSchema, ResponseSchema]) Request(ctx context.Contex
 	var contentType string
 	var body io.Reader
 
-	slog.Info("Request", "method", method, "payload", payload)
-
+	// Logging removed to prevent token/sensitive data exposure
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		return nil, r.wrapRequestPreparationFailed(err)
 	}
 
 	if r.needsMultipart {
-		slog.Info("Request", "multipart", true)
 		buf := bytes.NewBuffer(nil)
 		multipartWriter := multipart.NewWriter(buf)
 
 		// Note: file.Reader will be consumed here. If this ApiRequester is reused,
 		// the file readers must be reset or recreated before the next request.
 		for fieldName, file := range r.files {
-			slog.Info("Request", "fieldName", fieldName, "file", file)
 			fileWriter, err := multipartWriter.CreateFormFile(fieldName, file.GetFilenameForUpload())
 			if err != nil {
 				return nil, r.wrapRequestPreparationFailed(err)
@@ -87,10 +83,8 @@ func (r *ApiRequester[RequestSchema, ResponseSchema]) Request(ctx context.Contex
 		if err := json.Unmarshal(jsonPayload, &jsonMap); err != nil {
 			return nil, r.wrapRequestPreparationFailed(err)
 		}
-		slog.Info("Request", "jsonMap", jsonMap)
 
 		for fieldName, value := range jsonMap {
-			slog.Info("Request", "fieldName", fieldName, "value", value)
 			jsonnedValue, err := json.Marshal(value)
 			if err != nil {
 				return nil, r.wrapRequestPreparationFailed(err)
@@ -107,7 +101,6 @@ func (r *ApiRequester[RequestSchema, ResponseSchema]) Request(ctx context.Contex
 		contentType = multipartWriter.FormDataContentType()
 		body = buf
 	} else {
-		slog.Info("Request", "jsonPayload", string(jsonPayload))
 		body = bytes.NewReader(jsonPayload)
 		contentType = "application/json"
 	}

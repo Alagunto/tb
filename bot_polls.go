@@ -4,12 +4,20 @@ import (
 	"context"
 
 	"github.com/alagunto/tb/bot"
+	"github.com/alagunto/tb/errors"
 	"github.com/alagunto/tb/params"
 	"github.com/alagunto/tb/telegram"
 )
 
 // SendPoll sends a native poll. A native poll can't be sent to a private chat.
-func (b *Bot[RequestType]) SendPoll(to bot.Recipient, poll *telegram.SendPollParams, opts ...params.SendOptions) (*telegram.Message, error) {
+func (b *Bot[RequestType]) SendPoll(ctx context.Context, to bot.Recipient, poll *telegram.SendPollParams, opts ...params.SendOptions) (*telegram.Message, error) {
+	if to == nil {
+		return nil, errors.WithInvalidParam(errors.ErrTelebot, "recipient", nil)
+	}
+	if poll == nil {
+		return nil, errors.WithInvalidParam(errors.ErrTelebot, "poll", nil)
+	}
+
 	sendOpts := params.Merge(opts...)
 
 	p := params.New().
@@ -37,9 +45,14 @@ func (b *Bot[RequestType]) SendPoll(to bot.Recipient, poll *telegram.SendPollPar
 		With(sendOpts)
 
 	r := NewApiRequester[map[string]any, telegram.Message](b.token, b.apiURL, b.client)
-	result, err := r.Request(context.Background(), "sendPoll", p.Build())
+	result, err := r.Request(ctx, "sendPoll", p.Build())
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
+}
+
+// SendPollBackground sends a native poll using context.Background(). A native poll can't be sent to a private chat.
+func (b *Bot[RequestType]) SendPollBackground(to bot.Recipient, poll *telegram.SendPollParams, opts ...params.SendOptions) (*telegram.Message, error) {
+	return b.SendPoll(context.Background(), to, poll, opts...)
 }

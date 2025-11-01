@@ -307,6 +307,8 @@ func main() {
 	log.Println("   • Test with Telegram's demo apps first")
 	log.Println("   • Use Telegram.WebApp.sendData() to send data back")
 	log.Println("   • Web apps work on iOS, Android, and Desktop")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 

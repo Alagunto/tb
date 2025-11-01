@@ -26,7 +26,7 @@ func (b *Bot[RequestType]) Ban(chat *telegram.Chat, member *telegram.ChatMember,
 		params["revoke_messages"] = strconv.FormatBool(revokeMessages[0])
 	}
 
-	_, err := b.Raw("kickChatMember", params)
+	_, err := b.Raw( "kickChatMember", params)
 	return err
 }
 
@@ -42,7 +42,7 @@ func (b *Bot[RequestType]) Unban(chat *telegram.Chat, user *telegram.User, forBa
 		params["only_if_banned"] = strconv.FormatBool(forBanned[0])
 	}
 
-	_, err := b.Raw("unbanChatMember", params)
+	_, err := b.Raw( "unbanChatMember", params)
 	return err
 }
 
@@ -61,7 +61,7 @@ func (b *Bot[RequestType]) Restrict(chat *telegram.Chat, member *telegram.ChatMe
 		"permissions": member.GetPermissionsMap(),
 	}
 
-	_, err := b.Raw("restrictChatMember", params)
+	_, err := b.Raw( "restrictChatMember", params)
 	return err
 }
 
@@ -87,7 +87,7 @@ func (b *Bot[RequestType]) Promote(chat *telegram.Chat, member *telegram.ChatMem
 		}
 	}
 
-	_, err := b.Raw("promoteChatMember", params)
+	_, err := b.Raw( "promoteChatMember", params)
 	return err
 }
 
@@ -103,7 +103,7 @@ func (b *Bot[RequestType]) AdminsOf(chat *telegram.Chat) ([]telegram.ChatMember,
 		"chat_id": chat.Recipient(),
 	}
 
-	data, err := b.Raw("getChatAdministrators", params)
+	data, err := b.Raw( "getChatAdministrators", params)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (b *Bot[RequestType]) Len(chat *telegram.Chat) (int, error) {
 		"chat_id": chat.Recipient(),
 	}
 
-	data, err := b.Raw("getChatMembersCount", params)
+	data, err := b.Raw( "getChatMembersCount", params)
 	if err != nil {
 		return 0, err
 	}
@@ -146,7 +146,7 @@ func (b *Bot[RequestType]) SetAdminTitle(chat *telegram.Chat, user *telegram.Use
 		"custom_title": title,
 	}
 
-	_, err := b.Raw("setChatAdministratorCustomTitle", params)
+	_, err := b.Raw( "setChatAdministratorCustomTitle", params)
 	return err
 }
 
@@ -159,7 +159,7 @@ func (b *Bot[RequestType]) BanSenderChat(chat *telegram.Chat, sender bot.Recipie
 		"sender_chat_id": sender.Recipient(),
 	}
 
-	_, err := b.Raw("banChatSenderChat", params)
+	_, err := b.Raw( "banChatSenderChat", params)
 	return err
 }
 
@@ -171,7 +171,7 @@ func (b *Bot[RequestType]) UnbanSenderChat(chat *telegram.Chat, sender bot.Recip
 		"sender_chat_id": sender.Recipient(),
 	}
 
-	_, err := b.Raw("unbanChatSenderChat", params)
+	_, err := b.Raw( "unbanChatSenderChat", params)
 	return err
 }
 
@@ -181,7 +181,7 @@ func (b *Bot[RequestType]) UnbanSenderChat(chat *telegram.Chat, sender bot.Recip
 // // 		"for_channels": forChannels,
 // // 	}
 
-// // 	data, err := b.Raw("getMyDefaultAdministratorRights", params)
+// // 	data, err := b.Raw( "getMyDefaultAdministratorRights", params)
 // // 	if err != nil {
 // // 		return nil, err
 // // 	}
@@ -203,6 +203,6 @@ func (b *Bot[RequestType]) UnbanSenderChat(chat *telegram.Chat, sender bot.Recip
 // 		"for_channels": forChannels,
 // 	}
 
-// 	_, err := b.Raw("setMyDefaultAdministratorRights", params)
+// 	_, err := b.Raw( "setMyDefaultAdministratorRights", params)
 // 	return err
 // }

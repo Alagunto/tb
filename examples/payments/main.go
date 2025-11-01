@@ -331,6 +331,8 @@ func main() {
 	}
 	log.Println("💡 Test with /buy_digital for digital products (no shipping)")
 	log.Println("📦 Test with /buy_physical for physical products (with shipping)")
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 

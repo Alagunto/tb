@@ -1,0 +1,1315 @@
+---
+description: Enhanced multi-agent orchestration framework with Claude-optimized structure
+alwaysApply: true
+version: 2.0
+---
+
+# Simplified Agentic Framework
+
+<system_context>
+  <architecture>
+    <flow>Human → Orchestrator Agent → Sub-Agents (recursive) → Structured Reports</flow>
+    <execution>
+      - cursor-agent CLI (multi-model support: Anthropic, OpenAI, etc.)
+      - claude CLI (Anthropic models only: Opus, Sonnet, Haiku)
+    </execution>
+    <reporting>Markdown text reports in responses, NEVER as separate files</reporting>
+  </architecture>
+  
+  <core_principles>
+    <principle id="role_clarity">Understand your role: Orchestrator vs Sub-Agent, permissions, success criteria</principle>
+    <principle id="delegation">Orchestrators must delegate; sub-agents execute within boundaries</principle>
+    <principle id="no_scope_creep">Never spawn agents for tasks outside your responsibility</principle>
+    <principle id="structured_reports">All agents return TEXT REPORTS with format: Header → Context → Actions → Results → Summary</principle>
+    <principle id="self_correction">Analyze failures, spawn recovery agents when errors persist 3+ times</principle>
+    <principle id="tool_selection">Choose claude CLI for Anthropic models, cursor-agent for others</principle>
+  </core_principles>
+</system_context>
+
+---
+
+## Decision Framework: When to Spawn Sub-Agents
+
+<decision_tree>
+**Use Chain-of-Thought reasoning when conditions are ambiguous:**
+
+<thinking>
+Before spawning agents, analyze:
+1. Does this task exceed my direct capability? (complexity, file count, expertise)
+2. What are the dependencies? (sequential vs parallel execution)
+3. What's the risk level? (security, production impact, cost)
+4. Is specialized expertise needed? (security, testing, architecture)
+5. What's the expected ROI of delegation? (time saved vs coordination overhead)
+</thinking>
+
+| Trigger Condition | Reasoning | Action | Model |
+|------------------|-----------|--------|-------|
+| ≥3 files OR ≥20 lines changed | Multi-file changes risk inconsistency | Planning agent | sonnet-4.5-thinking |
+| ANY code committed | Quality assurance mandatory | Review agent | gpt-5-codex |
+| Security-sensitive paths | Vulnerability detection required | Security agent | sonnet-4.5 |
+| Coverage <80% after changes | Test gap must be filled | Test generation agent | gpt-5-codex |
+| Same error 3+ times | Pattern suggests systematic issue | Recovery agent | sonnet-4.5-thinking |
+| Requirements unclear | Ambiguity blocks effective action | Analysis agent | sonnet-4.5 |
+| Need historical patterns | Past solutions inform current approach | Memory search | auto |
+
+**Cost Optimization**: Use cheapest adequate model. Escalate only after failures.
+</decision_tree>
+
+---
+
+## Enhanced Planning Agent Protocol
+
+<planning_protocol>
+**Apply Step-Back Prompting for better architectural decisions:**
+
+```bash
+cursor-agent -p "Create implementation plan using abstraction-first approach:
+
+<step_back>
+BEFORE diving into specifics, answer these abstract questions:
+1. What are the fundamental design principles for this type of system?
+2. What patterns have historically succeeded/failed for similar problems?
+3. What are the critical quality attributes (security, performance, maintainability)?
+4. How does this fit into the broader system architecture?
+</step_back>
+
+<memory_retrieval>
+Search .cursor/memory/ for:
+- Similar past implementations
+- Successful patterns to replicate
+- Failure patterns to avoid
+</memory_retrieval>
+
+<concrete_plan>
+Now apply abstract principles to create specific plan:
+
+TASK: [User's request]
+
+PLAN STRUCTURE (return as TEXT REPORT):
+=== PLANNING AGENT REPORT ===
+REQUEST: [Original task]
+ABSTRACT PRINCIPLES APPLIED: [From step-back analysis]
+MEMORY PATTERNS USED: [From retrieval]
+
+1. OVERVIEW & SUCCESS CRITERIA
+   [Clear definition of done]
+
+2. FILE IMPACT ANALYSIS
+   Create: [List with rationale]
+   Modify: [List with scope]
+   Delete: [List with migration path]
+
+3. ARCHITECTURAL DECISIONS
+   [Each decision with: Options → Trade-offs → Choice → Rationale]
+
+4. IMPLEMENTATION STEPS (with dependencies)
+   Step 1: [Action] | Depends on: [Prerequisites]
+   Step 2: [Action] | Depends on: [Step 1]
+   ...
+
+5. EDGE CASES & ERROR SCENARIOS
+   [Anticipated issues with handling strategy]
+
+6. SECURITY THREAT MODEL
+   [Threats → Mitigations]
+
+7. TESTING STRATEGY
+   Unit: [Coverage targets]
+   Integration: [Critical paths]
+   E2E: [User flows]
+
+8. PERFORMANCE BUDGET
+   [Latency/throughput/memory constraints]
+
+9. ROLLBACK PROCEDURE
+   [How to safely revert if needed]
+
+10. MONITORING PLAN
+    [Metrics to track post-deployment]
+
+SUMMARY: [Key decisions and next steps]
+CONFIDENCE LEVEL: [High/Medium/Low with reasoning]
+=== END REPORT ===
+</concrete_plan>
+
+Use chain-of-thought for complex decisions." --model ${CURSOR_PLANNING_MODEL:-sonnet-4.5-thinking} --print --output-format text --approve-mcps
+```
+
+**Estimated Improvement**: 36% better architectural quality through abstraction-first approach.
+</planning_protocol>
+
+---
+
+## Enhanced Code Review with Verification
+
+<review_protocol>
+**Apply Chain-of-Verification to reduce false positives:**
+
+```bash
+# After code changes, ALWAYS trigger review
+cursor-agent -p "Perform code review with verification loop:
+
+<initial_review>
+STEP 1: Generate initial findings
+
+Analyze changes in: [Files modified]
+Check for:
+1. Logic errors and bugs
+2. Security vulnerabilities (OWASP Top 10)
+3. Performance issues
+4. Code quality (duplication, complexity, readability)
+5. Missing tests or documentation
+6. Business logic correctness
+</initial_review>
+
+<verification_questions>
+STEP 2: Generate verification questions for each finding
+
+For each issue identified:
+□ Is this actually a bug or just a style preference?
+□ What evidence supports this being a problem?
+□ Could this be a false positive?
+□ What's the actual impact if left unfixed?
+□ Are there valid reasons for this pattern in this context?
+</verification_questions>
+
+<independent_verification>
+STEP 3: Re-examine each issue independently
+
+Review each finding with fresh perspective:
+- Verify against language/framework best practices
+- Check if issue exists in context or just in isolation
+- Confirm severity classification is appropriate
+- Validate suggested fix actually solves the problem
+</independent_verification>
+
+<final_report>
+STEP 4: Produce verified report
+
+=== CODE REVIEW REPORT ===
+TASK CONTEXT: [What was implemented]
+FILES REVIEWED: [List with line counts]
+REVIEW METHOD: Chain-of-Verification
+
+VERIFIED ISSUES: [Count by severity]
+- CRITICAL (CVSS ≥9.0): [Count]
+- HIGH (CVSS ≥7.0): [Count]
+- MEDIUM (CVSS ≥4.0): [Count]
+- LOW (CVSS <4.0): [Count]
+
+DETAILED FINDINGS:
+[For each verified issue]
+[#1] [SEVERITY] - [Issue Title]
+├─ Location: [File:Line]
+├─ Problem: [What's wrong]
+├─ Evidence: [Why this is an issue]
+├─ Impact: [Consequences if unfixed]
+├─ Fix: [Concrete solution]
+└─ Verification: [Why this is confirmed as real issue]
+
+FALSE POSITIVES FILTERED: [Count and examples]
+
+POSITIVE OBSERVATIONS:
+- [Well-implemented patterns]
+- [Good practices noticed]
+
+ACTION ITEMS:
+- MUST FIX (Auto-fix if severity ≥${CURSOR_AUTO_FIX_SEVERITY}): [List]
+- SHOULD FIX: [List]
+- CONSIDER: [List]
+
+REVIEW SUMMARY: [PASS/FAIL]
+CONFIDENCE: [High/Medium/Low - based on verification]
+=== END REPORT ===
+</final_report>
+
+DO NOT create markdown files." --model ${CURSOR_REVIEW_MODEL:-gpt-5-codex} --print --output-format text --approve-mcps
+```
+
+**Expected Improvement**: 15-23% reduction in false positives through verification loop.
+</review_protocol>
+
+---
+
+## Self-Consistency for Ambiguous Decisions
+
+<self_consistency_protocol>
+**Use when facing ambiguous architectural or routing decisions:**
+
+```bash
+# Example: Unclear whether to use pattern A or B
+cursor-agent -p "Resolve ambiguous decision using self-consistency:
+
+DECISION REQUIRED: [State the ambiguous choice]
+
+<multiple_reasoning_paths>
+Generate 3 independent analyses from different perspectives:
+
+ANALYSIS 1 - Performance-Focused:
+[Evaluate options based on speed, efficiency, scalability]
+RECOMMENDATION: [Choice] because [reasoning]
+
+ANALYSIS 2 - Maintainability-Focused:
+[Evaluate options based on code clarity, debugging ease, team understanding]
+RECOMMENDATION: [Choice] because [reasoning]
+
+ANALYSIS 3 - Risk-Focused:
+[Evaluate options based on failure modes, security, edge cases]
+RECOMMENDATION: [Choice] because [reasoning]
+</multiple_reasoning_paths>
+
+<vote_aggregation>
+CONSENSUS ANALYSIS:
+- Option A: [X/3] votes from [which analyses]
+- Option B: [Y/3] votes from [which analyses]
+
+MAJORITY DECISION: [Chosen option]
+CONFIDENCE: [Percentage based on vote distribution]
+
+SUPPORTING RATIONALE:
+[Key points from majority analyses]
+
+MINORITY CONCERNS TO ADDRESS:
+[Important considerations from minority view]
+</vote_aggregation>
+
+Return as structured decision report." --model ${CURSOR_MAIN_MODEL:-sonnet-4.5} --print --approve-mcps
+```
+
+**When to Use**: Unclear requirements, conflicting constraints, high-stakes decisions.
+**Expected Improvement**: Better decisions on ambiguous tasks.
+</self_consistency_protocol>
+
+---
+
+## Enhanced Security Validation
+
+<security_protocol>
+```bash
+cursor-agent -p "Security analysis with structured output:
+
+<vulnerability_scan>
+Analyze: [Files/components]
+
+Categories to check:
+1. Injection vulnerabilities (SQL, command, LDAP, XPath)
+2. Authentication/authorization flaws
+3. Sensitive data exposure
+4. XXE and insecure deserialization
+5. Security misconfiguration
+6. XSS and CSRF
+7. Insecure dependencies
+8. Insufficient logging
+9. SSRF and business logic flaws
+10. Prompt injection (for AI components)
+</vulnerability_scan>
+
+<findings_report>
+=== SECURITY ANALYSIS REPORT ===
+SCOPE: [What was analyzed]
+METHODOLOGY: OWASP Top 10 + AI Security
+
+VULNERABILITIES FOUND: [Total]
+
+[For each vulnerability]
+[#1] [CRITICAL/HIGH/MEDIUM/LOW] - [Vulnerability Name]
+├─ CWE: [ID] | CVSS: [Score]
+├─ Location: [File:Line]
+├─ Description: [Technical details]
+├─ Proof of Concept: [How to exploit]
+├─ Business Impact: [Real-world consequences]
+├─ Remediation: 
+│  ```language
+│  [Code fix with before/after]
+│  ```
+└─ Status: [FIXED/PENDING/ACCEPTED_RISK]
+
+AUTO-FIXES APPLIED:
+[List files modified with changes made]
+
+SECURITY POSTURE: [PASS/FAIL]
+RISK SCORE: [0-100]
+COMPLIANCE: [OWASP compliant: YES/NO]
+=== END REPORT ===
+</findings_report>
+
+Auto-fix CRITICAL (≥9.0) and HIGH (≥7.0) immediately." --model ${CURSOR_SECURITY_MODEL:-sonnet-4.5} --print --output-format text --approve-mcps
+```
+</security_protocol>
+
+---
+
+## Enhanced Test Generation
+
+<testing_protocol>
+```bash
+cursor-agent -p "Generate comprehensive test suite:
+
+<coverage_analysis>
+Current state:
+- Line coverage: [X%]
+- Branch coverage: [Y%]
+- Target: ${CURSOR_MIN_TEST_COVERAGE:-80}%
+- Gap: [Delta]
+</coverage_analysis>
+
+<test_strategy>
+Generate tests using multiple approaches:
+
+1. PROPERTY-BASED TESTS
+   [Identify invariants and generate tests]
+   
+2. BOUNDARY VALUE TESTS
+   [Test min/max/edge cases]
+   
+3. INTEGRATION TESTS
+   [Test component interactions]
+   
+4. ERROR PATH TESTS
+   [Test failure scenarios]
+</test_strategy>
+
+<test_generation_report>
+=== TEST GENERATION REPORT ===
+REQUEST: [Original test request]
+SCOPE: [Functions/files being tested]
+
+COVERAGE ANALYSIS:
+├─ Before: Line [X%], Branch [Y%]
+├─ Target: ${CURSOR_MIN_TEST_COVERAGE}%
+└─ After: Line [X2%], Branch [Y2%]
+
+TESTS GENERATED: [Total count]
+
+AUTO-GENERATED (High Confidence):
+1. test_[name]: [What it tests]
+   - Type: [Unit/Integration/Property/Edge]
+   - Coverage: +[X%] lines, +[Y%] branches
+   
+2. test_[name]: [What it tests]
+   - Type: [Category]
+   - Coverage: +[X%] lines, +[Y%] branches
+
+PROPOSED (Need Review):
+1. test_[name]: [What it tests and why manual review needed]
+
+FILES CREATED/MODIFIED:
+├─ [test_file1]: [Tests added]
+└─ [test_file2]: [Tests added]
+
+FINAL STATUS: [PASS/FAIL target coverage]
+MUTATION SCORE: [If available]
+=== END REPORT ===
+</test_generation_report>
+
+DO NOT create report files." --model ${CURSOR_REVIEW_MODEL:-gpt-5-codex} --print --output-format text --approve-mcps
+```
+</testing_protocol>
+
+---
+
+## Error Recovery with Pattern Matching
+
+<error_recovery_protocol>
+```bash
+cursor-agent -p "Systematic error recovery:
+
+<error_classification>
+Analyze recent failure:
+
+ERROR TYPE:
+- [ ] PLANNING_ERROR: Wrong approach/architecture
+- [ ] IMPLEMENTATION_ERROR: Coding bug
+- [ ] KNOWLEDGE_GAP: Missing domain knowledge
+- [ ] ENVIRONMENTAL: System/dependency issue
+- [ ] SEMANTIC: Misunderstood requirements
+
+ERROR DETAILS: [Stack trace, symptoms, context]
+</error_classification>
+
+<memory_search>
+Search .cursor/memory/ for similar past failures:
+- Pattern match on error type and context
+- Retrieve successful recovery strategies
+- Identify if this is a recurring issue
+</memory_search>
+
+<recovery_execution>
+Apply recovery strategy:
+
+=== ERROR RECOVERY REPORT ===
+ORIGINAL ERROR: [What failed]
+ERROR TYPE: [Classification from above]
+SIMILAR PAST ERRORS: [Memory matches found]
+
+RECOVERY ACTIONS:
+1. [Action taken] → [Result]
+2. [Action taken] → [Result]
+3. [Action taken] → [Result]
+
+ROOT CAUSE IDENTIFIED: [Underlying issue]
+FIX APPLIED: [What changed]
+
+FILES MODIFIED:
+├─ [file1]: [Changes made]
+└─ [file2]: [Changes made]
+
+FINAL STATUS: [SUCCESS/PARTIAL/FAILED]
+RETRY COUNT: [N of 3]
+
+PREVENTION STRATEGY:
+[How to avoid this error in future]
+
+MEMORY UPDATE:
+[Pattern stored for future reference]
+=== END REPORT ===
+</recovery_execution>
+
+Maximum 3 attempts before escalation." --model ${CURSOR_MAIN_MODEL:-sonnet-4.5} --print --approve-mcps
+```
+</error_recovery_protocol>
+
+---
+
+## Context Management Strategy
+
+<context_engineering>
+**Optimize token usage through Just-In-Time loading:**
+
+```bash
+# Check strategy setting
+CONTEXT_STRATEGY="${CURSOR_CONTEXT_STRATEGY:-just_in_time}"
+
+case "$CONTEXT_STRATEGY" in
+  "eager")
+    # Small projects: Load everything upfront
+    find . -type f -name "*.go" -o -name "*.py" | head -50 | xargs cat
+    ;;
+  
+  "lazy")
+    # Large projects: Load nothing until needed
+    find . -type f -name "*.go" -o -name "*.py" > /tmp/file_index.txt
+    echo "Context available on-demand from $(wc -l < /tmp/file_index.txt) files"
+    ;;
+  
+  "just_in_time")
+    # RECOMMENDED: Load references, fetch content dynamically
+    echo "=== FILE STRUCTURE ==="
+    tree -L 3 -I 'node_modules|.git'
+    echo ""
+    echo "=== KEY FILES (headers only) ==="
+    for file in $(find . -name "*.go" -o -name "*.py" | head -10); do
+      echo "--- $file ---"
+      head -20 "$file"
+      echo "... [load full file if needed] ..."
+    done
+    ;;
+esac
+```
+
+**Token Budget Allocation:**
+- 30% Conversation history
+- 30% Active code context
+- 20% System instructions
+- 20% Reserve for outputs
+</context_engineering>
+
+---
+
+## Memory System Implementation
+
+<memory_system>
+**Backend Selection:**
+
+```bash
+MEMORY_BACKEND="${CURSOR_MEMORY_BACKEND:-vector}"
+
+# Store successful pattern
+store_memory() {
+  local pattern="$1"
+  local metadata="$2"
+  
+  case "$MEMORY_BACKEND" in
+    "vector")
+      cursor-agent -p "Store in .cursor/memory/vector_store.db: 
+        Pattern: $pattern
+        Metadata: $metadata
+        Embedding: [auto-generate]" --model auto --print
+      ;;
+    
+    "kv")
+      echo "{\"pattern\":\"$pattern\",\"meta\":$metadata,\"ts\":$(date +%s)}" \
+        >> .cursor/memory/kv_store.jsonl
+      ;;
+    
+    "graph")
+      cursor-agent -p "Add to .cursor/memory/knowledge_graph.db:
+        Node: $pattern
+        Edges: [related_patterns]
+        Properties: $metadata" --model auto --print
+      ;;
+  esac
+}
+
+# Retrieve similar patterns
+retrieve_memory() {
+  local query="$1"
+  
+  cursor-agent -p "Search .cursor/memory/ for patterns similar to: $query
+  
+  Return top 3 matches with:
+  - Pattern description
+  - Success rate
+  - When it was used
+  - Relevant context" --model ${CURSOR_ANALYSIS_MODEL:-sonnet-4.5} --print
+}
+```
+
+**Memory Types:**
+- **Episodic**: Specific task executions and outcomes
+- **Semantic**: General patterns and best practices
+- **Procedural**: Workflow steps and decision trees
+</memory_system>
+
+---
+
+## Agent CLI Selection: cursor-agent vs claude CLI
+
+<cli_selection>
+**CRITICAL**: Choose the right CLI based on model provider:
+
+| CLI Tool | Models Supported | When to Use |
+|----------|-----------------|-------------|
+| **cursor-agent** | All models (Anthropic, OpenAI, etc.) | Multi-model orchestration, non-Anthropic models |
+| **claude** | Anthropic ONLY (Opus, Sonnet, Haiku) | Pure Anthropic workflows, headless automation |
+
+**Decision Logic:**
+```bash
+# Function to choose appropriate CLI
+choose_agent_cli() {
+  local model="$1"
+  
+  case "$model" in
+    *opus*|*sonnet*|*haiku*|claude-*)
+      echo "claude"  # Use claude CLI for Anthropic models
+      ;;
+    *gpt*|*composer*|*grok*|auto)
+      echo "cursor-agent"  # Use cursor-agent for others
+      ;;
+    *)
+      echo "cursor-agent"  # Default to cursor-agent
+      ;;
+  esac
+}
+
+# Example usage
+MODEL="sonnet-4.5"
+CLI=$(choose_agent_cli "$MODEL")
+
+if [[ "$CLI" == "claude" ]]; then
+  claude -p "Task description" --model claude-sonnet-4-5-20250929
+else
+  cursor-agent -p "Task description" --model "$MODEL"
+fi
+```
+</cli_selection>
+
+---
+
+## Claude Code CLI Integration (Anthropic Models)
+
+<claude_cli_reference>
+**Latest Anthropic Models (October 2025):**
+
+| Model | Full Name | Use Case | Cost (Input/Output per 1M tokens) |
+|-------|-----------|----------|-----------------------------------|
+| **Haiku 4.5** | `claude-haiku-4-5-20251001` | Fast, cost-effective tasks | $1/$5 |
+| **Sonnet 4.5** | `claude-sonnet-4-5-20250929` | Best coding model (DEFAULT) | $3/$15 |
+| **Opus 4.1** | `claude-opus-4-1-20250805` | Complex reasoning, novel problems | $15/$75 |
+
+**Core Claude Code Commands:**
+
+```bash
+# Basic interactive mode
+claude
+
+# Headless mode (print and exit)
+claude -p "your prompt here"
+
+# With specific model
+claude -p "complex task" --model claude-opus-4-1-20250805
+
+# Continue most recent session
+claude -c
+claude -c -p "additional work"
+
+# Resume specific session
+claude -r "session-id" "continue this task"
+claude --resume abc123
+
+# Pipe input
+cat query.txt | claude -p
+echo "Analyze this" | claude -p --output-format json
+
+# Update to latest version
+claude update
+```
+
+**Critical Flags for Automation:**
+
+```bash
+# PERMISSION MANAGEMENT (most important for automation)
+--allowedTools "Read,Edit,Bash(git:*),Bash(npm:*)"  # Whitelist tools
+--disallowedTools "Bash(rm:*),Bash(sudo:*)"        # Blacklist dangerous ops
+--dangerously-skip-permissions                      # Skip ALL prompts (USE WITH CAUTION)
+--permission-mode acceptEdits                       # Auto-accept file edits
+
+# OUTPUT CONTROL
+--output-format text          # Human-readable (default)
+--output-format json          # Structured JSON with metadata
+--output-format stream-json   # Real-time NDJSON streaming
+
+# INPUT CONTROL
+--input-format stream-json    # Accept multi-turn conversations as NDJSON
+
+# CONTEXT MANAGEMENT
+--add-dir ../other-project    # Access additional directories
+--append-system-prompt "Custom instruction"  # Extend system prompt
+
+# SESSION MANAGEMENT
+--continue, -c               # Continue last session
+--resume abc123, -r          # Resume specific session
+--max-turns 5                # Limit conversation turns (cost control)
+
+# MCP INTEGRATION
+--mcp-config servers.json                    # Load MCP servers from config
+--permission-prompt-tool mcp__auth__prompt   # MCP tool for permissions
+
+# DEBUGGING
+--verbose                    # Show full internal operations
+--model claude-sonnet-4-5-20250929  # Specify exact model
+```
+
+**Tool Restriction Patterns:**
+
+```bash
+# Safe read-only configuration
+claude -p "Analyze codebase" \
+  --allowedTools "Read,Grep,Glob,LS"
+
+# Standard development workflow
+claude -p "Implement feature" \
+  --allowedTools "Read,Write,Edit,MultiEdit,Bash(git:*),Bash(npm:*)"
+
+# Full autonomous mode (in Docker container ONLY)
+claude -p "Complete migration" \
+  --dangerously-skip-permissions \
+  --allowedTools "Read,Write,Edit,Bash"
+
+# Granular command restrictions
+claude -p "Deploy changes" \
+  --allowedTools "Bash(git add:*),Bash(git commit:*),Bash(git push:*)" \
+  --disallowedTools "Bash(git push --force:*),Bash(rm:*)"
+
+# Pattern matching for flexibility
+claude -p "Run tests" \
+  --allowedTools "Bash(npm:*),Bash(pnpm:*),Bash(yarn:*),Read"
+```
+
+**Output Format Examples:**
+
+```bash
+# JSON output for programmatic processing
+RESULT=$(claude -p "Count files in src/" --output-format json)
+FILE_COUNT=$(echo "$RESULT" | jq -r '.result')
+COST=$(echo "$RESULT" | jq -r '.total_cost_usd')
+echo "Found $FILE_COUNT files, cost: \$$COST"
+
+# Stream JSON for real-time processing
+claude -p "Analyze logs" --output-format stream-json | \
+  while IFS= read -r line; do
+    echo "$line" | jq -r '.content // empty'
+  done
+
+# Text output for human consumption
+claude -p "Explain architecture" --output-format text > explanation.txt
+```
+
+**Stream Chaining (Advanced):**
+
+```bash
+# Chain multiple Claude invocations with full context preservation
+claude -p "Extract data from CSV" \
+  --output-format stream-json \
+  --allowedTools "Read" | \
+claude -p "Analyze patterns" \
+  --input-format stream-json \
+  --output-format stream-json | \
+claude -p "Generate report" \
+  --input-format stream-json \
+  --output-format json > final-report.json
+
+# 40-60% faster than file-based handoffs
+```
+
+**Session Persistence Examples:**
+
+```bash
+# Start work, then continue later
+claude -p "Start implementing auth system"
+# ... work happens, session ends ...
+
+# Resume same session hours later
+claude -c -p "Add OAuth2 support to existing auth"
+# Full context preserved: files read, permissions, conversation history
+
+# Work on multiple projects in parallel
+claude -p "Work on project A" --model claude-sonnet-4-5-20250929
+PROJECT_A_SESSION=$(get_last_session_id)
+
+claude -p "Work on project B" --model claude-sonnet-4-5-20250929  
+PROJECT_B_SESSION=$(get_last_session_id)
+
+# Switch between them
+claude -r "$PROJECT_A_SESSION" "Continue A"
+claude -r "$PROJECT_B_SESSION" "Continue B"
+```
+
+**MCP Integration:**
+
+```bash
+# Add MCP server for GitHub
+claude mcp add github https://mcp.github.com/sse \
+  --transport sse \
+  --header "Authorization: Bearer $GITHUB_TOKEN"
+
+# Add local MCP server
+claude mcp add airtable \
+  --transport stdio \
+  --env AIRTABLE_API_KEY=key \
+  -- npx -y airtable-mcp-server
+
+# List configured MCP servers
+claude mcp list
+
+# Use MCP tools in prompts
+claude -p "Create GitHub issue for bug found" \
+  --allowedTools "mcp__github,Read"
+```
+
+**Performance Optimization:**
+
+```bash
+# Use Haiku for fast, simple tasks (90% of Sonnet quality at 20% cost)
+claude -p "Generate boilerplate" \
+  --model claude-haiku-4-5-20251001
+
+# Use Sonnet for standard coding (best balance)
+claude -p "Implement feature" \
+  --model claude-sonnet-4-5-20250929
+
+# Use Opus only for novel/complex problems
+claude -p "Design new architecture" \
+  --model claude-opus-4-1-20250805
+
+# Clear context between major phases
+claude -p "Phase 1: Setup"
+# After completion, use /clear command before phase 2
+claude -c -p "Phase 2: Implementation"  # Fresh context
+```
+
+**Best Practices from Anthropic (October 2025):**
+
+1. **Use CLAUDE.md files** for project context (auto-loaded each session)
+2. **Enable verbose mode during development** (`--verbose`) for debugging
+3. **Isolate dangerous operations** in Docker containers when using `--dangerously-skip-permissions`
+4. **Compress context with /compact** when approaching token limits
+5. **Use /clear between major work phases** to prevent context sprawl
+6. **Leverage checkpoints** (Escape twice) to undo unwanted changes
+7. **Stream chaining** for multi-agent workflows (40-60% faster)
+8. **Tool restrictions** for safety: whitelist specific operations, not blanket access
+</claude_cli_reference>
+
+---
+
+## Model Selection & Cost Optimization
+
+<model_selection>
+**Unified Model Selection Strategy (cursor-agent + claude):**
+
+```bash
+# Intelligent routing function
+route_task() {
+  local task_type="$1"
+  local retry_count="${2:-0}"
+  
+  # After 3 failures, escalate to Opus
+  if [[ $retry_count -ge 3 ]]; then
+    echo "CLI=claude MODEL=claude-opus-4-1-20250805"
+    return
+  fi
+  
+  case "$task_type" in
+    trivial|logging|memory)
+      echo "CLI=cursor-agent MODEL=auto"
+      ;;
+    
+    fast_coding|boilerplate|simple_fix)
+      echo "CLI=claude MODEL=claude-haiku-4-5-20251001"
+      ;;
+    
+    coding|feature|review|refactor)
+      echo "CLI=claude MODEL=claude-sonnet-4-5-20250929"
+      ;;
+    
+    planning|architecture|complex_reasoning)
+      echo "CLI=claude MODEL=claude-opus-4-1-20250805"
+      # OR use cursor-agent with thinking model:
+      # echo "CLI=cursor-agent MODEL=sonnet-4.5-thinking"
+      ;;
+    
+    multi_model|non_anthropic)
+      echo "CLI=cursor-agent MODEL=gpt-5-codex"
+      ;;
+    
+    *)
+      echo "CLI=claude MODEL=claude-sonnet-4-5-20250929"
+      ;;
+  esac
+}
+
+# Example usage
+AGENT_CONFIG=$(route_task "coding" 0)
+eval "$AGENT_CONFIG"
+
+if [[ "$CLI" == "claude" ]]; then
+  claude -p "Implement authentication" \
+    --model "$MODEL" \
+    --allowedTools "Read,Edit,Bash(git:*)"
+else
+  cursor-agent -p "Implement authentication" \
+    --model "$MODEL" \
+    --print
+fi
+```
+
+**Cost Optimization Matrix:**
+
+| Task Complexity | First Try | After 1 Failure | After 3 Failures | Cost Savings |
+|----------------|-----------|-----------------|------------------|--------------|
+| Simple/Fast | Haiku 4.5 | Sonnet 4.5 | Opus 4.1 | 80% |
+| Standard Coding | Sonnet 4.5 | Sonnet 4.5 | Opus 4.1 | baseline |
+| Complex/Novel | Sonnet 4.5 | Opus 4.1 | Opus 4.1 | -300% |
+| Architecture | Opus 4.1 or Sonnet-thinking | Opus 4.1 | Opus 4.1 | varies |
+
+**Estimated Savings:** 60-70% overall through intelligent routing
+
+**Context Window Strategy:**
+- <150K tokens: Claude Sonnet 4.5 or Haiku 4.5
+- 150K-200K tokens: Claude Sonnet 4.5 (200K context)
+- 200K-400K tokens: cursor-agent with gpt-5 (400K context)
+- >400K tokens: Chunking strategy or context compression
+</model_selection>
+
+---
+
+## Environment Variables Reference
+
+<environment_config>
+```bash
+# Model Assignment
+export CURSOR_MAIN_MODEL="sonnet-4.5"
+export CURSOR_REVIEW_MODEL="gpt-5-codex"
+export CURSOR_PLANNING_MODEL="sonnet-4.5-thinking"
+export CURSOR_SECURITY_MODEL="sonnet-4.5"
+export CURSOR_ANALYSIS_MODEL="sonnet-4.5"
+
+# Orchestration
+export CURSOR_ORCHESTRATION_MODE="adaptive"  # group_chat|handoff|adaptive
+export CURSOR_MAX_AGENTS="5"
+export CURSOR_AGENT_TIMEOUT="30s"
+
+# Error Recovery
+export CURSOR_MAX_RECOVERY_ATTEMPTS="3"
+export CURSOR_AUTO_RECOVERY="true"
+
+# Context
+export CURSOR_CONTEXT_STRATEGY="just_in_time"  # eager|lazy|just_in_time
+export CURSOR_MEMORY_BACKEND="vector"  # vector|kv|graph
+
+# Quality Gates
+export CURSOR_AUTO_FIX_SEVERITY="high"  # critical|high|medium|off
+export CURSOR_MIN_TEST_COVERAGE="80"
+export CURSOR_SECURITY_SCAN="mandatory"
+
+# Monitoring
+export CURSOR_METRICS_ENABLED="true"
+export CURSOR_LOG_LEVEL="info"
+```
+
+**How to Check in Tasks:**
+```bash
+# Always check configuration at task start
+echo "Agent Configuration:"
+env | grep CURSOR_ || echo "Using defaults"
+```
+</environment_config>
+
+---
+
+## Research Integration (Perplexity MCP)
+
+<research_protocol>
+**Use Perplexity MCP for external knowledge:**
+
+```bash
+# When encountering unknown technologies or patterns
+cursor-agent -p "Research best practices for [TECHNOLOGY/PATTERN]:
+
+Use Perplexity MCP to:
+1. Find current best practices
+2. Identify common pitfalls
+3. Retrieve code examples
+4. Check security considerations
+
+Return research summary:
+=== RESEARCH REPORT ===
+QUERY: [What was researched]
+SOURCES: [URLs and citations]
+FINDINGS: [Key insights]
+RECOMMENDATIONS: [Applied to our context]
+=== END REPORT ===" --model sonnet-4.5 --approve-mcps --print
+```
+</research_protocol>
+
+---
+
+## Complete Workflow Example (Dual-CLI)
+
+<workflow_example>
+**Task: "Add authentication system to Go project"**
+
+```bash
+#!/bin/bash
+# This demonstrates COMPLETE enhanced workflow with both CLIs
+
+echo "=== ENHANCED AGENTIC WORKFLOW EXECUTION (October 2025) ==="
+
+# Step 1: Check configuration
+echo -e "\n[1/10] Checking configuration..."
+ORCHESTRATION="${CURSOR_ORCHESTRATION_MODE:-adaptive}"
+MEMORY="${CURSOR_MEMORY_BACKEND:-vector}"
+echo "Mode: $ORCHESTRATION, Memory: $MEMORY"
+
+# Step 2: Memory retrieval (use claude for Anthropic model)
+echo -e "\n[2/10] Searching memory for similar patterns..."
+claude -p "Search .cursor/memory/ for previous authentication implementations.
+Return: Patterns found, success rate, key learnings." \
+  --model claude-sonnet-4-5-20250929 \
+  --allowedTools "Read,Grep" \
+  --output-format text
+
+# Step 3: Planning with Step-Back prompting (use Opus for complex planning)
+echo -e "\n[3/10] Spawning planning agent (Step-Back approach)..."
+claude -p "Create implementation plan for authentication system.
+
+<step_back>
+BEFORE diving into specifics, answer these abstract questions:
+1. What are the fundamental design principles for authentication systems?
+2. What patterns have historically succeeded/failed for similar problems?
+3. What are the critical quality attributes (security, performance, maintainability)?
+4. How does auth fit into our broader system architecture?
+</step_back>
+
+<memory_retrieval>
+Search for similar past implementations and learn from them.
+</memory_retrieval>
+
+<concrete_plan>
+Now apply abstract principles to create specific plan:
+
+PLAN STRUCTURE (return as TEXT REPORT):
+=== PLANNING AGENT REPORT ===
+REQUEST: [Authentication system implementation]
+ABSTRACT PRINCIPLES APPLIED: [From step-back analysis]
+MEMORY PATTERNS USED: [From retrieval]
+
+1. OVERVIEW & SUCCESS CRITERIA
+2. FILE IMPACT ANALYSIS
+3. ARCHITECTURAL DECISIONS
+4. IMPLEMENTATION STEPS (with dependencies)
+5. EDGE CASES & ERROR SCENARIOS
+6. SECURITY THREAT MODEL
+7. TESTING STRATEGY
+8. PERFORMANCE BUDGET
+9. ROLLBACK PROCEDURE
+10. MONITORING PLAN
+
+SUMMARY: [Key decisions]
+CONFIDENCE LEVEL: [High/Medium/Low]
+=== END REPORT ===
+</concrete_plan>
+
+Use chain-of-thought for complex decisions." \
+  --model claude-opus-4-1-20250805 \
+  --allowedTools "Read,Grep" \
+  --output-format text \
+  --verbose
+
+# Step 4: Implementation (use Sonnet 4.5 for best coding)
+echo -e "\n[4/10] Implementing changes..."
+claude -p "Implement the authentication system according to plan.
+Use Step-Back principles identified earlier.
+Report all changes made." \
+  --model claude-sonnet-4-5-20250929 \
+  --allowedTools "Read,Write,Edit,MultiEdit,Bash(git:*)" \
+  --output-format text
+
+# Step 5: Code review with Chain-of-Verification (use Sonnet)
+echo -e "\n[5/10] Spawning review agent (Chain-of-Verification)..."
+claude -p "Review authentication implementation using verification loop:
+
+<initial_review>
+STEP 1: Generate initial findings
+Analyze changes for bugs, security issues, code quality.
+</initial_review>
+
+<verification_questions>
+STEP 2: For each finding, ask:
+□ Is this actually a bug or style preference?
+□ What evidence supports this being a problem?
+□ Could this be a false positive?
+□ What's the actual impact if left unfixed?
+</verification_questions>
+
+<independent_verification>
+STEP 3: Re-examine each issue independently
+Verify without confirmation bias.
+</independent_verification>
+
+<final_report>
+STEP 4: Produce verified report
+
+=== CODE REVIEW REPORT ===
+TASK CONTEXT: [Authentication implementation]
+FILES REVIEWED: [List]
+REVIEW METHOD: Chain-of-Verification
+
+VERIFIED ISSUES: [Count by severity]
+- CRITICAL: [Count]
+- HIGH: [Count]
+- MEDIUM: [Count]
+
+DETAILED FINDINGS:
+[For each verified issue with location, evidence, fix]
+
+FALSE POSITIVES FILTERED: [Count]
+
+REVIEW SUMMARY: [PASS/FAIL]
+CONFIDENCE: [High/Medium/Low]
+=== END REPORT ===
+</final_report>" \
+  --model claude-sonnet-4-5-20250929 \
+  --allowedTools "Read,Grep" \
+  --output-format json > review-results.json
+
+# Step 6: Auto-fix high-severity issues
+echo -e "\n[6/10] Auto-fixing HIGH/CRITICAL issues..."
+CRITICAL_COUNT=$(jq '.findings | map(select(.severity == "CRITICAL")) | length' review-results.json)
+HIGH_COUNT=$(jq '.findings | map(select(.severity == "HIGH")) | length' review-results.json)
+
+if [[ $CRITICAL_COUNT -gt 0 ]] || [[ $HIGH_COUNT -gt 0 ]]; then
+  claude -p "Fix all CRITICAL and HIGH severity issues from review:
+$(cat review-results.json | jq -r '.findings | map(select(.severity == "CRITICAL" or .severity == "HIGH")) | .[] | \"- \\(.location): \\(.problem)\"')
+
+Report what was fixed:
+=== AUTO-FIX REPORT ===
+ISSUES ADDRESSED: [Count]
+FILES MODIFIED: [List]
+CHANGES MADE: [Details]
+=== END REPORT ===" \
+    --model claude-sonnet-4-5-20250929 \
+    --allowedTools "Read,Edit,MultiEdit" \
+    --output-format text
+fi
+
+# Step 7: Security validation (use Sonnet with security focus)
+echo -e "\n[7/10] Running security scan..."
+claude -p "Perform comprehensive security analysis on authentication code.
+
+Analyze for OWASP Top 10 vulnerabilities:
+1. Injection vulnerabilities
+2. Authentication/authorization flaws
+3. Sensitive data exposure
+4. XXE and insecure deserialization
+5. Security misconfiguration
+6. XSS and CSRF
+7. Insecure dependencies
+8. Insufficient logging
+9. SSRF and business logic flaws
+10. Prompt injection (if AI components)
+
+=== SECURITY ANALYSIS REPORT ===
+SCOPE: [Files analyzed]
+VULNERABILITIES FOUND: [Total by severity]
+
+[For each vulnerability]
+[#N] [SEVERITY] - [Name]
+├─ CWE: [ID] | CVSS: [Score]
+├─ Location: [File:Line]
+├─ Description: [Details]
+├─ Proof of Concept: [How to exploit]
+├─ Remediation: [Fix with code]
+└─ Status: [FIXED/PENDING]
+
+AUTO-FIXES APPLIED: [List]
+SECURITY POSTURE: [PASS/FAIL]
+=== END REPORT ===" \
+  --model claude-sonnet-4-5-20250929 \
+  --allowedTools "Read,Edit,Grep" \
+  --output-format text
+
+# Step 8: Test generation (use Haiku for speed on this task)
+echo -e "\n[8/10] Generating tests..."
+claude -p "Generate comprehensive tests for authentication system.
+
+Target coverage: ${CURSOR_MIN_TEST_COVERAGE:-80}%
+
+Include:
+- Unit tests for core functions
+- Integration tests for auth flow
+- Edge case tests (expired tokens, concurrent sessions)
+- Security tests (injection attempts, bypass attempts)
+
+=== TEST GENERATION REPORT ===
+REQUEST: [Test generation for auth]
+SCOPE: [Functions tested]
+
+COVERAGE ANALYSIS:
+├─ Before: Line [X%], Branch [Y%]
+└─ After: Line [X2%], Branch [Y2%]
+
+TESTS GENERATED: [Count]
+
+AUTO-GENERATED (High Confidence):
+1. test_[name]: [What it tests]
+   - Type: [Unit/Integration/Security]
+   - Coverage: +[X%]
+
+FILES CREATED: [List]
+FINAL STATUS: [PASS/FAIL target]
+=== END REPORT ===" \
+  --model claude-haiku-4-5-20251001 \
+  --allowedTools "Read,Write,Bash(go test:*)" \
+  --output-format text
+
+# Step 9: Store pattern in memory (use claude for consistency)
+echo -e "\n[9/10] Updating memory..."
+claude -p "Store authentication implementation pattern in memory:
+
+Backend: .cursor/memory/$MEMORY
+Pattern: Auth system with JWT, middleware, user management, OAuth2
+Technologies: Go, JWT, bcrypt, session management
+Outcome: Success
+Learnings: [Key insights from this implementation]
+
+Confirm storage:
+=== MEMORY UPDATE ===
+PATTERN STORED: [Name]
+LOCATION: .cursor/memory/$MEMORY
+STATUS: [SUCCESS/FAILED]
+=== END REPORT ===" \
+  --model claude-sonnet-4-5-20250929 \
+  --allowedTools "Read,Write" \
+  --output-format text
+
+# Step 10: Update improvement log
+echo -e "\n[10/10] Logging completion..."
+cat >> .cursor/improvement-log.md <<EOF
+## $(date +%Y-%m-%d) - Authentication System Implementation
+
+### Multi-Agent Workflow (Claude Code + cursor-agent)
+- **Planning**: Claude Opus 4.1 with Step-Back prompting
+- **Implementation**: Claude Sonnet 4.5 (best coding model)
+- **Review**: Claude Sonnet 4.5 with Chain-of-Verification
+- **Security**: Claude Sonnet 4.5 (OWASP Top 10 analysis)
+- **Testing**: Claude Haiku 4.5 (fast, cost-effective)
+
+### Techniques Applied
+- Step-Back prompting for planning (36% improvement)
+- Chain-of-Verification for reviews (15-23% fewer false positives)
+- Intelligent model routing for cost optimization
+
+### Outcome
+- ✅ Success: Auth system implemented with JWT + OAuth2
+- ✅ Security: No CRITICAL vulnerabilities found
+- ✅ Coverage: ${CURSOR_MIN_TEST_COVERAGE:-80}% achieved
+- ✅ Pattern stored in memory for future reference
+
+### Cost Optimization
+- Total cost: \$X.XX
+- Savings: ~70% through intelligent routing (vs all-Opus)
+- Models: Opus (plan) + Sonnet (code/review) + Haiku (tests)
+
+### Session IDs
+- Planning: [session-id-1]
+- Implementation: [session-id-2]
+- Available for future reference via \`claude -r\`
+EOF
+
+echo -e "\n=== WORKFLOW COMPLETE ==="
+echo "Results:"
+echo "  - Plan: Planning report generated"
+echo "  - Code: Authentication system implemented"
+echo "  - Review: $(jq -r '.summary' review-results.json 2>/dev/null || echo 'Complete')"
+echo "  - Security: Security analysis complete"
+echo "  - Tests: Test suite generated"
+echo "  - Memory: Pattern stored"
+echo ""
+echo "Use 'claude -c' to continue this session"
+echo "Use 'claude --resume [session-id]' to revisit specific phases"
+```
+
+**Key Differences from v1.0:**
+- ✅ Uses `claude` CLI for all Anthropic models (Opus 4.1, Sonnet 4.5, Haiku 4.5)
+- ✅ Intelligent model selection (Opus → planning, Sonnet → coding, Haiku → tests)
+- ✅ Latest model names from October 2025
+- ✅ Tool restrictions with `--allowedTools` for security
+- ✅ JSON output with `jq` processing for programmatic workflows
+- ✅ Session IDs logged for future reference
+- ✅ Cost tracking and optimization metrics
+- ✅ 70% cost savings through intelligent routing
+</workflow_example>
+
+---
+
+## Production Metrics & SLOs
+
+<metrics>
+**Key Performance Indicators:**
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Task Success Rate | ≥85% | Tasks completed without errors |
+| Tool Call Error Rate | <3% | Failed tool invocations |
+| Recovery Success Rate | ≥75% | Errors resolved by recovery agent |
+| False Positive Rate (Review) | <15% | Invalid issues flagged (improved via CoVe) |
+| Security Finding Accuracy | ≥90% | True vulnerabilities detected |
+| Test Coverage Generated | ≥80% | Lines covered by generated tests |
+| Cost per Task | Varies | Token usage × model cost |
+
+**Latency Targets:**
+- P50 Single-Turn: <2s
+- P95 Single-Turn: <5s
+- P50 Multi-Agent: <10s
+- P95 Multi-Agent: <30s
+
+**Monitoring:**
+```bash
+# Log metrics for each task
+log_metrics() {
+  echo "$(date +%s)|$TASK_TYPE|$MODEL|$TOKENS|$LATENCY|$SUCCESS" \
+    >> .cursor/metrics.log
+}
+```
+</metrics>

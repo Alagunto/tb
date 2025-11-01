@@ -24,7 +24,7 @@ type MessageEntity struct {
 	Language string `json:"language,omitempty"`
 
 	// (Optional) For EntityCustomEmoji entity type only.
-	CustomEmojiID string `json:"custom_emoji_id"`
+	CustomEmojiID string `json:"custom_emoji_id,omitempty"`
 }
 
 // Entities are used to set message's text entities as a send option.

@@ -246,7 +246,9 @@ func main() {
 
 	log.Println("Bot started! Press Ctrl+C to stop.")
 	log.Printf("Admins: %v", getAdminIDs())
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func getAdminIDs() []int64 {
